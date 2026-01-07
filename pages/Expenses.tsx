@@ -5,7 +5,6 @@ import {
 
 import { expenseService, Expense, ExpenseCategory } from '../services/expenseService';
 import { withdrawalService, Withdrawal } from '../services/withdrawalService';
-import { hospitalService } from '../services/hospitalService';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -36,8 +35,6 @@ const Expenses: React.FC = () => {
    const [expenses, setExpenses] = useState<Expense[]>([]);
    const [categories, setCategories] = useState<ExpenseCategory[]>([]);
    const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
-   const [hospitals, setHospitals] = useState<any[]>([]);
-   const [selectedHospitalId, setSelectedHospitalId] = useState<string>('');
    const [chartYear, setChartYear] = useState(new Date().getFullYear().toString());
 
    // Date Selector States
@@ -87,7 +84,7 @@ const Expenses: React.FC = () => {
    const fetchData = async () => {
       setIsLoading(true);
       try {
-         const hospitalId = selectedHospitalId || user?.hospitalId || undefined;
+         const hospitalId = user?.hospitalId || undefined;
          const filters = {
             startDate: formatDateForInput(tempStartDate),
             endDate: formatDateForInput(tempEndDate),
@@ -111,18 +108,8 @@ const Expenses: React.FC = () => {
 
 
    useEffect(() => {
-      const fetchHospitals = async () => {
-         if (user?.role === 'ADMIN') {
-            const data = await hospitalService.getAll();
-            setHospitals(data);
-         }
-      };
-      fetchHospitals();
-   }, [user?.role]);
-
-   useEffect(() => {
       fetchData();
-   }, [tempStartDate, tempEndDate, user?.hospitalId, selectedHospitalId]);
+   }, [tempStartDate, tempEndDate, user?.hospitalId]);
 
    // Derived Data
    const totalOperatingExpenses = expenses.reduce((acc, curr) => acc + Number(curr.value), 0);
@@ -498,25 +485,6 @@ const Expenses: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 flex-wrap xl:justify-end">
-               {/* Hospital Select (Admin only) */}
-               {user?.role === 'ADMIN' ? (
-                  <div className="relative w-full sm:w-auto">
-                     <select
-                        value={selectedHospitalId}
-                        onChange={(e) => setSelectedHospitalId(e.target.value)}
-                        className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-2.5 pl-5 pr-12 rounded-xl font-bold text-xs focus:outline-none focus:ring-2 focus:ring-primary shadow-sm w-full sm:w-64 cursor-pointer"
-                     >
-                        <option value="">Todos os Hospitais</option>
-                        {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-                     </select>
-                     <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">expand_more</span>
-                  </div>
-               ) : user?.hospitalName && (
-                  <div className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                     <span className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">{user?.hospitalName}</span>
-                  </div>
-               )}
                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
                   {['Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
                      <button
