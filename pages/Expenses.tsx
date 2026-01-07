@@ -701,7 +701,7 @@ const Expenses: React.FC = () => {
                                  <span className="font-black text-purple-600 dark:text-purple-400 text-sm">{formatCurrency(item.value)}</span>
                                  <button
                                     onClick={() => handleDeleteWithdrawal(item.id)}
-                                    className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                    className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors p-1.5 rounded-lg"
                                     title="Excluir Rateio"
                                  >
                                     <span className="material-symbols-outlined text-[16px]">delete</span>
