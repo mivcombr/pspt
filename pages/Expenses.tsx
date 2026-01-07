@@ -501,7 +501,8 @@ const Expenses: React.FC = () => {
    };
 
    return (
-      <div className="max-w-[1600px] mx-auto space-y-6 pb-12 relative font-sans">
+      <>
+         <div className="max-w-[1600px] mx-auto space-y-6 pb-12 relative font-sans">
          {/* --- HEADER --- */}
          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 pb-4">
             <div>
@@ -1028,16 +1029,17 @@ const Expenses: React.FC = () => {
                </div>
             </div>
          )}
-      </div>
+         </div>
 
-      <ConfirmModal
-         isOpen={confirmModal.isOpen}
-         title={confirmModal.title}
-         message={confirmModal.message}
-         variant={confirmModal.variant}
-         onConfirm={confirmModal.onConfirm}
-         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-      />
+         <ConfirmModal
+            isOpen={confirmModal.isOpen}
+            title={confirmModal.title}
+            message={confirmModal.message}
+            variant={confirmModal.variant}
+            onConfirm={confirmModal.onConfirm}
+            onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+         />
+      </>
    );
 };
 
