@@ -15,7 +15,6 @@ import { ConfirmModal } from '../components/ConfirmModal';
 const Hospitals: React.FC = () => {
     const { user } = useAuth();
     const notify = useNotification();
-    const [viewMode, setViewMode] = useState<'details' | 'settings'>('details');
     const [activeTab, setActiveTab] = useState<'Consulta' | 'Exame' | 'Cirurgia'>('Consulta');
 
     const [hospitals, setHospitals] = useState<any[]>([]);
@@ -48,6 +47,8 @@ const Hospitals: React.FC = () => {
     const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'RECEPTION' as 'RECEPTION' | 'FINANCIAL' });
     const [isEditingUser, setIsEditingUser] = useState(false);
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [isUserFormOpen, setIsUserFormOpen] = useState(false);
+    const [isDoctorFormOpen, setIsDoctorFormOpen] = useState(false);
 
     // Payment Method State
     const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
@@ -186,6 +187,7 @@ const Hospitals: React.FC = () => {
             });
             notify.success('Médico criado com sucesso!');
             setDoctorForm({ name: '', specialty: '', crm: '' });
+            setIsDoctorFormOpen(false);
             fetchHospitalDetails(selectedHospital.id);
         } catch (err) {
             console.error('Error creating doctor:', err);
@@ -247,6 +249,7 @@ const Hospitals: React.FC = () => {
             setUserForm({ name: '', email: '', password: '', role: 'RECEPTION' });
             setIsEditingUser(false);
             setEditingUserId(null);
+            setIsUserFormOpen(false);
             fetchHospitalDetails(selectedHospital.id);
         } catch (err: any) {
             console.error('Error saving user:', err);
@@ -390,8 +393,7 @@ const Hospitals: React.FC = () => {
             {/* Main Content */}
             <div className="flex-1 rounded-3xl min-w-0 w-full">
                 {selectedHospital ? (
-                    viewMode === 'details' ? (
-                        <div className="space-y-6">
+                    <div className="space-y-6">
                             {/* Hospital Header Card-Details Mode */}
                             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
                                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
@@ -408,13 +410,6 @@ const Hospitals: React.FC = () => {
                                         <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Detalhes e configurações do parceiro.</p>
                                     </div>
                                     <div className="flex gap-3">
-                                        <button
-                                            onClick={() => setViewMode('settings')}
-                                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 text-sm font-bold transition-colors"
-                                            title="Configurar Valores e Repasses"
-                                        >
-                                            <span className="material-symbols-outlined text-[20px]">settings</span>
-                                        </button>
                                         <button
                                             onClick={handleDeleteHospital}
                                             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 text-sm font-bold transition-colors"
@@ -459,6 +454,13 @@ const Hospitals: React.FC = () => {
                             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-xl font-bold text-slate-900 dark:text-white">Usuários do Hospital</h3>
+                                    <button
+                                        onClick={() => setIsUserFormOpen((prev) => !prev)}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 text-xs font-bold transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">{isUserFormOpen ? 'close' : 'person_add'}</span>
+                                        {isUserFormOpen ? 'Fechar' : 'Criar Usuário'}
+                                    </button>
                                 </div>
 
                                 {hospitalUsers.length > 0 ? (
@@ -489,6 +491,7 @@ const Hospitals: React.FC = () => {
                                                     onClick={() => {
                                                         setEditingUserId(u.id);
                                                         setIsEditingUser(true);
+                                                        setIsUserFormOpen(true);
                                                         setUserForm({
                                                             name: u.name,
                                                             email: u.email || '',
@@ -515,92 +518,102 @@ const Hospitals: React.FC = () => {
                                 )}
 
                                 {/* Create User Form */}
-                                <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h4 className="text-primary font-bold flex items-center gap-2 text-sm">
-                                            <span className="material-symbols-outlined text-[20px]">{isEditingUser ? 'edit' : 'person_add'}</span>
-                                            {isEditingUser ? 'Editar Usuário' : 'Criar Novo Usuário'}
-                                        </h4>
-                                        {isEditingUser && (
-                                            <button
-                                                onClick={() => {
-                                                    setIsEditingUser(false);
-                                                    setEditingUserId(null);
-                                                    setUserForm({ name: '', email: '', password: '', role: 'RECEPTION' });
-                                                }}
-                                                className="text-xs font-bold text-slate-500 hover:text-slate-700 underline"
-                                            >
-                                                Cancelar Edição
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nome Completo</label>
-                                                <input
-                                                    type="text"
-                                                    value={userForm.name}
-                                                    onChange={e => setUserForm({ ...userForm, name: e.target.value })}
-                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                    placeholder="Ex: Maria Souza"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">E-mail</label>
-                                                <input
-                                                    type="email"
-                                                    value={userForm.email}
-                                                    disabled={isEditingUser}
-                                                    onChange={e => setUserForm({ ...userForm, email: e.target.value })}
-                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm disabled:opacity-50"
-                                                    placeholder="exemplo@email.com"
-                                                />
-                                            </div>
-                                            {!isEditingUser && (
+                                {(isUserFormOpen || isEditingUser) && (
+                                    <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h4 className="text-primary font-bold flex items-center gap-2 text-sm">
+                                                <span className="material-symbols-outlined text-[20px]">{isEditingUser ? 'edit' : 'person_add'}</span>
+                                                {isEditingUser ? 'Editar Usuário' : 'Criar Novo Usuário'}
+                                            </h4>
+                                            {isEditingUser && (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsEditingUser(false);
+                                                        setEditingUserId(null);
+                                                        setIsUserFormOpen(false);
+                                                        setUserForm({ name: '', email: '', password: '', role: 'RECEPTION' });
+                                                    }}
+                                                    className="text-xs font-bold text-slate-500 hover:text-slate-700 underline"
+                                                >
+                                                    Cancelar Edição
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Senha</label>
+                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nome Completo</label>
                                                     <input
-                                                        type="password"
-                                                        value={userForm.password}
-                                                        onChange={e => setUserForm({ ...userForm, password: e.target.value })}
+                                                        type="text"
+                                                        value={userForm.name}
+                                                        onChange={e => setUserForm({ ...userForm, name: e.target.value })}
                                                         className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                        placeholder="••••••••"
+                                                        placeholder="Ex: Maria Souza"
                                                     />
                                                 </div>
-                                            )}
-                                            <div>
-                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nível de Acesso</label>
-                                                <div className="relative">
-                                                    <select
-                                                        value={userForm.role}
-                                                        onChange={e => setUserForm({ ...userForm, role: e.target.value as 'RECEPTION' | 'FINANCIAL' })}
-                                                        className="w-full h-11 pl-4 pr-10 appearance-none rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm text-slate-700 dark:text-white"
-                                                    >
-                                                        <option value="RECEPTION">Recepção</option>
-                                                        <option value="FINANCIAL">Financeiro</option>
-                                                    </select>
-                                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+                                                <div>
+                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">E-mail</label>
+                                                    <input
+                                                        type="email"
+                                                        value={userForm.email}
+                                                        disabled={isEditingUser}
+                                                        onChange={e => setUserForm({ ...userForm, email: e.target.value })}
+                                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm disabled:opacity-50"
+                                                        placeholder="exemplo@email.com"
+                                                    />
+                                                </div>
+                                                {!isEditingUser && (
+                                                    <div>
+                                                        <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Senha</label>
+                                                        <input
+                                                            type="password"
+                                                            value={userForm.password}
+                                                            onChange={e => setUserForm({ ...userForm, password: e.target.value })}
+                                                            className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                                            placeholder="••••••••"
+                                                        />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nível de Acesso</label>
+                                                    <div className="relative">
+                                                        <select
+                                                            value={userForm.role}
+                                                            onChange={e => setUserForm({ ...userForm, role: e.target.value as 'RECEPTION' | 'FINANCIAL' })}
+                                                            className="w-full h-11 pl-4 pr-10 appearance-none rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm text-slate-700 dark:text-white"
+                                                        >
+                                                            <option value="RECEPTION">Recepção</option>
+                                                            <option value="FINANCIAL">Financeiro</option>
+                                                        </select>
+                                                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex justify-end pt-2">
-                                            <button
-                                                onClick={handleSaveUser}
-                                                disabled={isSaving}
-                                                className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                {isSaving ? 'Salvando...' : (isEditingUser ? 'Atualizar Usuário' : 'Salvar Usuário')}
-                                            </button>
+                                            <div className="flex justify-end pt-2">
+                                                <button
+                                                    onClick={handleSaveUser}
+                                                    disabled={isSaving}
+                                                    className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isSaving ? 'Salvando...' : (isEditingUser ? 'Atualizar Usuário' : 'Salvar Usuário')}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* Hospital Doctors Section */}
                             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700 mt-6">
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-xl font-bold text-slate-900 dark:text-white">Médicos do Hospital</h3>
+                                    <button
+                                        onClick={() => setIsDoctorFormOpen((prev) => !prev)}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 text-xs font-bold transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">{isDoctorFormOpen ? 'close' : 'person_add'}</span>
+                                        {isDoctorFormOpen ? 'Fechar' : 'Cadastrar Médico'}
+                                    </button>
                                 </div>
 
                                 {hospitalDoctors.length > 0 ? (
@@ -635,54 +648,56 @@ const Hospitals: React.FC = () => {
                                 )}
 
                                 {/* Create Doctor Form */}
-                                <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
-                                    <h4 className="text-primary font-bold flex items-center gap-2 mb-4 text-sm">
-                                        <span className="material-symbols-outlined text-[20px]">person_add</span> Cadastrar Novo Médico
-                                    </h4>
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nome Completo</label>
-                                                <input
-                                                    type="text"
-                                                    value={doctorForm.name}
-                                                    onChange={e => setDoctorForm({ ...doctorForm, name: e.target.value })}
-                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                    placeholder="Dr. Nome Exemplo"
-                                                />
+                                {isDoctorFormOpen && (
+                                    <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                                        <h4 className="text-primary font-bold flex items-center gap-2 mb-4 text-sm">
+                                            <span className="material-symbols-outlined text-[20px]">person_add</span> Cadastrar Novo Médico
+                                        </h4>
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div>
+                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nome Completo</label>
+                                                    <input
+                                                        type="text"
+                                                        value={doctorForm.name}
+                                                        onChange={e => setDoctorForm({ ...doctorForm, name: e.target.value })}
+                                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                                        placeholder="Dr. Nome Exemplo"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Especialidade</label>
+                                                    <input
+                                                        type="text"
+                                                        value={doctorForm.specialty}
+                                                        onChange={e => setDoctorForm({ ...doctorForm, specialty: e.target.value })}
+                                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                                        placeholder="Ex: Cardiologia"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">CRM</label>
+                                                    <input
+                                                        type="text"
+                                                        value={doctorForm.crm}
+                                                        onChange={e => setDoctorForm({ ...doctorForm, crm: e.target.value })}
+                                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                                        placeholder="00000-UF"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Especialidade</label>
-                                                <input
-                                                    type="text"
-                                                    value={doctorForm.specialty}
-                                                    onChange={e => setDoctorForm({ ...doctorForm, specialty: e.target.value })}
-                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                    placeholder="Ex: Cardiologia"
-                                                />
+                                            <div className="flex justify-end pt-2">
+                                                <button
+                                                    onClick={handleCreateDoctor}
+                                                    disabled={isSaving}
+                                                    className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md"
+                                                >
+                                                    {isSaving ? 'Salvando...' : 'Salvar Médico'}
+                                                </button>
                                             </div>
-                                            <div>
-                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">CRM</label>
-                                                <input
-                                                    type="text"
-                                                    value={doctorForm.crm}
-                                                    onChange={e => setDoctorForm({ ...doctorForm, crm: e.target.value })}
-                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                    placeholder="00000-UF"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-end pt-2">
-                                            <button
-                                                onClick={handleCreateDoctor}
-                                                disabled={isSaving}
-                                                className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md"
-                                            >
-                                                {isSaving ? 'Salvando...' : 'Salvar Médico'}
-                                            </button>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* Hospital Documents Section */}
@@ -777,25 +792,6 @@ const Hospitals: React.FC = () => {
                                         <p className="text-slate-500 text-sm font-medium">Nenhum documento anexado.</p>
                                     </div>
                                 )}
-                            </div>
-                        </div>
-                    ) : (
-                        // Settings Mode View
-                        <div className="flex flex-col gap-6 mb-6">
-                            {/* HEADER ACTIONS */}
-                            <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm card-shadow border border-slate-200 dark:border-slate-700">
-                                <div className="flex items-center gap-2 text-slate-500 cursor-pointer hover:text-slate-900 transition-colors" onClick={() => setViewMode('details')}>
-                                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                                        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-                                    </div>
-                                    <span className="text-sm font-bold">Voltar aos Detalhes</span>
-                                </div>
-                                <button
-                                    onClick={() => setViewMode('details')}
-                                    className="bg-green-600 text-white hover:bg-green-700 px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-green-600/30 transition-colors flex items-center gap-2"
-                                >
-                                    <span className="material-symbols-outlined text-[20px]">check</span> Finalizar Edição
-                                </button>
                             </div>
 
                             {/* BLOCK 0: STATUS */}
@@ -973,7 +969,6 @@ const Hospitals: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    )
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full text-slate-500 py-20">
                         <span className="material-symbols-outlined text-6xl mb-4">domain_disabled</span>
