@@ -7,6 +7,7 @@ import { expenseService, Expense, ExpenseCategory } from '../services/expenseSer
 import { withdrawalService, Withdrawal } from '../services/withdrawalService';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 const renderCustomLabel = (props: any) => {
    const { x, y, value, stroke } = props;
@@ -57,6 +58,19 @@ const Expenses: React.FC = () => {
    const [isSaving, setIsSaving] = useState(false);
    const [isSavingWithdrawal, setIsSavingWithdrawal] = useState(false);
    const [isSavingCategory, setIsSavingCategory] = useState(false);
+   const [confirmModal, setConfirmModal] = useState<{
+      isOpen: boolean;
+      title: string;
+      message: string;
+      onConfirm: () => void;
+      variant?: 'danger' | 'warning' | 'info';
+   }>({
+      isOpen: false,
+      title: '',
+      message: '',
+      onConfirm: () => { },
+      variant: 'info',
+   });
 
    // Form State
    const [formData, setFormData] = useState({
@@ -432,13 +446,24 @@ const Expenses: React.FC = () => {
    };
 
    const handleDeleteWithdrawal = async (id: string) => {
-      if (!window.confirm('Excluir este rateio/retirada?')) return;
       try {
          await withdrawalService.delete(id);
          fetchData();
       } catch (err) {
          console.error('Error deleting withdrawal:', err);
       }
+   };
+
+   const requestDeleteWithdrawal = (id: string) => {
+      setConfirmModal({
+         isOpen: true,
+         title: 'Excluir Rateio',
+         message: 'Tem certeza que deseja remover este rateio?',
+         variant: 'danger',
+         onConfirm: async () => {
+            await handleDeleteWithdrawal(id);
+         },
+      });
    };
 
    const handleMarkAsPaid = async (expense: Expense) => {
@@ -700,7 +725,7 @@ const Expenses: React.FC = () => {
                               <div className="flex items-center gap-2">
                                  <span className="font-black text-purple-600 dark:text-purple-400 text-sm">{formatCurrency(item.value)}</span>
                                  <button
-                                    onClick={() => handleDeleteWithdrawal(item.id)}
+                                    onClick={() => requestDeleteWithdrawal(item.id)}
                                     className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors p-1.5 rounded-lg"
                                     title="Excluir Rateio"
                                  >
@@ -1004,6 +1029,15 @@ const Expenses: React.FC = () => {
             </div>
          )}
       </div>
+
+      <ConfirmModal
+         isOpen={confirmModal.isOpen}
+         title={confirmModal.title}
+         message={confirmModal.message}
+         variant={confirmModal.variant}
+         onConfirm={confirmModal.onConfirm}
+         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
    );
 };
 
