@@ -275,26 +275,26 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Row 1: Big KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="flex items-center gap-4 p-5 relative overflow-hidden group">
-                    <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="flex items-center gap-4 p-5 relative overflow-hidden group min-h-[110px]">
+                    <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                         <span className="material-symbols-outlined text-[24px]">attach_money</span>
                     </div>
-                    <div className="flex-1">
-                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
-                        <h3 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500">
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
+                        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 truncate">
                             {formatCurrencyNoDecimals(dashboardData.totals.revenue)}
                         </h3>
                     </div>
                 </Card>
 
-                <Card className="flex items-center gap-4 p-5 relative overflow-hidden group">
-                    <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover">
+                <Card className="flex items-center gap-4 p-5 relative overflow-hidden group min-h-[110px]">
+                    <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                         <span className="material-symbols-outlined text-[24px]">payments</span>
                     </div>
-                    <div className="flex-1">
-                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
-                        <h3 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500">
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
+                        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 truncate">
                             {formatCurrencyNoDecimals(dashboardData.totals.repasse)}
                         </h3>
                     </div>
@@ -302,22 +302,22 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Row 2: Detailed Service KPIs - CLEAN STYLE */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[
                     { title: 'Consultas', count: dashboardData.totals.consultas, value: formatCurrency(dashboardData.totals.consultas_revenue || 0), icon: 'event_note' },
                     { title: 'Exames', count: dashboardData.totals.exames, value: formatCurrency(dashboardData.totals.exames_revenue || 0), icon: 'biotech' },
                     { title: 'Cirurgias', count: dashboardData.totals.cirurgias, value: formatCurrency(dashboardData.totals.cirurgias_revenue || 0), icon: 'medical_services' }
                 ].map((item, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover">
+                    <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row xl:items-center justify-between gap-3 min-w-0">
+                        <div className="flex items-center gap-4 min-w-0">
+                            <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                                 <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
                             </div>
-                            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
                                 {item.title} <span className="font-normal opacity-70">({formatNumber(item.count)})</span>
                             </p>
                         </div>
-                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in">{item.value}</h3>
+                        <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in truncate">{item.value}</h3>
                     </div>
                 ))}
             </div>
@@ -409,22 +409,22 @@ const Dashboard: React.FC = () => {
                         </ResponsiveContainer>
                     </div>
 
-                    <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 p-8 flex flex-col justify-center space-y-10 bg-slate-50/30 dark:bg-slate-800/20">
-                        <div>
+                    <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 p-8 flex flex-col justify-center space-y-8 lg:space-y-10 bg-slate-50/30 dark:bg-slate-800/20">
+                        <div className="min-w-0">
                             <span className="inline-flex items-center justify-center p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-500 mb-3 border border-slate-200 dark:border-slate-700 shadow-sm">
                                 <span className="material-symbols-outlined text-[20px]">calendar_today</span>
                             </span>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">Total Faturado</p>
-                            <h4 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight animate-in fade-in">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1 truncate">Total Faturado</p>
+                            <h4 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight animate-in fade-in truncate">
                                 {formatCurrency(dashboardData.totals.revenue)}
                             </h4>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <span className="inline-flex items-center justify-center p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-primary mb-3 border border-red-100 dark:border-red-900/30 shadow-sm">
                                 <span className="material-symbols-outlined text-[20px]">outbound</span>
                             </span>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">Total Repassado</p>
-                            <h4 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight animate-in fade-in">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1 truncate">Total Repassado</p>
+                            <h4 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight animate-in fade-in truncate">
                                 {formatCurrency(dashboardData.totals.repasse)}
                             </h4>
                         </div>
@@ -588,7 +588,7 @@ const Dashboard: React.FC = () => {
                                             setActiveDateFilter('Personalizado');
                                             setIsCalendarOpen(false);
                                         }}
-                                        className="px-8 py-2.5 rounded-xl text-sm font-bold bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 transition-all transform active:scale-95"
+                                        className="px-8 py-2.5 rounded-xl text-sm font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 transition-all transform active:scale-95"
                                     >
                                         ATUALIZAR
                                     </button>

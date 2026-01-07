@@ -7,14 +7,20 @@ export interface Procedure {
     cash_price: number;
     repasse_value: number;
     type: 'Consulta' | 'Exame' | 'Cirurgia';
+    hospital_id?: string;
 }
 
 export const procedureService = {
-    async getAll() {
-        const { data, error } = await supabase
+    async getAll(hospitalId?: string) {
+        let query = supabase
             .from('procedures_price_list')
-            .select('*')
-            .order('name');
+            .select('*');
+
+        if (hospitalId) {
+            query = query.eq('hospital_id', hospitalId);
+        }
+
+        const { data, error } = await query.order('name');
 
         if (error) throw error;
         return data as Procedure[];
@@ -49,7 +55,6 @@ export const procedureService = {
         if (error) throw error;
         return data;
     },
-
     async delete(id: string) {
         const { error } = await supabase
             .from('procedures_price_list')

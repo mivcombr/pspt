@@ -827,7 +827,7 @@ const Expenses: React.FC = () => {
 
                      <div className="px-8 py-5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end">
                         <button onClick={() => setIsCalendarOpen(false)} className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-200 transition-colors uppercase">Cancelar</button>
-                        <button onClick={() => { setActiveDateFilter('Personalizado'); setIsCalendarOpen(false); }} className="px-8 py-2.5 rounded-xl text-sm font-bold bg-primary text-white shadow-lg shadow-primary/20 ml-3 uppercase">Aplicar</button>
+                        <button onClick={() => { setActiveDateFilter('Personalizado'); setIsCalendarOpen(false); }} className="px-8 py-2.5 rounded-xl text-sm font-bold bg-green-600 text-white shadow-lg shadow-green-600/20 ml-3 uppercase">Aplicar</button>
                      </div>
                   </div>
                </div>
@@ -890,7 +890,7 @@ const Expenses: React.FC = () => {
                   </div>
                   <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
                      <button onClick={() => setIsExpenseModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase text-xs">Cancelar</button>
-                     <button onClick={handleSaveExpense} disabled={isSaving} className="px-8 py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30 transition-all flex items-center gap-2 uppercase text-xs active:scale-95 disabled:opacity-50">
+                     <button onClick={handleSaveExpense} disabled={isSaving} className="px-8 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30 transition-all flex items-center gap-2 uppercase text-xs active:scale-95 disabled:opacity-50">
                         {isSaving ? 'Salvando...' : (<><span className="material-symbols-outlined text-[18px]">save</span> Salvar Despesa</>)}
                      </button>
                   </div>
@@ -937,7 +937,7 @@ const Expenses: React.FC = () => {
                         <button
                            onClick={handleSaveCategory}
                            disabled={isSavingCategory}
-                           className="px-5 py-2.5 rounded-xl text-xs font-bold bg-primary text-white shadow-lg shadow-primary/20 disabled:opacity-50"
+                           className="px-5 py-2.5 rounded-xl text-xs font-bold bg-green-600 text-white shadow-lg shadow-green-600/20 disabled:opacity-50"
                         >
                            {isSavingCategory ? 'Salvando...' : editingCategory ? 'Salvar edição' : 'Adicionar categoria'}
                         </button>
@@ -1028,7 +1028,7 @@ const Expenses: React.FC = () => {
                   </div>
                   <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
                      <button onClick={() => setIsWithdrawalModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase text-xs">Cancelar</button>
-                     <button onClick={handleSaveWithdrawal} disabled={isSavingWithdrawal} className="px-8 py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-500/30 transition-all flex items-center gap-2 uppercase text-xs active:scale-95 disabled:opacity-50">
+                     <button onClick={handleSaveWithdrawal} disabled={isSavingWithdrawal} className="px-8 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30 transition-all flex items-center gap-2 uppercase text-xs active:scale-95 disabled:opacity-50">
                         {isSavingWithdrawal ? 'Salvando...' : (<><span className="material-symbols-outlined text-[18px]">save</span> Salvar Rateio</>)}
                      </button>
                   </div>

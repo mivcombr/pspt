@@ -27,6 +27,8 @@ export interface Database {
                     total_cost: number
                     repasse_value: number
                     hospital_value: number
+                    financial_additional: number | null
+                    net_value: number | null
                     created_at: string
                     updated_at: string
                 }
@@ -47,6 +49,8 @@ export interface Database {
                     total_cost?: number
                     repasse_value?: number
                     hospital_value?: number
+                    financial_additional?: number | null
+                    net_value?: number | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -67,6 +71,8 @@ export interface Database {
                     total_cost?: number
                     repasse_value?: number
                     hospital_value?: number
+                    financial_additional?: number | null
+                    net_value?: number | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -171,6 +177,7 @@ export interface Database {
                     method: string
                     value: number
                     installments: number | null
+                    confirmed: boolean | null
                     created_at: string
                 }
                 Insert: {
@@ -179,6 +186,7 @@ export interface Database {
                     method: string
                     value: number
                     installments?: number | null
+                    confirmed?: boolean | null
                     created_at?: string
                 }
                 Update: {
@@ -187,6 +195,7 @@ export interface Database {
                     method?: string
                     value?: number
                     installments?: number | null
+                    confirmed?: boolean | null
                     created_at?: string
                 }
             }

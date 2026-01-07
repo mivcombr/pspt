@@ -322,3 +322,83 @@ table tbody {
     text-decoration: underline;
   }
 }
+
+/* Fix for double arrows in select elements */
+/* This removes the default browser arrow and the appearance added by Tailwind Forms plugin */
+select.appearance-none,
+.form-select.appearance-none,
+select[class*="appearance-none"] {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: none !important;
+}
+
+/* Specific fix for IE */
+select.appearance-none::-ms-expand {
+  display: none !important;
+}
+
+/* Tooltip styles */
+.has-tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip-content {
+  visibility: hidden;
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translate(-50%, -110%);
+  background-color: #1e293b;
+  color: #fff;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 10px;
+  z-index: 100;
+  white-space: nowrap;
+  font-size: 11px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.2s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.has-tooltip:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, -125%);
+}
+
+/* Fix for tooltips in the first rows to avoid clipping by the header */
+table tbody tr:first-child .tooltip-content,
+table tbody tr:nth-child(2) .tooltip-content {
+  bottom: auto;
+  top: 100%;
+  transform: translate(-50%, 15%);
+}
+
+table tbody tr:first-child .has-tooltip:hover .tooltip-content,
+table tbody tr:nth-child(2) .has-tooltip:hover .tooltip-content {
+  transform: translate(-50%, 25%);
+}
+
+table tbody tr:first-child .tooltip-content::after,
+table tbody tr:nth-child(2) .tooltip-content::after {
+  top: auto;
+  bottom: 100%;
+  border-color: transparent transparent #1e293b transparent;
+}
+
+.tooltip-content::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1e293b transparent transparent transparent;
+}

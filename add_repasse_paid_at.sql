@@ -1,0 +1,2 @@
+ALTER TABLE public.appointments 
+ADD COLUMN IF NOT EXISTS repasse_paid_at TIMESTAMP WITH TIME ZONE;

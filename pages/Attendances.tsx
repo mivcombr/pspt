@@ -12,6 +12,8 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
 import { procedureService, Procedure } from '../services/procedureService';
+import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
+import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
 
 interface AttendancesProps {
     isEmbedded?: boolean;
@@ -64,6 +66,11 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const [isEditingProcedure, setIsEditingProcedure] = useState(false);
     const [procedureInputValue, setProcedureInputValue] = useState('');
 
+    // Date/Time Editing State
+    const [isEditingDateTime, setIsEditingDateTime] = useState(false);
+    const [dateInputValue, setDateInputValue] = useState('');
+    const [timeInputValue, setTimeInputValue] = useState('');
+
     // Payment Form State
     const [paymentDraft, setPaymentDraft] = useState<PaymentPart[]>([]);
     const [currentMethod, setCurrentMethod] = useState('Pix');
@@ -92,6 +99,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const [selectedPatientForHistory, setSelectedPatientForHistory] = useState<{ name: string, birthDate: string, phone: string } | null>(null);
     const [patientHistory, setPatientHistory] = useState<any[]>([]);
     const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+    const [hospitalPaymentMethods, setHospitalPaymentMethods] = useState<HospitalPaymentMethod[]>([]);
+
+    // Audit Log State
+    const [isAuditLogOpen, setIsAuditLogOpen] = useState(false);
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [isFetchingAuditLogs, setIsFetchingAuditLogs] = useState(false);
 
     // Notes State
     const [notesInputValue, setNotesInputValue] = useState('');
@@ -99,6 +112,10 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     // Status State
     const [statusInputValue, setStatusInputValue] = useState('');
     const [isNotesExpanded, setIsNotesExpanded] = useState(false);
+
+    // Phone Editing State
+    const [isEditingPhone, setIsEditingPhone] = useState(false);
+    const [phoneInputValue, setPhoneInputValue] = useState('');
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -109,6 +126,20 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const [selectedHospitalId, setSelectedHospitalId] = useState<string>(
         (!isEmbedded && user?.role !== UserRole.ADMIN) ? (user?.hospitalId || '') : (hospitalFilter || '')
     );
+
+    // Schedule Blocks State
+    const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+    const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([]);
+    const [isSavingBlock, setIsSavingBlock] = useState(false);
+    const [blockForm, setBlockForm] = useState<Partial<ScheduleBlock>>({
+        block_type: 'SPECIFIC_DAY',
+        hospital_id: '',
+        date: '',
+        day_of_week: 0,
+        start_time: '',
+        end_time: '',
+        reason: ''
+    });
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -160,7 +191,74 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     useEffect(() => {
         fetchData();
+        if (selectedHospitalId) fetchBlocks();
     }, [selectedHospitalId]);
+
+    const fetchBlocks = async () => {
+        if (!selectedHospitalId) {
+            setScheduleBlocks([]);
+            setHospitalPaymentMethods([]);
+            return;
+        }
+        try {
+            const [blocks, paymentMethods] = await Promise.all([
+                scheduleBlockService.getAll({ hospitalId: selectedHospitalId }),
+                paymentMethodService.getAll(selectedHospitalId)
+            ]);
+            setScheduleBlocks(blocks);
+            setHospitalPaymentMethods(paymentMethods);
+        } catch (err) {
+            console.error('Error fetching blocks/methods:', err);
+        }
+    };
+
+    const handleSaveBlock = async () => {
+        if (!selectedHospitalId || !blockForm.block_type) return;
+
+        if (blockForm.block_type === 'SPECIFIC_DAY' && !blockForm.date) {
+            notify.warning('Selecione uma data para o bloqueio');
+            return;
+        }
+
+        setIsSavingBlock(true);
+        try {
+            await scheduleBlockService.create({
+                hospital_id: selectedHospitalId,
+                block_type: blockForm.block_type as any,
+                date: blockForm.block_type === 'SPECIFIC_DAY' ? blockForm.date : undefined,
+                day_of_week: blockForm.block_type === 'WEEKLY_RECURRING' ? Number(blockForm.day_of_week) : undefined,
+                start_time: blockForm.start_time || null as any,
+                end_time: blockForm.end_time || null as any,
+                reason: blockForm.reason || ''
+            });
+            notify.success('Bloqueio criado com sucesso!');
+            fetchBlocks();
+            setBlockForm({ ...blockForm, date: '', start_time: '', end_time: '', reason: '' });
+        } catch (err) {
+            console.error('Error saving block:', err);
+            notify.error('Erro ao salvar bloqueio');
+        } finally {
+            setIsSavingBlock(false);
+        }
+    };
+
+    const handleDeleteBlock = async (id: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Excluir Bloqueio',
+            message: 'Tem certeza que deseja remover este bloqueio?',
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await scheduleBlockService.delete(id);
+                    notify.success('Bloqueio removido!');
+                    fetchBlocks();
+                } catch (err) {
+                    notify.error('Erro ao remover bloqueio');
+                }
+            }
+        });
+    };
 
     useEffect(() => {
         const fetchHospitals = async () => {
@@ -289,6 +387,11 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setIsEditingProcedure(false);
         setProcedureInputValue(apt.procedure);
 
+        // Reset Date/Time Edit State
+        setIsEditingDateTime(false);
+        setDateInputValue(apt.date);
+        setTimeInputValue(apt.time);
+
         const alreadyPaid = apt.payments.reduce((acc, p) => acc + p.value, 0);
         const remaining = apt.cost - alreadyPaid;
         setCurrentValue(remaining > 0 ? remaining.toFixed(2).replace('.', ',') : '');
@@ -354,6 +457,17 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setCurrentAppointment({ ...currentAppointment, procedure: procedureInputValue });
         setIsEditingProcedure(false);
         notify.success('Procedimento atualizado!');
+    };
+
+    const saveNewDateTime = () => {
+        if (!currentAppointment) return;
+        if (!dateInputValue || !timeInputValue) {
+            notify.warning('Data e hora são obrigatórios.');
+            return;
+        }
+        setCurrentAppointment({ ...currentAppointment, date: dateInputValue, time: timeInputValue });
+        setIsEditingDateTime(false);
+        notify.success('Data/Hora atualizada!');
     };
 
     const addPaymentPart = () => {
@@ -431,7 +545,9 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 payment_status: targetStatus === 'Falhou' ? 'Não realizado' : (isFullyPaid ? 'Pago' : 'Pendente'),
                 total_cost: currentAppointment.cost,
                 procedure: currentAppointment.procedure,
-                notes: notesInputValue
+                notes: notesInputValue,
+                date: currentAppointment.date,
+                time: currentAppointment.time
             });
 
             // Add new payments (those with mock IDs)
@@ -531,6 +647,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     const handleOpenPatientHistory = async (name: string, birthDate: string, phone: string) => {
         setSelectedPatientForHistory({ name, birthDate, phone });
+        setPhoneInputValue(phone || '');
+        setIsEditingPhone(false);
         setIsHistoryOpen(true);
         setIsFetchingHistory(true);
         try {
@@ -541,6 +659,76 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             notify.error('Erro ao buscar histórico do paciente.');
         } finally {
             setIsFetchingHistory(false);
+        }
+    };
+
+    const handleSavePhone = async () => {
+        if (!selectedPatientForHistory) return;
+
+        const loadingToast = notify.loading('Atualizando telefone...');
+
+        try {
+            // Update all appointments for this patient
+            await appointmentService.updatePatientPhone(
+                selectedPatientForHistory.name,
+                selectedPatientForHistory.birthDate,
+                phoneInputValue
+            );
+
+            // Update local state
+            setSelectedPatientForHistory({
+                ...selectedPatientForHistory,
+                phone: phoneInputValue
+            });
+
+            setIsEditingPhone(false);
+            notify.dismiss(loadingToast);
+            notify.success('Telefone atualizado com sucesso!');
+
+            // Refresh appointments list
+            await fetchData();
+        } catch (err) {
+            console.error('Error updating phone:', err);
+            notify.dismiss(loadingToast);
+            notify.error('Erro ao atualizar telefone.');
+        }
+    };
+
+    const formatPhoneInput = (value: string) => {
+        // Remove all non-digits
+        const digits = value.replace(/\D/g, '');
+
+        // Format as (XX) XXXXX-XXXX or (XX) XXXX-XXXX
+        if (digits.length <= 10) {
+            return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+        }
+        return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+    };
+
+    const handlePhoneInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatPhoneInput(e.target.value);
+        setPhoneInputValue(formatted);
+    };
+
+    const handleOpenAuditLog = async (appointmentId: string) => {
+        if (!appointmentId) {
+            notify.error('ID do agendamento não encontrado.');
+            return;
+        }
+
+        setIsAuditLogOpen(true);
+        setIsFetchingAuditLogs(true);
+        setAuditLogs([]); // Clear previous logs
+
+        try {
+            const logs = await appointmentService.getAuditLogs(appointmentId);
+            setAuditLogs(logs || []);
+        } catch (err) {
+            console.error('Error fetching audit logs:', err);
+            notify.error('Erro ao buscar histórico de edições.');
+            setAuditLogs([]);
+        } finally {
+            setIsFetchingAuditLogs(false);
         }
     };
 
@@ -661,9 +849,16 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                             </div>
                             <button
                                 onClick={handleSaveEdit}
-                                className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary-hover transition-colors mt-2"
+                                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors mt-2 shadow-lg shadow-green-600/20"
                             >
                                 Salvar Alterações
+                            </button>
+                            <button
+                                onClick={() => editForm.id && handleOpenAuditLog(String(editForm.id))}
+                                className="w-full bg-slate-100 text-slate-500 font-bold py-3 rounded-xl hover:bg-slate-200 transition-colors mt-2 flex items-center justify-center gap-2"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">history</span>
+                                Ver Histórico de Edições
                             </button>
                         </div>
                     </div>
@@ -799,6 +994,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                     <Button
                         onClick={() => navigate('/new-appointment')}
                         icon="add"
+                        variant="success"
                         className="ml-auto xl:ml-0"
                     >
                         <span className="hidden sm:inline">Agendar</span>
@@ -817,7 +1013,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                             Visão Semanal
                         </h3>
                         {/* Interactive Hospital Selector for Admin, Indicator for others */}
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-2">
                             {!isEmbedded && user?.role === UserRole.ADMIN ? (
                                 <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-750">
                                     <span className="material-symbols-outlined text-[16px] text-slate-400">domain</span>
@@ -838,6 +1034,20 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                         {user?.hospitalName || 'Todos os Parceiros'}
                                     </span>
                                 )
+                            )}
+
+                            {user?.role === UserRole.ADMIN && selectedHospitalId && (
+                                <button
+                                    onClick={() => {
+                                        setBlockForm({ ...blockForm, hospital_id: selectedHospitalId });
+                                        setIsBlockModalOpen(true);
+                                    }}
+                                    className="p-2 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 transition-all flex items-center gap-1.5"
+                                    title="Configurar Bloqueios"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">block</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Bloqueios</span>
+                                </button>
                             )}
                         </div>
                     </div>
@@ -871,14 +1081,32 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                 {currentWeekDays.map((dateStr) => {
                                     const dayAppointments = getAppointmentsForDay(dateStr);
                                     const isSelected = dateStr === selectedDate;
+                                    const dayBlocks = scheduleBlocks.filter(b => {
+                                        if (b.block_type === 'SPECIFIC_DAY') return b.date === dateStr;
+                                        return b.day_of_week === new Date(dateStr + 'T12:00:00').getDay();
+                                    });
+                                    const fullDayBlock = dayBlocks.find(b => !b.start_time);
+                                    const hasPartialBlocks = dayBlocks.some(b => b.start_time);
 
                                     return (
                                         <div
                                             key={dateStr}
                                             onClick={() => setSelectedDate(dateStr)}
-                                            className={`border-r border-slate-200 dark:border-slate-700 last:border-0 p-2 space-y-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${isSelected ? 'bg-white dark:bg-slate-800/50' : ''}`}
+                                            className={`border-r border-slate-200 dark:border-slate-700 last:border-0 p-2 space-y-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors relative ${isSelected ? 'bg-white dark:bg-slate-800/50' : ''} ${fullDayBlock ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}`}
                                         >
-                                            {dayAppointments.length === 0 && (
+                                            {fullDayBlock && (
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
+                                                    <span className="material-symbols-outlined text-amber-500 text-[24px]">block</span>
+                                                    <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-tighter mt-1">{fullDayBlock.reason || 'Bloqueado'}</span>
+                                                </div>
+                                            )}
+                                            {hasPartialBlocks && !fullDayBlock && (
+                                                <div className="flex items-center gap-1 mb-1">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                                    <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Horários Bloqueados</span>
+                                                </div>
+                                            )}
+                                            {dayAppointments.length === 0 && !fullDayBlock && (
                                                 <div className="h-full flex items-center justify-center opacity-0 hover:opacity-100">
                                                     <span className="material-symbols-outlined text-slate-300 text-sm">add</span>
                                                 </div>
@@ -1167,17 +1395,48 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     <h2 className="text-2xl font-black text-slate-900 dark:text-white">
                                         Editar Atendimento
                                     </h2>
-                                    <p className="text-sm font-bold text-slate-400 mt-1">
-                                        Paciente: <span className="text-slate-600 dark:text-slate-300">{currentAppointment.patient}</span>
-                                        <span className="mx-2 text-slate-300 dark:text-slate-600">•</span>
-                                        <span className="text-slate-500">
-                                            {currentAppointment.date ? currentAppointment.date.split('-').reverse().join('/') : selectedDate.split('-').reverse().join('/')}
-                                        </span>
+                                    <p className="text-sm font-bold text-slate-400 mt-1 flex items-center gap-2">
+                                        <span>Paciente: <span className="text-slate-600 dark:text-slate-300">{currentAppointment.patient}</span></span>
+                                        <span className="text-slate-300 dark:text-slate-600">•</span>
+                                        {isEditingDateTime ? (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={dateInputValue}
+                                                    onChange={(e) => setDateInputValue(e.target.value)}
+                                                    className="h-8 px-2 rounded-lg border border-primary text-xs font-bold bg-white dark:bg-slate-800"
+                                                />
+                                                <input
+                                                    type="time"
+                                                    value={timeInputValue}
+                                                    onChange={(e) => setTimeInputValue(e.target.value)}
+                                                    className="h-8 px-2 rounded-lg border border-primary text-xs font-bold bg-white dark:bg-slate-800"
+                                                />
+                                                <button onClick={saveNewDateTime} className="p-1 bg-green-500 text-white rounded-md"><span className="material-symbols-outlined text-[16px]">check</span></button>
+                                                <button onClick={() => setIsEditingDateTime(false)} className="p-1 bg-red-100 text-red-500 rounded-md"><span className="material-symbols-outlined text-[16px]">close</span></button>
+                                            </div>
+                                        ) : (
+                                            <span className="text-slate-500 flex items-center gap-1 group cursor-pointer hover:text-primary transition-colors" onClick={() => setIsEditingDateTime(true)}>
+                                                {currentAppointment.date ? currentAppointment.date.split('-').reverse().join('/') : selectedDate.split('-').reverse().join('/')}
+                                                <span className="text-slate-400 dark:text-slate-500 pl-1">às {currentAppointment.time}</span>
+                                                <span className="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100">edit</span>
+                                            </span>
+                                        )}
                                     </p>
                                 </div>
-                                <button onClick={closePaymentModal} className="text-slate-300 hover:text-slate-600 dark:hover:text-white transition-colors">
-                                    <span className="material-symbols-outlined text-[28px]">close</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {/* History Icon Button */}
+                                    <button
+                                        onClick={() => currentAppointment.id && handleOpenAuditLog(String(currentAppointment.id))}
+                                        className="p-2 rounded-xl text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                        title="Ver Histórico de Edições"
+                                    >
+                                        <span className="material-symbols-outlined text-[24px]">history</span>
+                                    </button>
+                                    <button onClick={closePaymentModal} className="text-slate-300 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                        <span className="material-symbols-outlined text-[28px]">close</span>
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-6">
@@ -1256,13 +1515,23 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                             <div className="relative">
                                                 <select
                                                     value={currentMethod}
-                                                    onChange={(e) => { setCurrentMethod(e.target.value); setCurrentInstallments(1); }}
+                                                    onChange={(e) => {
+                                                        setCurrentMethod(e.target.value);
+                                                        setCurrentInstallments(1);
+                                                    }}
                                                     className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
                                                 >
-                                                    <option value="Pix">Pix</option>
-                                                    <option value="Dinheiro">Dinheiro</option>
-                                                    <option value="Cartão de Crédito">Cartão de Crédito</option>
-                                                    <option value="Cartão de Débito">Cartão de Débito</option>
+                                                    {hospitalPaymentMethods.map((m) => (
+                                                        <option key={m.id} value={m.name}>{m.name}</option>
+                                                    ))}
+                                                    {hospitalPaymentMethods.length === 0 && (
+                                                        <>
+                                                            <option value="Pix">Pix</option>
+                                                            <option value="Dinheiro">Dinheiro</option>
+                                                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                                            <option value="Cartão de Débito">Cartão de Débito</option>
+                                                        </>
+                                                    )}
                                                 </select>
                                                 <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[20px]">expand_more</span>
                                             </div>
@@ -1413,7 +1682,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                 ) : (
                                     <button
                                         onClick={() => confirmFinishAppointment()}
-                                        className="flex-[1.5] py-3.5 rounded-2xl bg-primary text-white font-black hover:opacity-90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                                        className="flex-[1.5] py-3.5 rounded-2xl bg-green-600 text-white font-black hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 flex items-center justify-center gap-2"
                                     >
                                         <span className="material-symbols-outlined text-[20px]">save</span>
                                         Atualizar Dados
@@ -1463,9 +1732,42 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 relative group min-h-[82px] flex flex-col justify-center">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Telefone</p>
-                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatientForHistory?.phone || 'Não informado'}</p>
+                                        {isEditingPhone ? (
+                                            <div className="space-y-2">
+                                                <input
+                                                    type="text"
+                                                    value={phoneInputValue}
+                                                    onChange={handlePhoneInputChange}
+                                                    placeholder="(00) 00000-0000"
+                                                    maxLength={15}
+                                                    autoFocus
+                                                    className="w-full h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none"
+                                                />
+                                                <div className="flex gap-2">
+                                                    <button onClick={handleSavePhone} className="flex-1 h-8 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-1 text-[10px] font-black uppercase">
+                                                        <span className="material-symbols-outlined text-[16px]">check</span>
+                                                        Salvar
+                                                    </button>
+                                                    <button onClick={() => { setIsEditingPhone(false); setPhoneInputValue(selectedPatientForHistory?.phone || ''); }} className="flex-1 h-8 bg-red-100 text-red-500 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-1 text-[10px] font-black uppercase">
+                                                        <span className="material-symbols-outlined text-[16px]">close</span>
+                                                        Sair
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatientForHistory?.phone || 'Não informado'}</p>
+                                                <button
+                                                    onClick={() => setIsEditingPhone(true)}
+                                                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                                                    title="Editar telefone"
+                                                >
+                                                    <span className="material-symbols-outlined text-[16px]">edit</span>
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nascimento</p>
@@ -1526,6 +1828,234 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                     </div>
                 )
             }
+
+            {/* Audit Log Modal */}
+            {
+                isAuditLogOpen && (
+                    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh] border border-slate-200 dark:border-slate-700">
+                            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-primary">history</span>
+                                        Histórico de Edições
+                                    </h3>
+                                    <p className="text-xs text-slate-500 font-bold mt-1">
+                                        Registro de alterações deste agendamento
+                                    </p>
+                                </div>
+                                <button onClick={() => setIsAuditLogOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                {isFetchingAuditLogs ? (
+                                    <div className="flex flex-col items-center justify-center py-10 gap-4">
+                                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                        <p className="text-xs font-bold text-slate-400">Carregando histórico...</p>
+                                    </div>
+                                ) : auditLogs.length === 0 ? (
+                                    <div className="text-center py-10 text-slate-400 font-bold text-sm">
+                                        Nenhuma alteração registrada.
+                                    </div>
+                                ) : (
+                                    auditLogs.map((log) => (
+                                        <div key={log.id} className="relative pl-6 pb-6 border-l-2 border-slate-100 dark:border-slate-800 last:pb-0 last:border-0">
+                                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-900"></div>
+                                            <div className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-2">
+                                                <span>{new Date(log.changed_at).toLocaleString('pt-BR')}</span>
+                                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                {/* Display user name if available, otherwise fallback to email or 'Usuário' */}
+                                                <span>{log.user?.name || log.user?.email || 'Usuário'}</span>
+                                            </div>
+
+                                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-800 space-y-3">
+                                                {Object.entries(log.changes || {}).map(([field, change]: [string, any]) => (
+                                                    <div key={field} className="text-sm">
+                                                        <span className="font-bold text-slate-700 dark:text-slate-300 capitalize">{field.replace(/_/g, ' ')}:</span>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded text-xs line-through opacity-70">
+                                                                {String(change.from !== null && change.from !== undefined ? change.from : 'Vazio')}
+                                                            </span>
+                                                            <span className="material-symbols-outlined text-slate-400 text-[14px]">arrow_right_alt</span>
+                                                            <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded text-xs font-bold">
+                                                                {String(change.to !== null && change.to !== undefined ? change.to : 'Vazio')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+            {/* --- SCHEDULE BLOCKS MODAL --- */}
+            {isBlockModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden">
+                        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-amber-500">block</span>
+                                    Bloqueios de Agenda
+                                </h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-1 uppercase tracking-widest">Configurar dias e horários indisponíveis</p>
+                            </div>
+                            <button onClick={() => setIsBlockModalOpen(false)} className="size-10 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors flex items-center justify-center">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                            {/* New Block Form */}
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-200 dark:border-slate-700">
+                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Novo Bloqueio</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Tipo de Bloqueio</label>
+                                        <div className="flex p-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                            <button
+                                                onClick={() => setBlockForm({ ...blockForm, block_type: 'SPECIFIC_DAY' })}
+                                                className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${blockForm.block_type === 'SPECIFIC_DAY' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-slate-500 hover:bg-slate-50'}`}
+                                            >
+                                                Dia Específico (Ex: Feriado)
+                                            </button>
+                                            <button
+                                                onClick={() => setBlockForm({ ...blockForm, block_type: 'WEEKLY_RECURRING' })}
+                                                className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${blockForm.block_type === 'WEEKLY_RECURRING' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-slate-500 hover:bg-slate-50'}`}
+                                            >
+                                                Recorrente Semanal
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {blockForm.block_type === 'SPECIFIC_DAY' ? (
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Data</label>
+                                            <input
+                                                type="date"
+                                                value={blockForm.date}
+                                                onChange={e => setBlockForm({ ...blockForm, date: e.target.value })}
+                                                className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold focus:ring-2 focus:ring-amber-500"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Dia da Semana</label>
+                                            <select
+                                                value={blockForm.day_of_week}
+                                                onChange={e => setBlockForm({ ...blockForm, day_of_week: Number(e.target.value) })}
+                                                className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold focus:ring-2 focus:ring-amber-500"
+                                            >
+                                                <option value={0}>Domingo</option>
+                                                <option value={1}>Segunda-feira</option>
+                                                <option value={2}>Terça-feira</option>
+                                                <option value={3}>Quarta-feira</option>
+                                                <option value={4}>Quinta-feira</option>
+                                                <option value={5}>Sexta-feira</option>
+                                                <option value={6}>Sábado</option>
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Motivo / Descrição</label>
+                                        <input
+                                            type="text"
+                                            value={blockForm.reason}
+                                            onChange={e => setBlockForm({ ...blockForm, reason: e.target.value })}
+                                            placeholder="Ex: Feriado Municipal, Manutenção, etc."
+                                            className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold focus:ring-2 focus:ring-amber-500"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Início (Opcional)</label>
+                                        <input
+                                            type="time"
+                                            value={blockForm.start_time || ''}
+                                            onChange={e => setBlockForm({ ...blockForm, start_time: e.target.value })}
+                                            className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold focus:ring-2 focus:ring-amber-500"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Fim (Opcional)</label>
+                                        <input
+                                            type="time"
+                                            value={blockForm.end_time || ''}
+                                            onChange={e => setBlockForm({ ...blockForm, end_time: e.target.value })}
+                                            className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold focus:ring-2 focus:ring-amber-500"
+                                        />
+                                    </div>
+
+                                    <div className="md:col-span-2 pt-2">
+                                        <button
+                                            onClick={handleSaveBlock}
+                                            disabled={isSavingBlock}
+                                            className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl shadow-lg shadow-amber-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {isSavingBlock ? 'Salvando...' : (<><span className="material-symbols-outlined">add_circle</span> Criar Bloqueio</>)}
+                                        </button>
+                                        <p className="text-[10px] text-slate-400 text-center mt-3 font-bold uppercase tracking-widest">Dica: Deixe os horários em branco para bloquear o dia inteiro.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Blocks List */}
+                            <div className="space-y-4">
+                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Bloqueios Ativos</h4>
+                                {scheduleBlocks.length > 0 ? (
+                                    <div className="grid gap-3">
+                                        {scheduleBlocks.map((block) => (
+                                            <div key={block.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between group hover:border-amber-500/50 transition-all">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="size-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                                                        <span className="material-symbols-outlined text-[20px]">
+                                                            {block.block_type === 'SPECIFIC_DAY' ? 'event' : 'event_repeat'}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-black text-slate-900 dark:text-white text-sm">
+                                                                {block.block_type === 'SPECIFIC_DAY'
+                                                                    ? (block.date ? new Date(block.date + 'T12:00:00').toLocaleDateString('pt-BR') : '-')
+                                                                    : ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][block.day_of_week || 0]
+                                                                }
+                                                            </p>
+                                                            {block.start_time && (
+                                                                <span className="text-[10px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-lg uppercase">
+                                                                    {block.start_time.substring(0, 5)} - {block.end_time?.substring(0, 5)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 font-bold">{block.reason || 'Sem motivo especificado'}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteBlock(block.id)}
+                                                    className="size-8 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center justify-center"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/20 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700">
+                                        <span className="material-symbols-outlined text-4xl text-slate-200">event_available</span>
+                                        <p className="text-slate-400 font-bold text-sm mt-2">Nenhum bloqueio configurado.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

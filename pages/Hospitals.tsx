@@ -5,6 +5,7 @@ import { procedureService } from '../services/procedureService';
 import { doctorService } from '../services/doctorService';
 import { userService } from '../services/userService';
 import { hospitalDocumentService } from '../services/hospitalDocumentService';
+import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
@@ -22,6 +23,7 @@ const Hospitals: React.FC = () => {
     const [hospitalUsers, setHospitalUsers] = useState<any[]>([]);
     const [hospitalDoctors, setHospitalDoctors] = useState<any[]>([]);
     const [hospitalDocuments, setHospitalDocuments] = useState<any[]>([]);
+    const [hospitalPaymentMethods, setHospitalPaymentMethods] = useState<HospitalPaymentMethod[]>([]);
     const [procedures, setProcedures] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
@@ -47,6 +49,11 @@ const Hospitals: React.FC = () => {
     const [isEditingUser, setIsEditingUser] = useState(false);
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
+    // Payment Method State
+    const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
+    const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
+    const [paymentMethodForm, setPaymentMethodForm] = useState<Partial<HospitalPaymentMethod>>({ id: '', name: '', is_automatic_repasse: false });
+
     // Confirm Modal State
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -70,9 +77,6 @@ const Hospitals: React.FC = () => {
             if (hospData.length > 0 && !selectedHospital) {
                 setSelectedHospital(hospData[0]);
             }
-
-            const procData = await procedureService.getAll();
-            setProcedures(procData);
         } catch (err) {
             console.error('Error fetching hospitals data:', err);
         } finally {
@@ -82,14 +86,18 @@ const Hospitals: React.FC = () => {
 
     const fetchHospitalDetails = async (hospId: string) => {
         try {
-            const [users, doctors, documents] = await Promise.all([
+            const [users, doctors, documents, paymentMethods, procs] = await Promise.all([
                 profileService.getByHospital(hospId),
                 doctorService.getByHospital(hospId),
-                hospitalDocumentService.getByHospital(hospId)
+                hospitalDocumentService.getByHospital(hospId),
+                paymentMethodService.getAll(hospId),
+                procedureService.getAll(hospId)
             ]);
             setHospitalUsers(users);
             setHospitalDoctors(doctors);
             setHospitalDocuments(documents);
+            setHospitalPaymentMethods(paymentMethods);
+            setProcedures(procs);
         } catch (err) {
             console.error('Error fetching hospital details:', err);
         }
@@ -249,6 +257,56 @@ const Hospitals: React.FC = () => {
         }
     };
 
+    const handleSavePaymentMethod = async () => {
+        if (!selectedHospital || !paymentMethodForm.name) {
+            notify.warning('Nome é obrigatório');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            if (isEditingPaymentMethod && paymentMethodForm.id) {
+                await paymentMethodService.update(paymentMethodForm.id, {
+                    name: paymentMethodForm.name,
+                    is_automatic_repasse: paymentMethodForm.is_automatic_repasse
+                });
+                notify.success('Forma de pagamento atualizada!');
+            } else {
+                await paymentMethodService.create({
+                    hospital_id: selectedHospital.id,
+                    name: paymentMethodForm.name!,
+                    is_automatic_repasse: paymentMethodForm.is_automatic_repasse || false
+                });
+                notify.success('Forma de pagamento criada!');
+            }
+            setIsPaymentMethodModalOpen(false);
+            fetchHospitalDetails(selectedHospital.id);
+        } catch (err: any) {
+            console.error('Error saving payment method:', err);
+            notify.error('Erro ao salvar forma de pagamento');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeletePaymentMethod = async (id: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Excluir Forma de Pagamento',
+            message: 'Tem certeza que deseja excluir esta forma de pagamento?',
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await paymentMethodService.delete(id);
+                    fetchHospitalDetails(selectedHospital.id);
+                    notify.success('Excluído com sucesso!');
+                } catch (err) {
+                    notify.error('Erro ao excluir');
+                }
+            }
+        });
+    };
+
     const handleDeleteUser = async (userId: string, userName: string) => {
         setConfirmModal({
             isOpen: true,
@@ -321,7 +379,7 @@ const Hospitals: React.FC = () => {
                             setIsEditingHospital(false);
                             setIsHospitalModalOpen(true);
                         }}
-                        className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-3 rounded-2xl hover:opacity-90 transition-all text-sm shadow-md"
+                        className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 rounded-2xl hover:bg-green-700 transition-all text-sm shadow-md"
                     >
                         <span className="material-symbols-outlined text-[20px]">add_circle</span>
                         Adicionar Hospital
@@ -375,7 +433,7 @@ const Hospitals: React.FC = () => {
                                                 setIsEditingHospital(true);
                                                 setIsHospitalModalOpen(true);
                                             }}
-                                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white hover:bg-primary-hover text-sm font-bold transition-colors shadow-lg shadow-primary/30"
+                                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 text-sm font-bold transition-colors shadow-lg shadow-green-600/30"
                                         >
                                             <span className="material-symbols-outlined text-[18px]">edit</span> Editar
                                         </button>
@@ -530,7 +588,7 @@ const Hospitals: React.FC = () => {
                                             <button
                                                 onClick={handleSaveUser}
                                                 disabled={isSaving}
-                                                className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-2.5 px-6 rounded-xl text-sm hover:opacity-90 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {isSaving ? 'Salvando...' : (isEditingUser ? 'Atualizar Usuário' : 'Salvar Usuário')}
                                             </button>
@@ -618,7 +676,7 @@ const Hospitals: React.FC = () => {
                                             <button
                                                 onClick={handleCreateDoctor}
                                                 disabled={isSaving}
-                                                className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-2.5 px-6 rounded-xl text-sm hover:opacity-90 transition-colors shadow-md"
+                                                className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md"
                                             >
                                                 {isSaving ? 'Salvando...' : 'Salvar Médico'}
                                             </button>
@@ -734,7 +792,7 @@ const Hospitals: React.FC = () => {
                                 </div>
                                 <button
                                     onClick={() => setViewMode('details')}
-                                    className="bg-primary text-white hover:bg-primary-hover px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-primary/30 transition-colors flex items-center gap-2"
+                                    className="bg-green-600 text-white hover:bg-green-700 px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-green-600/30 transition-colors flex items-center gap-2"
                                 >
                                     <span className="material-symbols-outlined text-[20px]">check</span> Finalizar Edição
                                 </button>
@@ -775,8 +833,8 @@ const Hospitals: React.FC = () => {
                                         <span className="material-symbols-outlined text-[24px]">payments</span>
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-black text-slate-900 dark:text-white">Tabela de Preços Global</h2>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Os preços são definidos globalmente para todos os parceiros.</p>
+                                        <h2 className="text-xl font-black text-slate-900 dark:text-white">Tabela de Preços do Hospital</h2>
+                                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Os preços são definidos especificamente para este parceiro.</p>
                                     </div>
                                 </div>
 
@@ -804,7 +862,7 @@ const Hospitals: React.FC = () => {
                                                 </div>
                                                 <div className="flex items-center gap-6">
                                                     <div>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço Padrão</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço parcelado</p>
                                                         <p className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(p.standard_price)}</p>
                                                     </div>
                                                     <div>
@@ -850,10 +908,69 @@ const Hospitals: React.FC = () => {
                                         setIsEditingProcedure(false);
                                         setIsProcedureModalOpen(true);
                                     }}
-                                    className="w-full mt-4 py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 font-bold text-sm hover:border-primary hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
+                                    className="w-full mt-4 py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 font-bold text-sm hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-all flex items-center justify-center gap-2"
                                 >
                                     <span className="material-symbols-outlined">add</span> Adicionar Novo Procedimento
                                 </button>
+                            </div>
+
+                            {/* BLOCK 2: FORMAS DE PAGAMENTO */}
+                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
+                                <div className="mb-8 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
+                                            <span className="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-slate-900 dark:text-white">Formas de Pagamento</h2>
+                                            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Configure as opções de pagamento aceitas por este parceiro.</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setPaymentMethodForm({ name: '' });
+                                            setIsEditingPaymentMethod(false);
+                                            setIsPaymentMethodModalOpen(true);
+                                        }}
+                                        className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-blue-600/20"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">add</span> Adicionar
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {hospitalPaymentMethods.map((method) => (
+                                        <div key={method.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between group hover:border-blue-500/50 transition-all">
+                                            <div>
+                                                <p className="font-bold text-slate-900 dark:text-white">{method.name}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => {
+                                                        setPaymentMethodForm(method);
+                                                        setIsEditingPaymentMethod(true);
+                                                        setIsPaymentMethodModalOpen(true);
+                                                    }}
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeletePaymentMethod(method.id)}
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {hospitalPaymentMethods.length === 0 && (
+                                        <div className="md:col-span-2 lg:col-span-3 py-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
+                                            <span className="material-symbols-outlined text-4xl text-slate-200 mb-2">payments</span>
+                                            <p className="text-slate-400 font-bold text-sm">Nenhuma forma de pagamento configurada.</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )
@@ -935,7 +1052,7 @@ const Hospitals: React.FC = () => {
                                     finally { setIsSaving(false); }
                                 }}
                                 disabled={isSaving}
-                                className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-600/20"
                             >
                                 {isSaving ? 'Salvando...' : (isEditingHospital ? 'Salvar Alterações' : 'Criar Hospital')}
                             </button>
@@ -982,40 +1099,49 @@ const Hospitals: React.FC = () => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-bold text-slate-500 mb-1 block">Preço Padrão</label>
-                                    <input
-                                        type="number"
-                                        placeholder="0.00"
-                                        value={procedureForm.standard_price}
-                                        onChange={e => setProcedureForm({ ...procedureForm, standard_price: e.target.value })}
-                                        className="w-full h-12 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
-                                        disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
-                                    />
+                                    <label className="text-xs font-bold text-slate-500 mb-1 block">Preço parcelado</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                                        <input
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={procedureForm.standard_price}
+                                            onChange={e => setProcedureForm({ ...procedureForm, standard_price: e.target.value })}
+                                            className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
+                                            disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
+                                        />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 mb-1 block">Preço à Vista</label>
-                                    <input
-                                        type="number"
-                                        placeholder="0.00"
-                                        value={procedureForm.cash_price}
-                                        onChange={e => setProcedureForm({ ...procedureForm, cash_price: e.target.value })}
-                                        className="w-full h-12 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
-                                        disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
-                                    />
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                                        <input
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={procedureForm.cash_price}
+                                            onChange={e => setProcedureForm({ ...procedureForm, cash_price: e.target.value })}
+                                            className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
+                                            disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold text-slate-500 mb-1 block">Valor de Repasse</label>
-                                <input
-                                    type="number"
-                                    placeholder="0.00"
-                                    value={procedureForm.repasse_value}
-                                    onChange={e => setProcedureForm({ ...procedureForm, repasse_value: e.target.value })}
-                                    className="w-full h-12 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
-                                    disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
-                                />
-                                <p className="text-[10px] text-slate-400 mt-1">Valor fixo repassado ao médico ou parceiro por procedimento.</p>
+                                <label className="text-xs font-bold text-slate-500 mb-1 block">Valor do Programa</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                                    <input
+                                        type="number"
+                                        placeholder="0.00"
+                                        value={procedureForm.repasse_value}
+                                        onChange={e => setProcedureForm({ ...procedureForm, repasse_value: e.target.value })}
+                                        className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
+                                        disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
+                                    />
+                                </div>
+
                             </div>
 
                             <select
@@ -1038,7 +1164,8 @@ const Hospitals: React.FC = () => {
                                             type: procedureForm.type as any,
                                             standard_price: parseFloat(procedureForm.standard_price.toString().replace(',', '.')) || 0,
                                             cash_price: parseFloat(procedureForm.cash_price.toString().replace(',', '.')) || 0,
-                                            repasse_value: parseFloat(procedureForm.repasse_value.toString().replace(',', '.')) || 0
+                                            repasse_value: parseFloat(procedureForm.repasse_value.toString().replace(',', '.')) || 0,
+                                            hospital_id: selectedHospital.id
                                         };
 
                                         if (isEditingProcedure) {
@@ -1048,7 +1175,7 @@ const Hospitals: React.FC = () => {
                                         }
 
                                         // Refetch
-                                        const procData = await procedureService.getAll();
+                                        const procData = await procedureService.getAll(selectedHospital.id);
                                         setProcedures(procData);
                                         setIsProcedureModalOpen(false);
                                         notify.success(isEditingProcedure ? 'Procedimento atualizado!' : 'Procedimento criado!');
@@ -1059,9 +1186,42 @@ const Hospitals: React.FC = () => {
                                     finally { setIsSaving(false); }
                                 }}
                                 disabled={isSaving}
-                                className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary-hover transition-colors shadow-lg shadow-primary/30"
+                                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/30"
                             >
                                 {isSaving ? 'Salvando...' : (isEditingProcedure ? 'Salvar Alterações' : 'Criar Procedimento')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {isPaymentMethodModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-700">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                                {isEditingPaymentMethod ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}
+                            </h3>
+                            <button onClick={() => setIsPaymentMethodModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Nome da Forma de Pagamento</label>
+                                <input
+                                    placeholder="Ex: Pix, Cartão de Crédito..."
+                                    value={paymentMethodForm.name}
+                                    onChange={e => setPaymentMethodForm({ ...paymentMethodForm, name: e.target.value })}
+                                    className="w-full h-12 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleSavePaymentMethod}
+                                disabled={isSaving}
+                                className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/30 active:scale-[0.98] uppercase text-xs tracking-widest"
+                            >
+                                {isSaving ? 'Salvando...' : (isEditingPaymentMethod ? 'Atualizar Forma de Pagamento' : 'Criar Forma de Pagamento')}
                             </button>
                         </div>
                     </div>

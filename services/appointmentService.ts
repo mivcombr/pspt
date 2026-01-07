@@ -52,6 +52,21 @@ export const appointmentService = {
     },
 
     async update(id: string, updates: any) {
+        // Fetch previous state for audit log
+        let previousState: any = {};
+        try {
+            const { data: current } = await supabase
+                .from('appointments')
+                .select('*')
+                .eq('id', id)
+                .single();
+            if (current) {
+                previousState = current;
+            }
+        } catch (e) {
+            console.warn('Could not fetch previous state for audit:', e);
+        }
+
         const { data, error } = await supabase
             .from('appointments')
             .update(updates)
@@ -60,7 +75,74 @@ export const appointmentService = {
             .single();
 
         if (error) throw error;
+
+        // Log Changes (Audit)
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const changes: any = {};
+
+            Object.keys(updates).forEach(key => {
+                const oldValue = previousState[key];
+                const newValue = updates[key];
+
+                // Simple equality check
+                if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+                    changes[key] = {
+                        from: oldValue ?? null,
+                        to: newValue
+                    };
+                }
+            });
+
+            if (Object.keys(changes).length > 0) {
+                await supabase.from('appointment_audit_logs').insert([{
+                    appointment_id: id,
+                    changed_by: user?.id,
+                    changed_at: new Date(),
+                    changes: changes,
+                    previous_state: previousState
+                }]);
+            }
+        } catch (auditErr) {
+            console.error('Failed to log audit:', auditErr);
+        }
+
         return data;
+    },
+
+    async getAuditLogs(appointmentId: string) {
+        try {
+            // Try to fetch with user relation first
+            const { data, error } = await supabase
+                .from('appointment_audit_logs')
+                .select(`
+                    *,
+                    user:profiles!changed_by(name, email)
+                `)
+                .eq('appointment_id', appointmentId)
+                .order('changed_at', { ascending: false });
+
+            if (error) {
+                // If error with relation, try without it
+                console.warn('Error fetching audit logs with user relation:', error);
+                const { data: dataWithoutUser, error: errorWithoutUser } = await supabase
+                    .from('appointment_audit_logs')
+                    .select('*')
+                    .eq('appointment_id', appointmentId)
+                    .order('changed_at', { ascending: false });
+
+                if (errorWithoutUser) {
+                    console.error('Error fetching audit logs:', errorWithoutUser);
+                    return [];
+                }
+                return dataWithoutUser || [];
+            }
+
+            return data || [];
+        } catch (err) {
+            console.error('Unexpected error in getAuditLogs:', err);
+            return [];
+        }
     },
 
     async addPayment(payment: any) {
@@ -334,6 +416,30 @@ export const appointmentService = {
             .eq('patient_birth_date', birthDate)
             .order('date', { ascending: false })
             .order('time', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    },
+
+    async updatePatientPhone(name: string, birthDate: string, phone: string) {
+        const { data, error } = await supabase
+            .from('appointments')
+            .update({ patient_phone: phone })
+            .eq('patient_name', name)
+            .eq('patient_birth_date', birthDate)
+            .select();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async updatePayment(paymentId: string, updates: any) {
+        const { data, error } = await supabase
+            .from('appointment_payments')
+            .update(updates)
+            .eq('id', paymentId)
+            .select()
+            .single();
 
         if (error) throw error;
         return data;

@@ -11,12 +11,12 @@ const Reports: React.FC = () => {
         Selecione um tipo de relatório no menu para visualizar métricas detalhadas de desempenho, financeiro e operacional.
       </p>
       <div className="flex gap-4 mt-8">
-         <button className="bg-primary text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors">
-            Relatório Financeiro
-         </button>
-         <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white px-6 py-2 rounded-lg font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-            Relatório de Procedimentos
-         </button>
+        <button className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors">
+          Relatório Financeiro
+        </button>
+        <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white px-6 py-2 rounded-lg font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+          Relatório de Procedimentos
+        </button>
       </div>
     </div>
   );

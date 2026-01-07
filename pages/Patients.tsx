@@ -32,6 +32,10 @@ const Patients: React.FC = () => {
     const [history, setHistory] = useState<any[]>([]);
     const [isFetchingHistory, setIsFetchingHistory] = useState(false);
 
+    // Phone Editing State
+    const [isEditingPhone, setIsEditingPhone] = useState(false);
+    const [phoneInputValue, setPhoneInputValue] = useState('');
+
     const isAdmin = user?.role === UserRole.ADMIN;
 
     const fetchData = async () => {
@@ -61,6 +65,8 @@ const Patients: React.FC = () => {
 
     const handleOpenHistory = async (patient: PatientRecord) => {
         setSelectedPatient(patient);
+        setPhoneInputValue(patient.phone || '');
+        setIsEditingPhone(false);
         setIsHistoryOpen(true);
         setIsFetchingHistory(true);
         try {
@@ -72,6 +78,49 @@ const Patients: React.FC = () => {
         } finally {
             setIsFetchingHistory(false);
         }
+    };
+
+    const handleSavePhone = async () => {
+        if (!selectedPatient) return;
+
+        const loadingToast = notify.loading('Atualizando telefone...');
+
+        try {
+            await appointmentService.updatePatientPhone(
+                selectedPatient.name,
+                selectedPatient.birthDate,
+                phoneInputValue
+            );
+
+            setSelectedPatient({
+                ...selectedPatient,
+                phone: phoneInputValue
+            });
+
+            setIsEditingPhone(false);
+            notify.dismiss(loadingToast);
+            notify.success('Telefone atualizado com sucesso!');
+
+            // Refresh main list
+            await fetchData();
+        } catch (err) {
+            console.error('Error updating phone:', err);
+            notify.dismiss(loadingToast);
+            notify.error('Erro ao atualizar telefone.');
+        }
+    };
+
+    const formatPhoneInput = (value: string) => {
+        const digits = value.replace(/\D/g, '');
+        if (digits.length <= 10) {
+            return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+        }
+        return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+    };
+
+    const handlePhoneInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatPhoneInput(e.target.value);
+        setPhoneInputValue(formatted);
     };
 
     const getInitials = (name: string) => {
@@ -93,7 +142,7 @@ const Patients: React.FC = () => {
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
                         <input
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => setSearchTerm(e.target.value.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase()))}
                             className="w-full h-12 pl-12 pr-4 rounded-2xl border-none bg-white dark:bg-slate-900 shadow-sm focus:ring-2 focus:ring-primary text-sm font-medium text-slate-700 dark:text-white placeholder-slate-400"
                             placeholder="Buscar paciente por nome..."
                         />
@@ -250,9 +299,42 @@ const Patients: React.FC = () => {
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 relative group min-h-[82px] flex flex-col justify-center">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Telefone</p>
-                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient?.phone}</p>
+                                    {isEditingPhone ? (
+                                        <div className="space-y-2">
+                                            <input
+                                                type="text"
+                                                value={phoneInputValue}
+                                                onChange={handlePhoneInputChange}
+                                                placeholder="(00) 00000-0000"
+                                                maxLength={15}
+                                                autoFocus
+                                                className="w-full h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none"
+                                            />
+                                            <div className="flex gap-2">
+                                                <button onClick={handleSavePhone} className="flex-1 h-8 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-1 text-[10px] font-black uppercase">
+                                                    <span className="material-symbols-outlined text-[16px]">check</span>
+                                                    Salvar
+                                                </button>
+                                                <button onClick={() => { setIsEditingPhone(false); setPhoneInputValue(selectedPatient?.phone || ''); }} className="flex-1 h-8 bg-red-100 text-red-500 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-1 text-[10px] font-black uppercase">
+                                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                                    Sair
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient?.phone || 'Não informado'}</p>
+                                            <button
+                                                onClick={() => setIsEditingPhone(true)}
+                                                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                                                title="Editar telefone"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">edit</span>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nascimento</p>

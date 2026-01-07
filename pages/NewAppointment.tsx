@@ -8,6 +8,8 @@ import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
 import { procedureService } from '../services/procedureService';
 import { doctorService } from '../services/doctorService';
+import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
+import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
 
 // Doctors list removed - dynamic fetching implemented
 
@@ -20,6 +22,8 @@ const NewAppointment: React.FC = () => {
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [procedures, setProcedures] = useState<any[]>([]);
   const [hospitalDoctors, setHospitalDoctors] = useState<any[]>([]);
+  const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([]);
+  const [hospitalPaymentMethods, setHospitalPaymentMethods] = useState<HospitalPaymentMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Form State
@@ -55,6 +59,26 @@ const NewAppointment: React.FC = () => {
     notes: ''
   });
 
+  useEffect(() => {
+    if (formData.hospitalId) {
+      const fetchHospitalSpecificData = async () => {
+        try {
+          const [blocks, paymentMethods, procs] = await Promise.all([
+            scheduleBlockService.getAll({ hospitalId: formData.hospitalId }),
+            paymentMethodService.getAll(formData.hospitalId),
+            procedureService.getAll(formData.hospitalId)
+          ]);
+          setScheduleBlocks(blocks);
+          setHospitalPaymentMethods(paymentMethods);
+          setProcedures(procs);
+        } catch (err) {
+          console.error('Error fetching hospital details:', err);
+        }
+      };
+      fetchHospitalSpecificData();
+    }
+  }, [formData.hospitalId]);
+
 
 
   // Confirm Modal State
@@ -76,12 +100,8 @@ const NewAppointment: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [hospData, procData] = await Promise.all([
-        hospitalService.getAll(),
-        procedureService.getAll()
-      ]);
+      const hospData = await hospitalService.getAll();
       setHospitals(hospData);
-      setProcedures(procData);
 
       // Check for Draft
       const draft = localStorage.getItem('appointment_draft');
@@ -131,7 +151,7 @@ const NewAppointment: React.FC = () => {
 
   // Patient Search
   const handleSearchChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const term = e.target.value;
+    const term = e.target.value.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
     setSearchTerm(term);
     setSelectedPatient(null);
 
@@ -149,7 +169,7 @@ const NewAppointment: React.FC = () => {
 
   const selectPatient = (patient: any) => {
     setSelectedPatient(patient);
-    setSearchTerm(patient.name);
+    setSearchTerm(patient.name.toLowerCase().replace(/(?:^|\s)\S/g, (a: string) => a.toUpperCase()));
     setSearchResults([]);
   };
 
@@ -168,7 +188,12 @@ const NewAppointment: React.FC = () => {
   };
 
   const handleNewPatientInput = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+
+    if (name === 'name') {
+      value = value.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+    }
+
     const updatedData = { ...newPatientData, [name]: value };
     setNewPatientData(updatedData);
 
@@ -184,6 +209,16 @@ const NewAppointment: React.FC = () => {
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+
+    if (name === 'hospitalId') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        doctor: '',
+        paymentMethod: ''
+      }));
+      return;
+    }
 
     if (name === 'procedureName') {
       const selectedProc = procedures.find(p => p.name === value && p.type === formData.procedureType);
@@ -226,13 +261,34 @@ const NewAppointment: React.FC = () => {
       notify.warning('Por favor, selecione ou cadastre um paciente.');
       return;
     }
-    if (!selectedPatient.name || !selectedPatient.phone || !selectedPatient.birthDate) {
-      notify.warning('Todos os dados do paciente (Nome, Telefone e Data de Nascimento) são obrigatórios.');
+    if (!selectedPatient.name || !selectedPatient.phone) {
+      notify.warning('Todos os dados do paciente (Nome e Telefone) são obrigatórios.');
       return;
     }
 
     if (!formData.procedureName || !formData.hospitalId) {
       notify.warning('Por favor, preencha os campos obrigatórios do agendamento (Procedimento e Hospital).');
+      return;
+    }
+
+    // Check for schedule blocks
+    const dayOfWeek = new Date(formData.date + 'T12:00:00').getDay();
+    const isBlocked = scheduleBlocks.some(block => {
+      // Check if day matches
+      const dayMatches = (block.block_type === 'SPECIFIC_DAY' && block.date === formData.date) ||
+        (block.block_type === 'WEEKLY_RECURRING' && block.day_of_week === dayOfWeek);
+      if (!dayMatches) return false;
+
+      // If no times specified, whole day is blocked
+      if (!block.start_time || !block.end_time) return true;
+
+      // Check if selected time is within blocked range
+      const selectedTime = formData.time; // "HH:mm"
+      return selectedTime >= block.start_time.substring(0, 5) && selectedTime <= block.end_time.substring(0, 5);
+    });
+
+    if (isBlocked) {
+      notify.error('Este dia/horário está bloqueado na agenda do parceiro.');
       return;
     }
 
@@ -248,9 +304,9 @@ const NewAppointment: React.FC = () => {
         hospital_id: formData.hospitalId,
         date: formData.date,
         time: formData.time + ':00',
-        patient_name: selectedPatient.name,
+        patient_name: selectedPatient.name.toLowerCase().replace(/(?:^|\s)\S/g, (a: string) => a.toUpperCase()),
         patient_phone: selectedPatient.phone,
-        patient_birth_date: selectedPatient.birthDate,
+        patient_birth_date: selectedPatient.birthDate || null,
         type: formData.procedureType.toUpperCase(),
         procedure: formData.procedureName,
         provider: formData.doctor,
@@ -260,7 +316,9 @@ const NewAppointment: React.FC = () => {
         notes: formData.notes,
         payment_method: formData.paymentMethod,
         status: 'Agendado',
-        payment_status: 'Pendente'
+        payment_status: 'Pendente',
+        repasse_status: 'Pendente',
+        repasse_paid_at: null as any
       });
 
       notify.success(`Agendamento realizado com sucesso para ${selectedPatient.name}!`);
@@ -349,7 +407,9 @@ const NewAppointment: React.FC = () => {
                         onClick={() => selectPatient(patient)}
                         className="p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0"
                       >
-                        <p className="font-bold text-slate-900 dark:text-white text-sm">{patient.name}</p>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">
+                          {patient.name.toLowerCase().replace(/(?:^|\s)\S/g, (a: string) => a.toUpperCase())}
+                        </p>
                         <div className="flex justify-between items-center mt-1">
                           <p className="text-xs text-slate-500">Nasc: {formatDateDisplay(patient.birthDate)}</p>
                         </div>
@@ -388,14 +448,13 @@ const NewAppointment: React.FC = () => {
                     />
                   </label>
                   <label className="flex flex-col">
-                    <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Data de Nascimento <span className="text-red-500">*</span></p>
+                    <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Data de Nascimento</p>
                     <input
                       name="birthDate"
                       type="date"
                       value={newPatientData.birthDate}
                       onChange={handleNewPatientInput}
                       className="form-input w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
-                      required
                     />
                   </label>
 
@@ -451,167 +510,182 @@ const NewAppointment: React.FC = () => {
           </section>
 
           <section className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">2. Detalhes do Agendamento</h2>
+            <h2 className="text-lg font-bold mb-6 text-slate-900 dark:text-white">2. Detalhes do Agendamento</h2>
             <div className="space-y-6">
 
-              <div className="flex h-12 flex-1 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
-                {['Consulta', 'Exame', 'Cirurgia'].map(type => (
-                  <label key={type} className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 text-sm font-bold transition-all ${formData.procedureType === type ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
-                    <span className="truncate">{type}</span>
-                    <input
-                      type="radio"
-                      name="procedureType"
-                      value={type}
-                      checked={formData.procedureType === type}
-                      onChange={() => setProcedureType(type)}
-                      className="hidden"
-                    />
-                  </label>
-                ))}
-              </div>
-
-              <label className="flex flex-col">
-                <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Procedimento Específico</p>
-                <div className="relative">
-                  <select
-                    name="procedureName"
-                    value={formData.procedureName}
-                    onChange={handleInputChange}
-                    className="form-select w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
-                  >
-                    <option value="" disabled>Escolha uma opção</option>
-                    {filteredProcedures.map((proc, i) => <option key={i} value={proc.name}>{proc.name}</option>)}
-                  </select>
-                  <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">keyboard_arrow_down</span>
-                </div>
-              </label>
-
-              {(user?.role === UserRole.RECEPTION || user?.role === UserRole.FINANCIAL) && (
-                <div className="flex items-center gap-2 text-slate-500 mb-2 px-1">
-                  <span className="material-symbols-outlined text-[18px] text-primary/60">location_on</span>
-                  <span className="text-sm font-medium">Agendamento vinculado à unidade: <span className="font-bold text-slate-900 dark:text-white">{user.hospitalName}</span></span>
-                </div>
-              )}
-
-              <div className={`grid grid-cols-1 ${user?.role === UserRole.ADMIN ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
-                {user?.role === UserRole.ADMIN && (
+              {/* 1. LOCAL DE ATENDIMENTO (FIRST) */}
+              <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all hover:border-primary/30">
+                {user?.role === UserRole.ADMIN ? (
                   <label className="flex flex-col">
-                    <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Hospital / Clínica</p>
+                    <p className="text-[10px] font-black leading-normal pb-2 text-primary uppercase tracking-widest ml-1">Unidade de Atendimento</p>
                     <div className="relative">
                       <select
                         name="hospitalId"
                         value={formData.hospitalId}
                         onChange={handleInputChange}
-                        className="form-select w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                        className="form-select w-full appearance-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 h-12 px-4 text-base font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-900 dark:text-white transition-all shadow-sm"
                       >
-                        <option value="" disabled>Selecione</option>
+                        <option value="" disabled>Selecione onde será o atendimento</option>
                         {hospitals.map((h, i) => <option key={i} value={h.id}>{h.name}</option>)}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">location_on</span>
+                    </div>
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                      <span className="material-symbols-outlined">location_on</span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Unidade de Atendimento</p>
+                      <p className="text-base font-bold text-slate-900 dark:text-white">{user?.hospitalName}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* REST OF THE FIELDS - DEPENDENT ON LOCAL */}
+              <div className={`space-y-6 transition-all duration-500 ${!formData.hospitalId ? 'opacity-40 pointer-events-none grayscale' : 'opacity-100'}`}>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex flex-col">
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Tipo de Procedimento</p>
+                    <div className="flex h-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700">
+                      {['Consulta', 'Exame', 'Cirurgia'].map(type => (
+                        <label key={type} className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 text-xs font-black uppercase tracking-widest transition-all ${formData.procedureType === type ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
+                          <span>{type}</span>
+                          <input
+                            type="radio"
+                            name="procedureType"
+                            value={type}
+                            checked={formData.procedureType === type}
+                            onChange={() => setProcedureType(type)}
+                            className="hidden"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <label className="flex flex-col">
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Procedimento Específico</p>
+                    <div className="relative">
+                      <select
+                        name="procedureName"
+                        value={formData.procedureName}
+                        onChange={handleInputChange}
+                        className="form-select w-full appearance-none rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                      >
+                        <option value="" disabled>Escolha uma opção</option>
+                        {filteredProcedures.map((proc, i) => <option key={i} value={proc.name}>{proc.name}</option>)}
                       </select>
                       <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">keyboard_arrow_down</span>
                     </div>
                   </label>
-                )}
-                <label className="flex flex-col">
-                  <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Profissional de Saúde</p>
-                  <div className="relative">
-                    <select
-                      name="doctor"
-                      value={formData.doctor}
-                      onChange={handleInputChange}
-                      disabled={!formData.hospitalId}
-                      className="form-select w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white disabled:opacity-50"
-                    >
-                      <option value="" disabled>
-                        {!formData.hospitalId
-                          ? 'Selecione um hospital primeiro'
-                          : hospitalDoctors.length === 0
-                            ? 'Nenhum médico encontrado'
-                            : 'Selecione o médico'}
-                      </option>
-                      {hospitalDoctors.map((d, i) => (
-                        <option key={i} value={d.name}>
-                          {d.name} {d.specialty ? `(${d.specialty})` : ''}
+                </div>
+
+                <div className={`grid grid-cols-1 md:grid-cols-3 gap-4`}>
+                  <label className="flex flex-col">
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Profissional de Saúde</p>
+                    <div className="relative">
+                      <select
+                        name="doctor"
+                        value={formData.doctor}
+                        onChange={handleInputChange}
+                        disabled={!formData.hospitalId}
+                        className="form-select w-full appearance-none rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white disabled:opacity-50"
+                      >
+                        <option value="" disabled>
+                          {!formData.hospitalId
+                            ? 'Selecione um hospital primeiro'
+                            : hospitalDoctors.length === 0
+                              ? 'Nenhum médico encontrado'
+                              : 'Selecione o médico'}
                         </option>
-                      ))}
-                    </select>
-                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">keyboard_arrow_down</span>
-                  </div>
-                </label>
-                <label className="flex flex-col">
-                  <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Data do Procedimento</p>
-                  <input
-                    type="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleInputChange}
-                    className="form-input w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
-                  />
-                </label>
-                <label className="flex flex-col text-slate-600 dark:text-slate-300">
-                  <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Horário</p>
-                  <input
-                    type="time"
-                    name="time"
-                    value={formData.time}
-                    onChange={handleInputChange}
-                    className="form-input w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
-                  />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="flex flex-col">
-                  <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Valor a ser Pago (R$)</p>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-slate-500">R$</span>
+                        {hospitalDoctors.map((d, i) => (
+                          <option key={i} value={d.name}>
+                            {d.name} {d.specialty ? `(${d.specialty})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">keyboard_arrow_down</span>
                     </div>
+                  </label>
+                  <label className="flex flex-col">
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Data do Agendamento</p>
                     <input
-                      type="text"
-                      name="value"
-                      value={formData.value}
-                      onChange={handleValueChange}
-                      className="form-input w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 pl-10 pr-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
-                      placeholder="0,00"
-                    />
-                  </div>
-                </label>
-                <label className="flex flex-col">
-                  <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Forma de Pagamento</p>
-                  <div className="relative">
-                    <select
-                      name="paymentMethod"
-                      value={formData.paymentMethod}
+                      type="date"
+                      name="date"
+                      value={formData.date}
                       onChange={handleInputChange}
-                      className="form-select w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
-                    >
-                      <option value="" disabled>Selecione</option>
-                      <option value="Cartão de Crédito">Cartão de Crédito</option>
-                      <option value="Cartão de Débito">Cartão de Débito</option>
-                      <option value="Convênio">Convênio</option>
-                      <option value="Pix / Transferência">Pix / Transferência</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">keyboard_arrow_down</span>
-                  </div>
-                </label>
+                      className="form-input w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                    />
+                  </label>
+                  <label className="flex flex-col text-slate-600 dark:text-slate-300">
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Horário</p>
+                    <input
+                      type="time"
+                      name="time"
+                      value={formData.time}
+                      onChange={handleInputChange}
+                      className="form-input w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col">
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Valor a ser Pago (R$)</p>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-slate-500 text-xs font-bold">R$</span>
+                      </div>
+                      <input
+                        type="text"
+                        name="value"
+                        value={formData.value}
+                        onChange={handleValueChange}
+                        className="form-input w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 pl-10 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </label>
+                  <label className="flex flex-col">
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Forma de Pagamento</p>
+                    <div className="relative">
+                      <select
+                        name="paymentMethod"
+                        value={formData.paymentMethod}
+                        onChange={handleInputChange}
+                        className="form-select w-full appearance-none rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                        disabled={!formData.hospitalId}
+                      >
+                        <option value="" disabled>
+                          {!formData.hospitalId ? 'Selecione um hospital primeiro' : 'Selecione'}
+                        </option>
+                        {hospitalPaymentMethods.map((m) => (
+                          <option key={m.id} value={m.name}>{m.name}</option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">keyboard_arrow_down</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <label className="flex flex-col">
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Observações e Anexos</p>
+                    <textarea
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleInputChange}
+                      className="form-textarea w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white resize-none"
+                      rows={4}
+                      placeholder="Adicionar notas clínicas ou observações importantes..."
+                    />
+                  </label>
+                </div>
               </div>
-
-              <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-                <label className="flex flex-col">
-                  <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Observações e Anexos</p>
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                    className="form-textarea w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white resize-none"
-                    rows={4}
-                    placeholder="Adicionar notas clínicas ou observações importantes..."
-                  />
-                </label>
-
-
-              </div>
-
             </div>
           </section>
         </div>
@@ -651,7 +725,7 @@ const NewAppointment: React.FC = () => {
               <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
                 <span className="text-slate-500 dark:text-slate-400">Data e Hora</span>
                 <span className="font-medium text-right text-slate-900 dark:text-white">
-                  {new Date(formData.date).toLocaleDateString('pt-BR')} às {formData.time}
+                  {formatDateDisplay(formData.date)} às {formData.time}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2">
@@ -665,7 +739,7 @@ const NewAppointment: React.FC = () => {
             <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-3">
               <button
                 onClick={handleSubmit}
-                className="w-full flex items-center justify-center rounded-lg h-11 px-4 bg-primary hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition-colors"
+                className="w-full flex items-center justify-center rounded-lg h-11 px-4 bg-green-600 hover:bg-green-700 text-white text-sm font-bold shadow-sm transition-colors"
               >
                 Agendar Procedimento
               </button>
@@ -687,17 +761,15 @@ const NewAppointment: React.FC = () => {
             </div>
           </div>
         </aside>
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant={confirmModal.variant}
+        />
       </div>
-
-      {/* Confirm Modal */}
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        variant={confirmModal.variant}
-      />
     </div>
   );
 };
