@@ -20,7 +20,7 @@ const Layout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 h-full relative transition-all duration-300 ease-in-out antialiased">
         <MobileHeader onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
 
-        <main className="flex-1 overflow-y-auto px-6 py-10 sm:px-8 sm:py-12 lg:px-12 lg:py-14 scroll-smooth">
+        <main className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-10 lg:px-12 lg:py-14 scroll-smooth">
           <Outlet />
         </main>
       </div>

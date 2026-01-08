@@ -204,7 +204,7 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="max-w-[1600px] mx-auto space-y-6 relative pb-8">
+        <div className="max-w-screen-xl w-full mx-auto space-y-6 relative pb-8 px-4 sm:px-6">
 
             {/* Header & Filters */}
             <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 pb-2">
@@ -275,26 +275,26 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Row 1: Big KPIs */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="flex items-center gap-4 p-5 relative overflow-hidden group min-h-[110px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                <Card className="flex flex-wrap md:flex-nowrap items-start gap-3 sm:gap-4 p-5 relative overflow-hidden group min-h-[110px]">
                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                         <span className="material-symbols-outlined text-[24px]">attach_money</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
-                        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 truncate">
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
+                        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
                             {formatCurrencyNoDecimals(dashboardData.totals.revenue)}
                         </h3>
                     </div>
                 </Card>
 
-                <Card className="flex items-center gap-4 p-5 relative overflow-hidden group min-h-[110px]">
+                <Card className="flex flex-wrap md:flex-nowrap items-start gap-3 sm:gap-4 p-5 relative overflow-hidden group min-h-[110px]">
                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                         <span className="material-symbols-outlined text-[24px]">payments</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
-                        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 truncate">
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
+                        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
                             {formatCurrencyNoDecimals(dashboardData.totals.repasse)}
                         </h3>
                     </div>
@@ -302,22 +302,24 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Row 2: Detailed Service KPIs - CLEAN STYLE */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                 {[
                     { title: 'Consultas', count: dashboardData.totals.consultas, value: formatCurrency(dashboardData.totals.consultas_revenue || 0), icon: 'event_note' },
                     { title: 'Exames', count: dashboardData.totals.exames, value: formatCurrency(dashboardData.totals.exames_revenue || 0), icon: 'biotech' },
                     { title: 'Cirurgias', count: dashboardData.totals.cirurgias, value: formatCurrency(dashboardData.totals.cirurgias_revenue || 0), icon: 'medical_services' }
                 ].map((item, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row xl:items-center justify-between gap-3 min-w-0">
-                        <div className="flex items-center gap-4 min-w-0">
+                    <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap min-w-0">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                             <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                                 <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
                             </div>
-                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
+                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-tight whitespace-normal">
                                 {item.title} <span className="font-normal opacity-70">({formatNumber(item.count)})</span>
                             </p>
                         </div>
-                        <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in truncate">{item.value}</h3>
+                        <h3 className="text-xl sm:text-2xl md:text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in leading-tight whitespace-normal break-words">
+                            {item.value}
+                        </h3>
                     </div>
                 ))}
             </div>
