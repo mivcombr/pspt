@@ -282,7 +282,7 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
-                        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
+                        <h3 className="text-[clamp(1.25rem,4vw,1.875rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
                             {formatCurrencyNoDecimals(dashboardData.totals.revenue)}
                         </h3>
                     </div>
@@ -294,7 +294,7 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
-                        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
+                        <h3 className="text-[clamp(1.25rem,4vw,1.875rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
                             {formatCurrencyNoDecimals(dashboardData.totals.repasse)}
                         </h3>
                     </div>
@@ -317,7 +317,7 @@ const Dashboard: React.FC = () => {
                                 {item.title} <span className="font-normal opacity-70">({formatNumber(item.count)})</span>
                             </p>
                         </div>
-                        <h3 className="text-xl sm:text-2xl md:text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in leading-tight whitespace-normal break-words">
+                        <h3 className="text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in leading-tight whitespace-normal break-words">
                             {item.value}
                         </h3>
                     </div>

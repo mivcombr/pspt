@@ -486,7 +486,7 @@ const Financials: React.FC = () => {
     };
 
     return (
-        <div className="max-w-[1600px] mx-auto space-y-8 pb-8 relative">
+        <div className="max-w-screen-xl w-full mx-auto space-y-8 pb-8 relative px-4 sm:px-6">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
                 <div>
                     <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Pagamentos</h1>
@@ -511,7 +511,7 @@ const Financials: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5">
                 {[
                     { label: 'Faturamento Total', value: formatCurrency(totals.revenue), icon: 'payments' },
                     { label: 'Total do Programa', value: formatCurrency(totals.repasse), icon: 'attach_money' },
@@ -519,32 +519,32 @@ const Financials: React.FC = () => {
                     { label: 'A Receber', value: formatCurrency(totals.pending), icon: 'account_balance_wallet' },
                     { label: 'Programa a Receber', value: formatCurrency(totals.pendingRepasse), icon: 'currency_exchange' }
                 ].map((card, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28 min-w-0">
+                    <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-wrap items-start gap-3 sm:gap-4 min-h-[7rem] min-w-0">
                         <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                             <span className="material-symbols-outlined text-[24px]">{card.icon}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">{card.label}</p>
-                            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 truncate">{card.value}</h3>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-normal">{card.label}</p>
+                            <h3 className="text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 leading-tight whitespace-normal break-words">{card.value}</h3>
                         </div>
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                 {[
                     { title: 'Exames', value: formatCurrency(categoryTotals.exames.value), icon: 'biotech', color: 'indigo', pct: categoryTotals.exames.pct },
                     { title: 'Cirurgias', value: formatCurrency(categoryTotals.cirurgias.value), icon: 'medical_services', color: 'teal', pct: categoryTotals.cirurgias.pct },
                     { title: 'Consultas', value: formatCurrency(categoryTotals.consultas.value), icon: 'stethoscope', color: 'purple', pct: categoryTotals.consultas.pct }
                 ].map((item, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col xl:flex-row xl:items-center justify-between p-5 gap-3 min-w-0">
-                        <div className="flex items-center gap-4 min-w-0">
+                    <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-3 min-w-0">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                             <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                                 <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
                             </div>
-                            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">{item.title}</p>
+                            <p className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-tight whitespace-normal">{item.title}</p>
                         </div>
-                        <h3 className="text-xl font-extrabold text-slate-900 dark:text-white truncate">{item.value}</h3>
+                        <h3 className="text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white leading-tight whitespace-normal break-words">{item.value}</h3>
                     </div>
                 ))}
             </div>
