@@ -405,15 +405,22 @@ export const appointmentService = {
         return Array.from(uniquePatients.values()).sort((a, b) => a.name.localeCompare(b.name));
     },
 
-    async getPatientHistory(name: string, birthDate: string) {
-        const { data, error } = await supabase
+    async getPatientHistory(name: string, birthDate: string | null | undefined) {
+        let query = supabase
             .from('appointments')
             .select(`
                 *,
                 hospital:hospitals(name)
             `)
-            .eq('patient_name', name)
-            .eq('patient_birth_date', birthDate)
+            .eq('patient_name', name);
+
+        if (birthDate && birthDate.trim() !== '') {
+            query = query.eq('patient_birth_date', birthDate);
+        } else {
+            query = query.is('patient_birth_date', null);
+        }
+
+        const { data, error } = await query
             .order('date', { ascending: false })
             .order('time', { ascending: false });
 
@@ -421,13 +428,19 @@ export const appointmentService = {
         return data;
     },
 
-    async updatePatientPhone(name: string, birthDate: string, phone: string) {
-        const { data, error } = await supabase
+    async updatePatientPhone(name: string, birthDate: string | null | undefined, phone: string) {
+        let query = supabase
             .from('appointments')
             .update({ patient_phone: phone })
-            .eq('patient_name', name)
-            .eq('patient_birth_date', birthDate)
-            .select();
+            .eq('patient_name', name);
+
+        if (birthDate && birthDate.trim() !== '') {
+            query = query.eq('patient_birth_date', birthDate);
+        } else {
+            query = query.is('patient_birth_date', null);
+        }
+
+        const { data, error } = await query.select();
 
         if (error) throw error;
         return data;
