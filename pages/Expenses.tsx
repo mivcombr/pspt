@@ -571,86 +571,104 @@ const Expenses: React.FC = () => {
 
          {/* --- KPIs --- */}
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
-               <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                  <span className="material-symbols-outlined text-[24px]">trending_down</span>
-               </div>
-               <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saída Total</p>
-                  <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOutflow)}</h3>
-               </div>
-            </div>
+            {isLoading ? (
+               Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-28 rounded-3xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
+               ))
+            ) : (
+               <>
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
+                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[24px]">trending_down</span>
+                     </div>
+                     <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saída Total</p>
+                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOutflow)}</h3>
+                     </div>
+                  </div>
 
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
-               <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                  <span className="material-symbols-outlined text-[24px]">receipt_long</span>
-               </div>
-               <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operacionais</p>
-                  <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOperatingExpenses)}</h3>
-               </div>
-            </div>
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
+                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[24px]">receipt_long</span>
+                     </div>
+                     <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operacionais</p>
+                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOperatingExpenses)}</h3>
+                     </div>
+                  </div>
 
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
-               <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                  <span className="material-symbols-outlined text-[24px]">pie_chart</span>
-               </div>
-               <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rateios</p>
-                  <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalWithdrawals)}</h3>
-               </div>
-            </div>
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
+                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[24px]">pie_chart</span>
+                     </div>
+                     <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rateios</p>
+                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalWithdrawals)}</h3>
+                     </div>
+                  </div>
 
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
-               <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-amber-500">
-                  <span className="material-symbols-outlined text-[24px]">schedule</span>
-               </div>
-               <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pagamentos Pendentes</p>
-                  <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{pendingCount}</h3>
-               </div>
-            </div>
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
+                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-amber-500">
+                        <span className="material-symbols-outlined text-[24px]">schedule</span>
+                     </div>
+                     <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pagamentos Pendentes</p>
+                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{pendingCount}</h3>
+                     </div>
+                  </div>
+               </>
+            )}
          </div>
 
          {/* --- ANNUAL EVOLUTION CHART --- */}
-         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-8">
-            <div className="flex justify-between items-center mb-8">
-               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Evolução Anual de Despesas</h3>
-               <div className="flex items-center gap-4">
-                  <div className="relative">
-                     <select
-                        value={chartYear}
-                        onChange={(e) => setChartYear(e.target.value)}
-                        className="appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-white py-2 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary cursor-pointer"
-                     >
-                        {[...Array(5)].map((_, i) => (
-                           <option key={i} value={(new Date().getFullYear() - 2 + i).toString()}>
-                              {(new Date().getFullYear() - 2 + i)}
-                           </option>
-                        ))}
-                     </select>
-                     <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+         {isLoading ? (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-8 animate-pulse">
+               <div className="flex justify-between items-center mb-8">
+                  <div className="h-5 w-48 bg-slate-100 dark:bg-slate-800 rounded" />
+                  <div className="h-10 w-24 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+               </div>
+               <div className="h-[350px] w-full bg-slate-100 dark:bg-slate-800 rounded-2xl" />
+            </div>
+         ) : (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-8">
+               <div className="flex justify-between items-center mb-8">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Evolução Anual de Despesas</h3>
+                  <div className="flex items-center gap-4">
+                     <div className="relative">
+                        <select
+                           value={chartYear}
+                           onChange={(e) => setChartYear(e.target.value)}
+                           className="appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-white py-2 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary cursor-pointer"
+                        >
+                           {[...Array(5)].map((_, i) => (
+                              <option key={i} value={(new Date().getFullYear() - 2 + i).toString()}>
+                                 {(new Date().getFullYear() - 2 + i)}
+                              </option>
+                           ))}
+                        </select>
+                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+                     </div>
                   </div>
                </div>
-            </div>
 
-            <div className="h-[350px] w-full">
-               <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={currentChartData} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
-                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} dy={15} />
-                     <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} tickFormatter={(value) => value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} />
-                     <RechartsTooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '12px 16px' }} />
-                     <Line type="monotone" dataKey="operational" stroke="#ef4444" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: '#ef4444' }} name="Despesas">
-                        <LabelList content={renderCustomLabel} />
-                     </Line>
-                     <Line type="monotone" dataKey="withdrawal" stroke="#a855f7" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: '#a855f7' }} name="Rateio">
-                        <LabelList content={renderCustomLabel} />
-                     </Line>
-                  </LineChart>
-               </ResponsiveContainer>
+               <div className="h-[350px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                     <LineChart data={currentChartData} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} dy={15} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} tickFormatter={(value) => value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} />
+                        <RechartsTooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '12px 16px' }} />
+                        <Line type="monotone" dataKey="operational" stroke="#ef4444" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: '#ef4444' }} name="Despesas">
+                           <LabelList content={renderCustomLabel} />
+                        </Line>
+                        <Line type="monotone" dataKey="withdrawal" stroke="#a855f7" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: '#a855f7' }} name="Rateio">
+                           <LabelList content={renderCustomLabel} />
+                        </Line>
+                     </LineChart>
+                  </ResponsiveContainer>
+               </div>
             </div>
-         </div>
+         )}
 
          {/* --- TABLE & SIDEBAR --- */}
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -671,7 +689,18 @@ const Expenses: React.FC = () => {
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {expenses.length > 0 ? (
+                        {isLoading ? (
+                           Array.from({ length: 6 }).map((_, i) => (
+                              <tr key={i} className="animate-pulse">
+                                 <td className="px-6 py-4"><div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                 <td className="px-6 py-4"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                 <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                 <td className="px-6 py-4 text-right"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded ml-auto" /></td>
+                                 <td className="px-6 py-4 text-center"><div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded mx-auto" /></td>
+                                 <td className="px-6 py-4 text-right"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded ml-auto" /></td>
+                              </tr>
+                           ))
+                        ) : expenses.length > 0 ? (
                            expenses.map((expense) => (
                               <tr key={expense.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                  <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{expense.description}</td>
@@ -718,7 +747,11 @@ const Expenses: React.FC = () => {
                   </button>
                </div>
                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {withdrawals.length > 0 ? (
+                  {isLoading ? (
+                     Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="h-20 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/60 animate-pulse" />
+                     ))
+                  ) : withdrawals.length > 0 ? (
                      withdrawals.map((item) => (
                         <div key={item.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md transition-all group">
                            <div className="flex justify-between items-start mb-1">
@@ -744,7 +777,11 @@ const Expenses: React.FC = () => {
                <div className="p-5 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
                   <div className="flex justify-between items-center">
                      <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Total Distribuído</span>
-                     <span className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(totalWithdrawals)}</span>
+                     {isLoading ? (
+                        <div className="h-5 w-24 bg-slate-100 dark:bg-slate-700 rounded animate-pulse" />
+                     ) : (
+                        <span className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(totalWithdrawals)}</span>
+                     )}
                   </div>
                </div>
             </div>

@@ -331,8 +331,19 @@ const Hospitals: React.FC = () => {
 
     if (isLoading && hospitals.length === 0) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="flex flex-col lg:flex-row gap-8 items-start animate-pulse">
+                <aside className="hidden lg:flex w-80 flex-col rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
+                    <div className="h-12 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl" />
+                    <div className="mt-6 space-y-3">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/60" />
+                        ))}
+                    </div>
+                </aside>
+                <div className="flex-1 space-y-6">
+                    <div className="h-40 rounded-3xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
+                    <div className="h-72 rounded-3xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
+                </div>
             </div>
         );
     }

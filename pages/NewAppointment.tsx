@@ -356,8 +356,20 @@ const NewAppointment: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="max-w-4xl mx-auto pb-12 animate-pulse">
+        <div className="mb-8">
+          <div className="h-8 w-56 bg-slate-100 dark:bg-slate-800 rounded" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="h-64 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
+            <div className="h-64 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
+          </div>
+          <div className="space-y-6">
+            <div className="h-48 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
+            <div className="h-32 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
+          </div>
+        </div>
       </div>
     );
   }

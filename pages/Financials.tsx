@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate, parseCurrency } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { useNotification } from '../hooks/useNotification';
 
@@ -76,6 +76,16 @@ const Financials: React.FC = () => {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    };
+
+    const formatMoneyValue = (value: number | null | undefined) =>
+        Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const formatMoneyInput = (value: string) => {
+        const digits = value.replace(/\D/g, '');
+        if (!digits) return '';
+        const numeric = Number(digits) / 100;
+        return numeric.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
     const formatReportRange = () => {
@@ -502,24 +512,28 @@ const Financials: React.FC = () => {
         setEditForm({
             id: item.id,
             patient_name: item.patient_name,
-            total_cost: item.total_cost,
-            repasse_value: item.repasse_value,
-            hospital_value: item.hospital_value,
+            total_cost: formatMoneyValue(item.total_cost),
+            repasse_value: formatMoneyValue(item.repasse_value),
+            hospital_value: formatMoneyValue(item.hospital_value),
             payment_status: item.payment_status,
             repasse_status: item.repasse_status || 'Pendente',
-            financial_additional: item.financial_additional || 0
+            financial_additional: formatMoneyValue(item.financial_additional || 0)
         });
         setIsEditModalOpen(true);
     };
 
     const handleSaveEdit = async () => {
         try {
-            const net_value = Number(editForm.hospital_value) + Number(editForm.repasse_value) + Number(editForm.financial_additional);
+            const totalCost = parseCurrency(editForm.total_cost);
+            const repasseValue = parseCurrency(editForm.repasse_value);
+            const hospitalValue = parseCurrency(editForm.hospital_value);
+            const additionalValue = parseCurrency(editForm.financial_additional);
+            const net_value = hospitalValue + repasseValue + additionalValue;
             await appointmentService.update(editForm.id, {
-                total_cost: Number(editForm.total_cost),
-                repasse_value: Number(editForm.repasse_value),
-                hospital_value: Number(editForm.hospital_value),
-                financial_additional: Number(editForm.financial_additional),
+                total_cost: totalCost,
+                repasse_value: repasseValue,
+                hospital_value: hospitalValue,
+                financial_additional: additionalValue,
                 net_value: net_value,
                 payment_status: editForm.payment_status,
                 repasse_status: editForm.repasse_status as any
@@ -674,69 +688,81 @@ const Financials: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5">
-                {[
-                    { label: 'Faturamento Total', value: formatCurrency(filteredTotals.revenue), icon: 'payments' },
-                    { label: 'Faturamento Hospital', value: formatCurrency(filteredTotals.hospital), icon: 'domain' },
-                    { label: 'Total do Programa', value: formatCurrency(filteredTotals.repasse), icon: 'attach_money' },
-                    {
-                        label: 'A Receber',
-                        value: formatCurrency(filteredTotals.pending),
-                        icon: 'account_balance_wallet',
-                        helper: 'Valor a ser pago pelos pacientes',
-                        highlight: true,
-                        divider: true
-                    },
-                    {
-                        label: 'Programa a Receber',
-                        value: formatCurrency(filteredTotals.pendingRepasse),
-                        icon: 'currency_exchange',
-                        helper: 'Valor em aberto a ser repassado',
-                        highlight: true
-                    }
-                ].map((card, i) => (
-                    <div
-                        key={i}
-                        className={`relative p-6 rounded-3xl border shadow-sm card-shadow min-h-[8.5rem] min-w-0 ${card.highlight ? 'bg-[rgb(254,242,242)] border-red-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}
-                    >
-                        <div className="flex items-start justify-between gap-3">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${card.highlight ? 'bg-white text-primary border border-red-100' : 'bg-red-50 dark:bg-slate-800 text-primary dark:text-primary-hover'}`}>
-                                <span className="material-symbols-outlined text-[22px]">{card.icon}</span>
+                {isLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="h-[8.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
+                    ))
+                ) : (
+                    [
+                        { label: 'Faturamento Total', value: formatCurrency(filteredTotals.revenue), icon: 'payments' },
+                        { label: 'Faturamento Hospital', value: formatCurrency(filteredTotals.hospital), icon: 'domain' },
+                        { label: 'Total do Programa', value: formatCurrency(filteredTotals.repasse), icon: 'attach_money' },
+                        {
+                            label: 'A Receber',
+                            value: formatCurrency(filteredTotals.pending),
+                            icon: 'account_balance_wallet',
+                            helper: 'Valor a ser pago pelos pacientes',
+                            highlight: true,
+                            divider: true
+                        },
+                        {
+                            label: 'Programa a Receber',
+                            value: formatCurrency(filteredTotals.pendingRepasse),
+                            icon: 'currency_exchange',
+                            helper: 'Valor em aberto a ser repassado',
+                            highlight: true
+                        }
+                    ].map((card, i) => (
+                        <div
+                            key={i}
+                            className={`relative p-6 rounded-3xl border shadow-sm card-shadow min-h-[8.5rem] min-w-0 ${card.highlight ? 'bg-[rgb(254,242,242)] border-red-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${card.highlight ? 'bg-white text-primary border border-red-100' : 'bg-red-50 dark:bg-slate-800 text-primary dark:text-primary-hover'}`}>
+                                    <span className="material-symbols-outlined text-[22px]">{card.icon}</span>
+                                </div>
+                            </div>
+                            <div className="mt-4 min-w-0">
+                                <p className={`text-[10px] font-semibold uppercase tracking-wide ${card.highlight ? 'text-slate-500' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
+                                <h3 className="text-[clamp(1rem,2.6vw,1.35rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-2 leading-tight whitespace-normal break-words">
+                                    {card.value}
+                                </h3>
+                                {card.helper ? (
+                                    <span
+                                        title={card.helper}
+                                        className="absolute right-4 top-4 text-slate-400 hover:text-slate-500 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">info</span>
+                                    </span>
+                                ) : null}
                             </div>
                         </div>
-                        <div className="mt-4 min-w-0">
-                            <p className={`text-[10px] font-semibold uppercase tracking-wide ${card.highlight ? 'text-slate-500' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
-                            <h3 className="text-[clamp(1rem,2.6vw,1.35rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-2 leading-tight whitespace-normal break-words">
-                                {card.value}
-                            </h3>
-                            {card.helper ? (
-                                <span
-                                    title={card.helper}
-                                    className="absolute right-4 top-4 text-slate-400 hover:text-slate-500 transition-colors"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">info</span>
-                                </span>
-                            ) : null}
-                        </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-                {[
-                    { title: 'Exames', value: formatCurrency(filteredCategoryTotals.exames.value), icon: 'biotech', color: 'indigo', pct: filteredCategoryTotals.exames.pct },
-                    { title: 'Cirurgias', value: formatCurrency(filteredCategoryTotals.cirurgias.value), icon: 'medical_services', color: 'teal', pct: filteredCategoryTotals.cirurgias.pct },
-                    { title: 'Consultas', value: formatCurrency(filteredCategoryTotals.consultas.value), icon: 'stethoscope', color: 'purple', pct: filteredCategoryTotals.consultas.pct }
-                ].map((item, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-3 min-w-0">
-                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                            <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                {isLoading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="h-[5.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
+                    ))
+                ) : (
+                    [
+                        { title: 'Exames', value: formatCurrency(filteredCategoryTotals.exames.value), icon: 'biotech', color: 'indigo', pct: filteredCategoryTotals.exames.pct },
+                        { title: 'Cirurgias', value: formatCurrency(filteredCategoryTotals.cirurgias.value), icon: 'medical_services', color: 'teal', pct: filteredCategoryTotals.cirurgias.pct },
+                        { title: 'Consultas', value: formatCurrency(filteredCategoryTotals.consultas.value), icon: 'stethoscope', color: 'purple', pct: filteredCategoryTotals.consultas.pct }
+                    ].map((item, i) => (
+                        <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-3 min-w-0">
+                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
+                                    <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                                </div>
+                                <p className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-tight whitespace-normal">{item.title}</p>
                             </div>
-                            <p className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-tight whitespace-normal">{item.title}</p>
+                            <h3 className="text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white leading-tight whitespace-normal break-words">{item.value}</h3>
                         </div>
-                        <h3 className="text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white leading-tight whitespace-normal break-words">{item.value}</h3>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
 
             <div className="bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col lg:flex-row gap-4 items-center justify-between">
@@ -836,7 +862,18 @@ const Financials: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                             {isLoading ? (
-                                <tr><td colSpan={isAdmin ? 8 : 7} className="px-6 py-20 text-center"><div className="flex flex-col items-center gap-3"><div className="size-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" /><p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Carregando faturamento...</p></div></td></tr>
+                                Array.from({ length: 6 }).map((_, i) => (
+                                    <tr key={i} className="animate-pulse">
+                                        <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                        <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-28 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                        <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                        <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                        {isAdmin && <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>}
+                                        <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded mx-auto" /></td>
+                                        <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded mx-auto" /></td>
+                                        <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded ml-auto" /></td>
+                                    </tr>
+                                ))
                             ) : currentData.length > 0 ? (
                                 currentData.map((item) => (
                                     <tr key={item.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all hover:z-[50] relative">
@@ -917,7 +954,7 @@ const Financials: React.FC = () => {
                                         </td>
 
                                         <td className="hidden lg:table-cell px-6 py-5 align-top text-right">
-                                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center justify-end gap-1">
                                                 {isAdmin && (!item.repasse_status || item.repasse_status === 'Pendente') && (
                                                     <button
                                                         onClick={() => handleConfirmRepasse(item)}
@@ -1078,9 +1115,10 @@ const Financials: React.FC = () => {
                                         <div className="relative">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editForm.total_cost}
-                                                onChange={e => setEditForm({ ...editForm, total_cost: e.target.value })}
+                                                onChange={e => setEditForm({ ...editForm, total_cost: formatMoneyInput(e.target.value) })}
                                                 className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
                                             />
                                         </div>
@@ -1090,9 +1128,10 @@ const Financials: React.FC = () => {
                                         <div className="relative">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editForm.repasse_value}
-                                                onChange={e => setEditForm({ ...editForm, repasse_value: e.target.value })}
+                                                onChange={e => setEditForm({ ...editForm, repasse_value: formatMoneyInput(e.target.value) })}
                                                 className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-primary"
                                             />
                                         </div>
@@ -1102,9 +1141,10 @@ const Financials: React.FC = () => {
                                         <div className="relative">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={editForm.hospital_value}
-                                                onChange={e => setEditForm({ ...editForm, hospital_value: e.target.value })}
+                                                onChange={e => setEditForm({ ...editForm, hospital_value: formatMoneyInput(e.target.value) })}
                                                 className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
                                             />
                                         </div>
@@ -1115,9 +1155,10 @@ const Financials: React.FC = () => {
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                                 <input
-                                                    type="number"
+                                                    type="text"
+                                                    inputMode="decimal"
                                                     value={editForm.financial_additional}
-                                                    onChange={e => setEditForm({ ...editForm, financial_additional: e.target.value })}
+                                                    onChange={e => setEditForm({ ...editForm, financial_additional: formatMoneyInput(e.target.value) })}
                                                     className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-amber-600"
                                                 />
                                             </div>

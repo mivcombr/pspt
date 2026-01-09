@@ -480,7 +480,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
         // Check if value exceeds remaining balance
         if (val > remaining + 0.01) {
-            notify.error(`O valor informado (R$ ${val.toFixed(2)}) excede o saldo restante (R$ ${remaining.toFixed(2)}). Por favor, ajuste o valor ou edite o Valor Total acima.`);
+            notify.error(`O valor informado (${formatCurrency(val)}) excede o saldo restante (${formatCurrency(remaining)}). Por favor, ajuste o valor ou edite o Valor Total acima.`);
             return;
         }
 
@@ -515,7 +515,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         const totalPaid = paymentDraft.reduce((acc, p) => acc + p.value, 0);
 
         if (totalPaid > currentAppointment.cost + 0.01) {
-            notify.error(`O total dos pagamentos (R$ ${totalPaid.toFixed(2)}) não pode exceder o custo total (R$ ${currentAppointment.cost.toFixed(2)}). Por favor, ajuste os valores.`);
+            notify.error(`O total dos pagamentos (${formatCurrency(totalPaid)}) não pode exceder o custo total (${formatCurrency(currentAppointment.cost)}). Por favor, ajuste os valores.`);
             return;
         }
 
@@ -524,7 +524,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             setConfirmModal({
                 isOpen: true,
                 title: 'Pagamento Incompleto',
-                message: `O valor total pago (R$ ${totalPaid.toFixed(2)}) é menor que o custo (R$ ${currentAppointment.cost.toFixed(2)}). Deseja finalizar mesmo assim como "Pendente"?`,
+                message: `O valor total pago (${formatCurrency(totalPaid)}) é menor que o custo (${formatCurrency(currentAppointment.cost)}). Deseja finalizar mesmo assim como "Pendente"?`,
                 variant: 'warning',
                 onConfirm: () => proceedWithFinish(totalPaid >= currentAppointment.cost - 0.01, statusToApply),
             });
@@ -1162,11 +1162,20 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
                     <div className={`${isEmbedded ? '' : 'flex-1 overflow-y-auto'} pb-10`}>
                         {isLoading ? (
-                            <div className="px-6 py-20 text-center text-slate-400">
-                                <div className="flex flex-col items-center gap-3 animate-pulse">
-                                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
-                                    <div className="h-4 w-32 bg-slate-100 dark:bg-slate-800 rounded"></div>
-                                </div>
+                            <div className="px-4 sm:px-6 flex flex-col gap-4 pt-4">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <div key={i} className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm animate-pulse">
+                                        <div className="flex items-center justify-between">
+                                            <div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded" />
+                                            <div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded" />
+                                        </div>
+                                        <div className="h-3 w-56 bg-slate-100 dark:bg-slate-800 rounded mt-4" />
+                                        <div className="flex gap-3 mt-4">
+                                            <div className="h-8 w-24 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                                            <div className="h-8 w-24 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : error ? (
                             <div className="px-6 py-20 text-center text-red-500">
