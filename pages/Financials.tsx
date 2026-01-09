@@ -68,6 +68,7 @@ const Financials: React.FC = () => {
         consultas: { value: 0, pct: '0%' }
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [isExporting, setIsExporting] = useState(false);
 
     const formatDateForInput = (date: Date | null) => {
         if (!date) return '';
@@ -75,6 +76,125 @@ const Financials: React.FC = () => {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    };
+
+    const formatReportRange = () => {
+        if (!tempStartDate || !tempEndDate) return 'Período não definido';
+        const start = formatDate(tempStartDate);
+        const end = formatDate(tempEndDate);
+        return `${start} a ${end}`;
+    };
+
+    const buildReportHtml = () => {
+        const rows = filteredTransactions.map((item) => {
+            const payments = (item.payments || []).map((p: any) => p.method).join(' / ') || '-';
+            return `
+                <tr>
+                    <td>${item.patient_name || '-'}</td>
+                    <td>${item.procedure || '-'}</td>
+                    <td>${item.hospital?.name || '-'}</td>
+                    <td>${formatDate(item.date)}</td>
+                    <td>${payments}</td>
+                    <td>${item.payment_status || '-'}</td>
+                    <td>${item.repasse_status || 'Pendente'}</td>
+                    <td>${formatCurrency(Number(item.hospital_value || 0))}</td>
+                    <td>${formatCurrency(Number(item.repasse_value || 0))}</td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <html>
+                <head>
+                    <meta charset="utf-8" />
+                    <title>Relatório Financeiro</title>
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { font-family: Arial, sans-serif; color: #0f172a; margin: 24px; }
+                        h1 { font-size: 20px; margin: 0 0 8px 0; }
+                        .meta { font-size: 12px; color: #64748b; margin-bottom: 16px; }
+                        .summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+                        .summary-item { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
+                        .summary-item span { display: block; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; }
+                        .summary-item strong { font-size: 14px; display: block; margin-top: 6px; }
+                        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                        th, td { padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+                        th { background: #f8fafc; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; color: #64748b; }
+                        .section-title { font-size: 12px; font-weight: 700; margin: 14px 0 8px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Relatório Financeiro - Pagamentos</h1>
+                    <div class="meta"><strong>Período:</strong> ${formatReportRange()} • <strong>Gerado em:</strong> ${formatDate(new Date())}</div>
+                    <div class="summary">
+                        <div class="summary-item"><span>Faturamento Total</span><strong>${formatCurrency(filteredTotals.revenue)}</strong></div>
+                        <div class="summary-item"><span>Faturamento Hospital</span><strong>${formatCurrency(filteredTotals.hospital)}</strong></div>
+                        <div class="summary-item"><span>Total do Programa</span><strong>${formatCurrency(filteredTotals.repasse)}</strong></div>
+                        <div class="summary-item"><span>A Receber</span><strong>${formatCurrency(filteredTotals.pending)}</strong></div>
+                        <div class="summary-item"><span>Programa a Receber</span><strong>${formatCurrency(filteredTotals.pendingRepasse)}</strong></div>
+                    </div>
+                    <div class="section-title">Detalhamento</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Paciente</th>
+                                <th>Procedimento</th>
+                                <th>Hospital</th>
+                                <th>Data</th>
+                                <th>Pagamento</th>
+                                <th>Status Pag.</th>
+                                <th>Status Acerto</th>
+                                <th>Hospital</th>
+                                <th>Programa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows || '<tr><td colspan="9">Nenhum registro para o período selecionado.</td></tr>'}
+                        </tbody>
+                    </table>
+                </body>
+            </html>
+        `;
+    };
+
+    const handleExportReport = () => {
+        setIsExporting(true);
+        try {
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            iframe.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(iframe);
+
+            const doc = iframe.contentWindow?.document;
+            if (!doc || !iframe.contentWindow) {
+                notify.error('Não foi possível iniciar a exportação do relatório.');
+                iframe.remove();
+                return;
+            }
+
+            doc.open();
+            doc.write(buildReportHtml());
+            doc.close();
+
+            iframe.onload = () => {
+                iframe.contentWindow?.focus();
+                iframe.contentWindow?.print();
+                setTimeout(() => {
+                    iframe.remove();
+                }, 500);
+            };
+            notify.success('Relatório pronto para exportação em PDF.');
+        } catch (err) {
+            console.error('Erro ao exportar relatório:', err);
+            notify.error('Erro ao exportar relatório.');
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     const fetchData = async () => {
@@ -184,6 +304,40 @@ const Financials: React.FC = () => {
     const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const currentData = filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    const filteredTotals = useMemo(() => {
+        return filteredTransactions.reduce((acc, curr) => {
+            const cost = Number(curr.total_cost);
+            acc.revenue += cost;
+            acc.repasse += Number(curr.repasse_value);
+            acc.hospital += Number(curr.hospital_value);
+            if (curr.payment_status === 'Pendente') acc.pending += cost;
+            if (curr.repasse_status === 'Pendente' || !curr.repasse_status) acc.pendingRepasse += Number(curr.repasse_value);
+
+            if (curr.type === 'EXAME') acc.exames += cost;
+            else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
+            else if (curr.type === 'CONSULTA') acc.consultas += cost;
+
+            return acc;
+        }, { revenue: 0, repasse: 0, hospital: 0, pending: 0, pendingRepasse: 0, exames: 0, cirurgias: 0, consultas: 0 });
+    }, [filteredTransactions]);
+
+    const filteredCategoryTotals = useMemo(() => {
+        return {
+            exames: {
+                value: filteredTotals.exames,
+                pct: filteredTotals.revenue ? `${(filteredTotals.exames / filteredTotals.revenue * 100).toFixed(0)}%` : '0%'
+            },
+            cirurgias: {
+                value: filteredTotals.cirurgias,
+                pct: filteredTotals.revenue ? `${(filteredTotals.cirurgias / filteredTotals.revenue * 100).toFixed(0)}%` : '0%'
+            },
+            consultas: {
+                value: filteredTotals.consultas,
+                pct: filteredTotals.revenue ? `${(filteredTotals.consultas / filteredTotals.revenue * 100).toFixed(0)}%` : '0%'
+            }
+        };
+    }, [filteredTotals]);
 
     const goToPage = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -493,6 +647,14 @@ const Financials: React.FC = () => {
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Acompanhe registros financeiros e repasses.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={handleExportReport}
+                        disabled={isExporting || filteredTransactions.length === 0}
+                        className="h-10 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center gap-2 text-xs font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">download</span>
+                        {isExporting ? 'Exportando...' : 'Exportar PDF'}
+                    </button>
                     {['Este Ano', 'Este Mês', 'Hoje', 'Últimos 7 dias'].map(filter => (
                         <button
                             key={filter}
@@ -513,19 +675,47 @@ const Financials: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5">
                 {[
-                    { label: 'Faturamento Total', value: formatCurrency(totals.revenue), icon: 'payments' },
-                    { label: 'Total do Programa', value: formatCurrency(totals.repasse), icon: 'attach_money' },
-                    { label: 'Faturamento Hosp.', value: formatCurrency(totals.hospital), icon: 'domain' },
-                    { label: 'A Receber', value: formatCurrency(totals.pending), icon: 'account_balance_wallet' },
-                    { label: 'Programa a Receber', value: formatCurrency(totals.pendingRepasse), icon: 'currency_exchange' }
+                    { label: 'Faturamento Total', value: formatCurrency(filteredTotals.revenue), icon: 'payments' },
+                    { label: 'Faturamento Hospital', value: formatCurrency(filteredTotals.hospital), icon: 'domain' },
+                    { label: 'Total do Programa', value: formatCurrency(filteredTotals.repasse), icon: 'attach_money' },
+                    {
+                        label: 'A Receber',
+                        value: formatCurrency(filteredTotals.pending),
+                        icon: 'account_balance_wallet',
+                        helper: 'Valor a ser pago pelos pacientes',
+                        highlight: true,
+                        divider: true
+                    },
+                    {
+                        label: 'Programa a Receber',
+                        value: formatCurrency(filteredTotals.pendingRepasse),
+                        icon: 'currency_exchange',
+                        helper: 'Valor em aberto a ser repassado',
+                        highlight: true
+                    }
                 ].map((card, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-wrap items-start gap-3 sm:gap-4 min-h-[7rem] min-w-0">
-                        <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                            <span className="material-symbols-outlined text-[24px]">{card.icon}</span>
+                    <div
+                        key={i}
+                        className={`relative p-6 rounded-3xl border shadow-sm card-shadow min-h-[8.5rem] min-w-0 ${card.highlight ? 'bg-[rgb(254,242,242)] border-red-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${card.highlight ? 'bg-white text-primary border border-red-100' : 'bg-red-50 dark:bg-slate-800 text-primary dark:text-primary-hover'}`}>
+                                <span className="material-symbols-outlined text-[22px]">{card.icon}</span>
+                            </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-normal">{card.label}</p>
-                            <h3 className="text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 leading-tight whitespace-normal break-words">{card.value}</h3>
+                        <div className="mt-4 min-w-0">
+                            <p className={`text-[10px] font-semibold uppercase tracking-wide ${card.highlight ? 'text-slate-500' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
+                            <h3 className="text-[clamp(1rem,2.6vw,1.35rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-2 leading-tight whitespace-normal break-words">
+                                {card.value}
+                            </h3>
+                            {card.helper ? (
+                                <span
+                                    title={card.helper}
+                                    className="absolute right-4 top-4 text-slate-400 hover:text-slate-500 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">info</span>
+                                </span>
+                            ) : null}
                         </div>
                     </div>
                 ))}
@@ -533,9 +723,9 @@ const Financials: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                 {[
-                    { title: 'Exames', value: formatCurrency(categoryTotals.exames.value), icon: 'biotech', color: 'indigo', pct: categoryTotals.exames.pct },
-                    { title: 'Cirurgias', value: formatCurrency(categoryTotals.cirurgias.value), icon: 'medical_services', color: 'teal', pct: categoryTotals.cirurgias.pct },
-                    { title: 'Consultas', value: formatCurrency(categoryTotals.consultas.value), icon: 'stethoscope', color: 'purple', pct: categoryTotals.consultas.pct }
+                    { title: 'Exames', value: formatCurrency(filteredCategoryTotals.exames.value), icon: 'biotech', color: 'indigo', pct: filteredCategoryTotals.exames.pct },
+                    { title: 'Cirurgias', value: formatCurrency(filteredCategoryTotals.cirurgias.value), icon: 'medical_services', color: 'teal', pct: filteredCategoryTotals.cirurgias.pct },
+                    { title: 'Consultas', value: formatCurrency(filteredCategoryTotals.consultas.value), icon: 'stethoscope', color: 'purple', pct: filteredCategoryTotals.consultas.pct }
                 ].map((item, i) => (
                     <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-3 min-w-0">
                         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -626,6 +816,7 @@ const Financials: React.FC = () => {
                         )}
                     </div>
                 </div>
+
             </div>
 
             <div className="rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm card-shadow flex flex-col">

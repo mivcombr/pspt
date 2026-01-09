@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
+import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import { formatCurrency, formatNumber, formatCurrencyNoDecimals } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
 import { appointmentService } from '../services/appointmentService';
@@ -13,6 +13,29 @@ const renderCustomLabel = (props: any) => {
         <text x={x} y={y} dy={-10} fill={stroke} fontSize={10} textAnchor="middle" fontWeight="bold">
             {formatCurrencyNoDecimals(value)}
         </text>
+    );
+};
+
+const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+
+    const revenue = payload.find((item: any) => item.dataKey === 'revenue');
+    const repasse = payload.find((item: any) => item.dataKey === 'repasse');
+
+    return (
+        <div className="rounded-2xl bg-white/95 backdrop-blur px-4 py-3 shadow-lg border border-slate-100">
+            <p className="text-xs font-semibold text-slate-500">{label}</p>
+            {revenue ? (
+                <p className="text-lg font-extrabold text-slate-900 mt-1">
+                    {formatCurrency(revenue.value as number)}
+                </p>
+            ) : null}
+            {repasse ? (
+                <p className="text-xs font-semibold text-slate-400 mt-1">
+                    Repasse: {formatCurrency(repasse.value as number)}
+                </p>
+            ) : null}
+        </div>
     );
 };
 
@@ -336,11 +359,11 @@ const Dashboard: React.FC = () => {
                         </h3>
                         <div className="flex gap-4 mt-2">
                             <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full bg-slate-900 dark:bg-white"></span>
+                                <span className="w-2.5 h-2.5 rounded-full bg-pink-400"></span>
                                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Faturamento</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
+                                <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
                                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Repasse</span>
                             </div>
                         </div>
@@ -365,8 +388,14 @@ const Dashboard: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12">
                     <div className="lg:col-span-8 p-6 h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={dashboardData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <ComposedChart data={dashboardData.chartData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#f472b6" stopOpacity={0.25} />
+                                        <stop offset="100%" stopColor="#f472b6" stopOpacity={0.02} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid vertical={false} strokeDasharray="4 6" stroke="#e2e8f0" />
                                 <XAxis
                                     dataKey="name"
                                     axisLine={false}
@@ -381,17 +410,26 @@ const Dashboard: React.FC = () => {
                                     tickFormatter={(value) => formatCurrencyNoDecimals(value)}
                                 />
                                 <Tooltip
-                                    formatter={(value: number) => formatCurrency(value)}
-                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '12px 16px' }}
-                                    itemStyle={{ fontWeight: 'bold' }}
+                                    content={<ChartTooltip />}
+                                    cursor={{ stroke: '#e2e8f0', strokeDasharray: '4 6' }}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="revenue"
+                                    stroke="#f472b6"
+                                    strokeWidth={3}
+                                    fill="url(#revenueGradient)"
+                                    dot={false}
+                                    activeDot={{ r: 7, fill: '#f472b6', strokeWidth: 0 }}
+                                    animationDuration={500}
                                 />
                                 <Line
                                     type="monotone"
                                     dataKey="revenue"
-                                    stroke="#0f172a"
-                                    strokeWidth={4}
+                                    stroke="#f472b6"
+                                    strokeWidth={3}
                                     dot={false}
-                                    activeDot={{ r: 8, fill: '#0f172a', strokeWidth: 0 }}
+                                    activeDot={{ r: 7, fill: '#f472b6', strokeWidth: 0 }}
                                     animationDuration={500}
                                 >
                                     <LabelList content={renderCustomLabel} />
@@ -399,15 +437,16 @@ const Dashboard: React.FC = () => {
                                 <Line
                                     type="monotone"
                                     dataKey="repasse"
-                                    stroke="#B92926"
-                                    strokeWidth={4}
+                                    stroke="#94a3b8"
+                                    strokeWidth={2}
+                                    strokeDasharray="6 6"
                                     dot={false}
-                                    activeDot={{ r: 8, fill: '#B92926', strokeWidth: 0 }}
+                                    activeDot={{ r: 6, fill: '#94a3b8', strokeWidth: 0 }}
                                     animationDuration={500}
                                 >
                                     <LabelList content={renderCustomLabel} />
                                 </Line>
-                            </LineChart>
+                            </ComposedChart>
                         </ResponsiveContainer>
                     </div>
 
