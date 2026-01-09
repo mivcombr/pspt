@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export const hospitalService = {
     async getAll() {
@@ -7,7 +8,10 @@ export const hospitalService = {
             .select('*')
             .order('name');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'hospitals', error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -18,7 +22,10 @@ export const hospitalService = {
             .eq('id', id)
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'hospitals', id, error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -36,7 +43,11 @@ export const hospitalService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'hospitals', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'hospitals', id: data?.id }, 'crud');
         return data;
     },
 
@@ -48,7 +59,11 @@ export const hospitalService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'hospitals', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'hospitals', id, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     },
 
@@ -58,6 +73,10 @@ export const hospitalService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'hospitals', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'hospitals', id }, 'crud');
     }
 };

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export interface HospitalPaymentMethod {
     id: string;
@@ -17,7 +18,10 @@ export const paymentMethodService = {
             .eq('hospital_id', hospitalId)
             .order('name');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'hospital_payment_methods', hospital_id: hospitalId, error }, 'crud');
+            throw error;
+        }
         return data as HospitalPaymentMethod[];
     },
 
@@ -28,7 +32,11 @@ export const paymentMethodService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'hospital_payment_methods', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'hospital_payment_methods', id: data?.id }, 'crud');
         return data as HospitalPaymentMethod;
     },
 
@@ -40,7 +48,11 @@ export const paymentMethodService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'hospital_payment_methods', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'hospital_payment_methods', id, fields: Object.keys(updates || {}) }, 'crud');
         return data as HospitalPaymentMethod;
     },
 
@@ -50,6 +62,10 @@ export const paymentMethodService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'hospital_payment_methods', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'hospital_payment_methods', id }, 'crud');
     }
 };

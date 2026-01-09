@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export interface ExpenseCategory {
     id: string;
@@ -66,7 +67,10 @@ export const expenseService = {
             error = retry.error;
         }
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'expenses', error }, 'crud');
+            throw error;
+        }
         return data as Expense[];
     },
 
@@ -97,7 +101,11 @@ export const expenseService = {
             error = retry.error;
         }
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'expenses', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'expenses', id: data?.id }, 'crud');
         return data;
     },
 
@@ -109,7 +117,11 @@ export const expenseService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'expenses', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'expenses', id, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     },
 
@@ -119,7 +131,11 @@ export const expenseService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'expenses', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'expenses', id }, 'crud');
     },
 
     async getCategories() {
@@ -128,7 +144,10 @@ export const expenseService = {
             .select('*')
             .order('name');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'expense_categories', error }, 'crud');
+            throw error;
+        }
         return data as ExpenseCategory[];
     },
 
@@ -146,7 +165,11 @@ export const expenseService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'expense_categories', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'expense_categories', id: data?.id }, 'crud');
         return data;
     },
 
@@ -158,7 +181,11 @@ export const expenseService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'expense_categories', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'expense_categories', id, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     },
 
@@ -168,6 +195,10 @@ export const expenseService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'expense_categories', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'expense_categories', id }, 'crud');
     }
 };

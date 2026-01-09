@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export interface Procedure {
     id: string;
@@ -22,7 +23,10 @@ export const procedureService = {
 
         const { data, error } = await query.order('name');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'procedures_price_list', error }, 'crud');
+            throw error;
+        }
         return data as Procedure[];
     },
 
@@ -40,7 +44,11 @@ export const procedureService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'procedures_price_list', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'procedures_price_list', id: data?.id }, 'crud');
         return data;
     },
 
@@ -52,7 +60,11 @@ export const procedureService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'procedures_price_list', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'procedures_price_list', id, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     },
     async delete(id: string) {
@@ -61,6 +73,10 @@ export const procedureService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'procedures_price_list', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'procedures_price_list', id }, 'crud');
     }
 };

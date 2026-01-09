@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export const hospitalDocumentService = {
     async getByHospital(hospitalId: string) {
@@ -8,7 +9,10 @@ export const hospitalDocumentService = {
             .eq('hospital_id', hospitalId)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'hospital_documents', hospital_id: hospitalId, error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -25,7 +29,10 @@ export const hospitalDocumentService = {
             .from('hospital-documents')
             .upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+            logger.error({ action: 'create', entity: 'hospital_documents', hospital_id: hospitalId, error: uploadError }, 'crud');
+            throw uploadError;
+        }
 
         // 2. Get Public URL
         const { data: { publicUrl } } = supabase.storage
@@ -49,9 +56,11 @@ export const hospitalDocumentService = {
         if (dbError) {
             // Cleanup: delete file if DB insert fails
             await supabase.storage.from('hospital-documents').remove([filePath]);
+            logger.error({ action: 'create', entity: 'hospital_documents', hospital_id: hospitalId, error: dbError }, 'crud');
             throw dbError;
         }
 
+        logger.info({ action: 'create', entity: 'hospital_documents', id: data?.id }, 'crud');
         return data;
     },
 
@@ -61,7 +70,10 @@ export const hospitalDocumentService = {
             .from('hospital-documents')
             .remove([filePath]);
 
-        if (storageError) throw storageError;
+        if (storageError) {
+            logger.error({ action: 'delete', entity: 'hospital_documents', id: documentId, error: storageError }, 'crud');
+            throw storageError;
+        }
 
         // 2. Delete from Database
         const { error: dbError } = await supabase
@@ -69,7 +81,11 @@ export const hospitalDocumentService = {
             .delete()
             .eq('id', documentId);
 
-        if (dbError) throw dbError;
+        if (dbError) {
+            logger.error({ action: 'delete', entity: 'hospital_documents', id: documentId, error: dbError }, 'crud');
+            throw dbError;
+        }
+        logger.info({ action: 'delete', entity: 'hospital_documents', id: documentId }, 'crud');
     },
 
     getPublicUrl(filePath: string) {

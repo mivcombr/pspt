@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export const profileService = {
     async getByHospital(hospitalId: string) {
@@ -7,7 +8,10 @@ export const profileService = {
             .select('*')
             .eq('hospital_id', hospitalId);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'profiles', hospital_id: hospitalId, error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -17,7 +21,10 @@ export const profileService = {
             .select('*, hospitals(name)')
             .order('name');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'profiles', error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -29,7 +36,11 @@ export const profileService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'profiles', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'profiles', id, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     }
 };

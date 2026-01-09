@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export interface CreateUserPayload {
     email: string;
@@ -20,9 +21,11 @@ export const userService = {
 
         if (error) {
             console.error('Error invoking create-user function:', error);
+            logger.error({ action: 'create', entity: 'profiles', error }, 'crud');
             throw new Error(error.message || 'Failed to create user');
         }
 
+        logger.info({ action: 'create', entity: 'profiles' }, 'crud');
         return data;
     },
 
@@ -36,7 +39,10 @@ export const userService = {
             .eq('hospital_id', hospitalId)
             .order('name');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'profiles', hospital_id: hospitalId, error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -51,7 +57,11 @@ export const userService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'profiles', id: userId, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'profiles', id: userId, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     },
 
@@ -64,6 +74,10 @@ export const userService = {
             .delete()
             .eq('id', userId);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'profiles', id: userId, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'profiles', id: userId }, 'crud');
     }
 };

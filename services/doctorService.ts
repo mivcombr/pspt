@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export interface Doctor {
     id: string;
@@ -16,7 +17,10 @@ export const doctorService = {
             .select('*, hospital:hospitals(name)')
             .order('name');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'doctors', error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -28,7 +32,10 @@ export const doctorService = {
             .eq('active', true)
             .order('name');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'doctors', hospital_id: hospitalId, error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -46,7 +53,11 @@ export const doctorService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'doctors', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'doctors', id: data?.id }, 'crud');
         return data;
     },
 
@@ -58,7 +69,11 @@ export const doctorService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'doctors', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'doctors', id, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     },
 
@@ -68,6 +83,10 @@ export const doctorService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'doctors', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'doctors', id }, 'crud');
     }
 };

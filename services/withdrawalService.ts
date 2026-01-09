@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export interface Withdrawal {
     id: string;
@@ -50,7 +51,10 @@ export const withdrawalService = {
             error = retry.error;
         }
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'withdrawals', error }, 'crud');
+            throw error;
+        }
         return data as Withdrawal[];
     },
 
@@ -74,7 +78,11 @@ export const withdrawalService = {
             error = retry.error;
         }
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'withdrawals', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'withdrawals', id: data?.id }, 'crud');
         return data;
     },
 
@@ -86,7 +94,11 @@ export const withdrawalService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'withdrawals', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'withdrawals', id, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     },
 
@@ -96,6 +108,10 @@ export const withdrawalService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'withdrawals', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'withdrawals', id }, 'crud');
     }
 };

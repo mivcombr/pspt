@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 import { Appointment } from '../types';
 
 export const appointmentService = {
@@ -29,7 +30,10 @@ export const appointmentService = {
 
         const { data, error } = await query.order('time', { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -47,7 +51,11 @@ export const appointmentService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'appointments', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'appointments', id: data?.id }, 'crud');
         return data;
     },
 
@@ -74,7 +82,10 @@ export const appointmentService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'appointments', id, error }, 'crud');
+            throw error;
+        }
 
         // Log Changes (Audit)
         try {
@@ -107,6 +118,7 @@ export const appointmentService = {
             console.error('Failed to log audit:', auditErr);
         }
 
+        logger.info({ action: 'update', entity: 'appointments', id, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     },
 
@@ -125,6 +137,7 @@ export const appointmentService = {
             if (error) {
                 // If error with relation, try without it
                 console.warn('Error fetching audit logs with user relation:', error);
+                logger.error({ action: 'read', entity: 'appointment_audit_logs', appointment_id: appointmentId, error }, 'crud');
                 const { data: dataWithoutUser, error: errorWithoutUser } = await supabase
                     .from('appointment_audit_logs')
                     .select('*')
@@ -133,6 +146,7 @@ export const appointmentService = {
 
                 if (errorWithoutUser) {
                     console.error('Error fetching audit logs:', errorWithoutUser);
+                    logger.error({ action: 'read', entity: 'appointment_audit_logs', appointment_id: appointmentId, error: errorWithoutUser }, 'crud');
                     return [];
                 }
                 return dataWithoutUser || [];
@@ -141,6 +155,7 @@ export const appointmentService = {
             return data || [];
         } catch (err) {
             console.error('Unexpected error in getAuditLogs:', err);
+            logger.error({ action: 'read', entity: 'appointment_audit_logs', appointment_id: appointmentId, error: err }, 'crud');
             return [];
         }
     },
@@ -159,7 +174,11 @@ export const appointmentService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'appointment_payments', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'appointment_payments', id: data?.id }, 'crud');
         return data;
     },
 
@@ -169,7 +188,11 @@ export const appointmentService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'appointment_payments', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'appointment_payments', id }, 'crud');
     },
 
     async delete(id: string) {
@@ -178,7 +201,11 @@ export const appointmentService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'appointments', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'appointments', id }, 'crud');
     },
 
     async getDashboardData(filters: { startDate: string; endDate: string; hospitalId?: string }) {
@@ -206,7 +233,10 @@ export const appointmentService = {
         }
 
         const { data, error } = await query;
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
+            throw error;
+        }
 
         let chartData: any[] = [];
         if (diffDays <= 31) {
@@ -324,7 +354,10 @@ export const appointmentService = {
             .from('appointments')
             .select('provider');
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
+            throw error;
+        }
 
         // Return unique names
         const names = data.map(d => d.provider).filter(p => p && p.trim() !== '');
@@ -339,7 +372,10 @@ export const appointmentService = {
             .ilike('patient_name', `%${searchTerm}%`)
             .limit(10);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
+            throw error;
+        }
 
         // De-duplicate in memory (Supabase doesn't support SELECT DISTINCT on multiple columns easily with PostgREST)
         const uniquePatients = new Map();
@@ -371,7 +407,10 @@ export const appointmentService = {
         }
 
         const { data, error } = await query.order('date', { ascending: true }).order('time', { ascending: true });
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
+            throw error;
+        }
 
         // De-duplicate in memory and aggregate history
         const uniquePatients = new Map();
@@ -424,7 +463,10 @@ export const appointmentService = {
             .order('date', { ascending: false })
             .order('time', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
+            throw error;
+        }
         return data;
     },
 
@@ -442,7 +484,11 @@ export const appointmentService = {
 
         const { data, error } = await query.select();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'appointments', patient_name: name, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'appointments', fields: ['patient_phone'], patient_name: name }, 'crud');
         return data;
     },
 
@@ -454,7 +500,11 @@ export const appointmentService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'appointment_payments', id: paymentId, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'appointment_payments', id: paymentId, fields: Object.keys(updates || {}) }, 'crud');
         return data;
     }
 };

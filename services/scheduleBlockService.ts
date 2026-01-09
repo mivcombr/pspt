@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export interface ScheduleBlock {
     id: string;
@@ -24,7 +25,10 @@ export const scheduleBlockService = {
 
         const { data, error } = await query.order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'read', entity: 'schedule_blocks', error }, 'crud');
+            throw error;
+        }
         return data as ScheduleBlock[];
     },
 
@@ -35,7 +39,11 @@ export const scheduleBlockService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'create', entity: 'schedule_blocks', error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'create', entity: 'schedule_blocks', id: data?.id }, 'crud');
         return data as ScheduleBlock;
     },
 
@@ -47,7 +55,11 @@ export const scheduleBlockService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'update', entity: 'schedule_blocks', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'schedule_blocks', id, fields: Object.keys(updates || {}) }, 'crud');
         return data as ScheduleBlock;
     },
 
@@ -57,6 +69,10 @@ export const scheduleBlockService = {
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            logger.error({ action: 'delete', entity: 'schedule_blocks', id, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'delete', entity: 'schedule_blocks', id }, 'crud');
     }
 };
