@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 import { Appointment } from '../types';
+import { APP_TIME_ZONE } from '../utils/formatters';
 
 export const appointmentService = {
     async getAll(filters?: { date?: string; hospitalId?: string; startDate?: string; endDate?: string }) {
@@ -219,6 +220,7 @@ export const appointmentService = {
             .select(`
                 total_cost, 
                 repasse_value, 
+                hospital_value,
                 type, 
                 status, 
                 date,
@@ -238,6 +240,38 @@ export const appointmentService = {
             throw error;
         }
 
+        let expensesData: any[] = [];
+        let expensesError: any = null;
+        let expensesQuery = supabase
+            .from('expenses')
+            .select('id, due_date, value, hospital_id')
+            .gte('due_date', filters.startDate)
+            .lte('due_date', filters.endDate);
+
+        if (filters.hospitalId && filters.hospitalId !== 'Todos os Parceiros' && filters.hospitalId !== 'Todos os Hospitais') {
+            expensesQuery = expensesQuery.eq('hospital_id', filters.hospitalId);
+        }
+
+        const expensesResponse = await expensesQuery;
+        expensesData = expensesResponse.data || [];
+        expensesError = expensesResponse.error;
+
+        if (expensesError && expensesError.message?.includes('column \"hospital_id\" does not exist')) {
+            let fallbackQuery = supabase
+                .from('expenses')
+                .select('id, due_date, value')
+                .gte('due_date', filters.startDate)
+                .lte('due_date', filters.endDate);
+
+            const fallbackResponse = await fallbackQuery;
+            expensesData = fallbackResponse.data || [];
+            expensesError = fallbackResponse.error;
+        }
+
+        if (expensesError) {
+            logger.error({ action: 'read', entity: 'expenses', error: expensesError }, 'crud');
+        }
+
         let chartData: any[] = [];
         if (diffDays <= 31) {
             // Granularidade diária (mesmo intervalo do filtro)
@@ -245,12 +279,14 @@ export const appointmentService = {
                 const d = new Date(start);
                 d.setDate(start.getDate() + i);
                 const dateStr = d.toISOString().split('T')[0];
-                const dayLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+                const dayLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: APP_TIME_ZONE });
                 chartData.push({
                     name: dayLabel,
                     dateKey: dateStr,
                     revenue: 0,
                     repasse: 0,
+                    hospital: 0,
+                    expenses: 0,
                     consultas: 0,
                     exames: 0,
                     cirurgias: 0
@@ -262,11 +298,21 @@ export const appointmentService = {
                 if (match) {
                     const revenue = Number(curr.total_cost);
                     const repasse = Number(curr.repasse_value);
+                    const hospitalValue = Number(curr.hospital_value);
                     match.revenue += revenue;
                     match.repasse += repasse;
+                    match.hospital += Number.isFinite(hospitalValue) ? hospitalValue : 0;
                     if (curr.type === 'CONSULTA') match.consultas++;
                     if (curr.type === 'EXAME') match.exames++;
                     if (curr.type === 'CIRURGIA') match.cirurgias++;
+                }
+            });
+
+            expensesData.forEach(curr => {
+                const match = chartData.find(c => c.dateKey === curr.due_date);
+                if (match) {
+                    const expenseValue = Number(curr.value);
+                    match.expenses += Number.isFinite(expenseValue) ? expenseValue : 0;
                 }
             });
         } else {
@@ -276,6 +322,8 @@ export const appointmentService = {
                 name: month,
                 revenue: 0,
                 repasse: 0,
+                hospital: 0,
+                expenses: 0,
                 consultas: 0,
                 exames: 0,
                 cirurgias: 0
@@ -289,17 +337,30 @@ export const appointmentService = {
 
                 const revenue = Number(curr.total_cost);
                 const repasse = Number(curr.repasse_value);
+                const hospitalValue = Number(curr.hospital_value);
                 chartData[monthIdx].revenue += revenue;
                 chartData[monthIdx].repasse += repasse;
+                chartData[monthIdx].hospital += Number.isFinite(hospitalValue) ? hospitalValue : 0;
                 if (curr.type === 'CONSULTA') chartData[monthIdx].consultas++;
                 if (curr.type === 'EXAME') chartData[monthIdx].exames++;
                 if (curr.type === 'CIRURGIA') chartData[monthIdx].cirurgias++;
+            });
+
+            expensesData.forEach(curr => {
+                if (!curr.due_date) return;
+                const pieces = curr.due_date.split('-');
+                const monthIdx = Number(pieces[1]) - 1;
+                if (monthIdx < 0 || monthIdx > 11) return;
+                const expenseValue = Number(curr.value);
+                chartData[monthIdx].expenses += Number.isFinite(expenseValue) ? expenseValue : 0;
             });
         }
 
         const totals = {
             revenue: 0,
             repasse: 0,
+            hospital: 0,
+            expenses: 0,
             consultas: 0,
             exames: 0,
             cirurgias: 0,
@@ -313,8 +374,11 @@ export const appointmentService = {
             const revenue = Number(curr.total_cost);
             const repasse = Number(curr.repasse_value);
 
+            const hospitalValue = Number(curr.hospital_value);
+
             totals.revenue += revenue;
             totals.repasse += repasse;
+            totals.hospital += Number.isFinite(hospitalValue) ? hospitalValue : 0;
             if (curr.type === 'CONSULTA') {
                 totals.consultas++;
                 totals.consultas_revenue += revenue;
@@ -342,6 +406,11 @@ export const appointmentService = {
                 partnerMap[h.name].totalRevenue += revenue;
                 partnerMap[h.name].totalRepasse += repasse;
             }
+        });
+
+        expensesData.forEach(curr => {
+            const expenseValue = Number(curr.value);
+            totals.expenses += Number.isFinite(expenseValue) ? expenseValue : 0;
         });
 
         const partnerBreakdown = Object.values(partnerMap).sort((a, b) => b.totalRevenue - a.totalRevenue);

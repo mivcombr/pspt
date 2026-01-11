@@ -5,7 +5,7 @@ import {
 
 import { expenseService, Expense, ExpenseCategory } from '../services/expenseService';
 import { withdrawalService, Withdrawal } from '../services/withdrawalService';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { APP_TIME_ZONE, formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { ConfirmModal } from '../components/ConfirmModal';
 
@@ -206,9 +206,9 @@ const Expenses: React.FC = () => {
    const formatRangeLabel = () => {
       if (!tempStartDate) return 'Selecione uma data';
       const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-      const start = tempStartDate.toLocaleDateString('pt-BR', options);
+      const start = tempStartDate.toLocaleDateString('pt-BR', { ...options, timeZone: APP_TIME_ZONE });
       if (tempEndDate) {
-         const end = tempEndDate.toLocaleDateString('pt-BR', options);
+         const end = tempEndDate.toLocaleDateString('pt-BR', { ...options, timeZone: APP_TIME_ZONE });
          return `${start} - ${end}`;
       }
       return start;
@@ -502,21 +502,21 @@ const Expenses: React.FC = () => {
 
    return (
       <>
-         <div className="max-w-[1600px] mx-auto space-y-6 pb-12 relative font-sans">
+         <div className="max-w-[1600px] mx-auto space-y-5 sm:space-y-6 pb-12 relative font-sans">
          {/* --- HEADER --- */}
-         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 pb-4">
+         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6 pb-4">
             <div>
                <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Saídas & Rateios</h1>
                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Gestão de despesas operacionais e distribuição de lucros.</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4 flex-wrap xl:justify-end">
-               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-wrap xl:justify-end w-full xl:w-auto">
+               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
                   {['Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
                      <button
                         key={preset}
                         onClick={() => applyPreset(preset)}
-                        className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${activeDateFilter === preset
+                        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === preset
                            ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                      >
@@ -524,11 +524,11 @@ const Expenses: React.FC = () => {
                      </button>
                   ))}
 
-                  <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                  <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0"></div>
 
                   <button
                      onClick={() => setIsCalendarOpen(true)}
-                     className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${activeDateFilter === 'Personalizado'
+                     className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === 'Personalizado'
                         ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
                         : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                   >
@@ -541,10 +541,10 @@ const Expenses: React.FC = () => {
 
                <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
 
-               <div className="flex items-center gap-3">
+               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                   <button
                      onClick={() => { handleOpenNewCategory(); setIsConfigOpen(true); }}
-                     className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-primary transition-all shadow-sm hover:shadow-md"
+                     className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-primary transition-all shadow-sm hover:shadow-md self-start sm:self-auto"
                      title="Configurar Categorias"
                   >
                      <span className="material-symbols-outlined text-[20px]">settings</span>
@@ -552,7 +552,7 @@ const Expenses: React.FC = () => {
 
                   <button
                      onClick={handleOpenNewWithdrawal}
-                     className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-purple-600/20 flex items-center gap-2 transition-all active:scale-95 border border-purple-500"
+                     className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-purple-600/20 flex items-center gap-2 transition-all active:scale-95 border border-purple-500 w-full sm:w-auto justify-center"
                   >
                      <span className="material-symbols-outlined text-[18px]">add_circle</span>
                      Novo Rateio
@@ -560,7 +560,7 @@ const Expenses: React.FC = () => {
 
                   <button
                      onClick={handleOpenNew}
-                     className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-red-600/20 flex items-center gap-2 transition-all active:scale-95 border border-red-500"
+                     className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-red-600/20 flex items-center gap-2 transition-all active:scale-95 border border-red-500 w-full sm:w-auto justify-center"
                   >
                      <span className="material-symbols-outlined text-[18px]">remove_circle</span>
                      Nova Despesa
@@ -570,50 +570,50 @@ const Expenses: React.FC = () => {
          </div>
 
          {/* --- KPIs --- */}
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {isLoading ? (
                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-28 rounded-3xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
+                  <div key={i} className="h-[6.5rem] sm:h-28 rounded-3xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
                ))
             ) : (
                <>
-                  <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
-                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[24px]">trending_down</span>
+                  <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[20px] sm:text-[24px]">trending_down</span>
                      </div>
                      <div className="flex-1">
-                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saída Total</p>
-                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOutflow)}</h3>
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saída Total</p>
+                        <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOutflow)}</h3>
                      </div>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
-                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[24px]">receipt_long</span>
+                  <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[20px] sm:text-[24px]">receipt_long</span>
                      </div>
                      <div className="flex-1">
-                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operacionais</p>
-                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOperatingExpenses)}</h3>
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operacionais</p>
+                        <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOperatingExpenses)}</h3>
                      </div>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
-                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[24px]">pie_chart</span>
+                  <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[20px] sm:text-[24px]">pie_chart</span>
                      </div>
                      <div className="flex-1">
-                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rateios</p>
-                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalWithdrawals)}</h3>
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rateios</p>
+                        <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalWithdrawals)}</h3>
                      </div>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-4 h-28">
-                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-amber-500">
-                        <span className="material-symbols-outlined text-[24px]">schedule</span>
+                  <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-amber-500">
+                        <span className="material-symbols-outlined text-[20px] sm:text-[24px]">schedule</span>
                      </div>
                      <div className="flex-1">
-                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pagamentos Pendentes</p>
-                        <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{pendingCount}</h3>
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pagamentos Pendentes</p>
+                        <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{pendingCount}</h3>
                      </div>
                   </div>
                </>
@@ -630,15 +630,15 @@ const Expenses: React.FC = () => {
                <div className="h-[350px] w-full bg-slate-100 dark:bg-slate-800 rounded-2xl" />
             </div>
          ) : (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-8">
-               <div className="flex justify-between items-center mb-8">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Evolução Anual de Despesas</h3>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-4 sm:p-8">
+               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Evolução Anual de Despesas</h3>
                   <div className="flex items-center gap-4">
                      <div className="relative">
                         <select
                            value={chartYear}
                            onChange={(e) => setChartYear(e.target.value)}
-                           className="appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-white py-2 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary cursor-pointer"
+                           className="w-full sm:w-auto appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-white py-2 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary cursor-pointer"
                         >
                            {[...Array(5)].map((_, i) => (
                               <option key={i} value={(new Date().getFullYear() - 2 + i).toString()}>
@@ -651,7 +651,7 @@ const Expenses: React.FC = () => {
                   </div>
                </div>
 
-               <div className="h-[350px] w-full">
+               <div className="h-[260px] sm:h-[350px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                      <LineChart data={currentChartData} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -811,7 +811,7 @@ const Expenses: React.FC = () => {
                         <div className="flex items-center gap-4">
                            <button onClick={() => handleCalendarNav(-1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500"><span className="material-symbols-outlined">chevron_left</span></button>
                            <span className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-wide">
-                              {viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                              {viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}
                            </span>
                            <button onClick={() => handleCalendarNav(1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500"><span className="material-symbols-outlined">chevron_right</span></button>
                         </div>

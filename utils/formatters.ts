@@ -1,3 +1,5 @@
+export const APP_TIME_ZONE = 'America/Recife';
+
 export const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
@@ -40,6 +42,5 @@ export const formatDate = (date: string | Date | null | undefined) => {
     // Check if date is valid
     if (isNaN(d.getTime())) return '-';
 
-    return new Intl.DateTimeFormat('pt-BR').format(d);
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: APP_TIME_ZONE }).format(d);
 };
-

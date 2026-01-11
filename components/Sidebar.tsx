@@ -13,6 +13,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMobileClose }) => {
     const { user, signOut } = useAuth();
     const location = useLocation();
+    const [iconLogoError, setIconLogoError] = useState(false);
 
     useEffect(() => {
         if (isMobileOpen) {
@@ -34,13 +35,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                 to={to}
                 onClick={() => onMobileClose?.()}
                 title={!isOpen ? label : undefined}
-                className={`flex items-center gap-3.5 px-4 py-3.5 rounded-2xl transition-all group overflow-hidden whitespace-nowrap mb-1 ${active
+                className={`flex items-center w-full px-4 py-3.5 rounded-2xl transition-all group overflow-hidden whitespace-nowrap mb-1 ${active
                     ? 'bg-primary text-white font-bold shadow-lg shadow-primary/20'
                     : 'text-slate-500 dark:text-slate-400 hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white'
-                    } ${!isOpen ? 'justify-center px-3' : ''}`}
+                    } ${!isOpen ? 'justify-center px-0 gap-0' : 'gap-3.5'}`}
             >
-                <span className={`material-symbols-outlined flex-shrink-0 text-[22px] ${active ? 'fill-1' : ''}`}>{icon}</span>
-                <p className={`text-sm font-semibold transition-all duration-300 ${(!isOpen && !isMobileOpen) ? 'opacity-0 w-0 translate-x-10 lg:hidden' : 'opacity-100 w-auto translate-x-0'}`}>
+                <span
+                    className={`material-symbols-outlined flex-shrink-0 ${isOpen || isMobileOpen ? 'text-[22px]' : 'text-[20px]'} ${active ? 'fill-1' : ''}`}
+                >
+                    {icon}
+                </span>
+                <p className={`text-sm font-semibold transition-all duration-300 ${(!isOpen && !isMobileOpen) ? 'hidden' : 'opacity-100 w-auto translate-x-0'}`}>
                     {label}
                 </p>
             </Link>
@@ -78,9 +83,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                     </div>
 
                     {/* Logo Area */}
-                    <div className={`flex items-center shrink-0 transition-all duration-300 ${isOpen ? 'h-24 px-8 justify-start' : 'h-20 px-0 lg:justify-center px-8 justify-start'}`}>
+                    <div className={`flex items-center shrink-0 transition-all duration-300 ${isOpen || isMobileOpen ? 'h-24 px-8 justify-start' : 'h-20 px-0 justify-center'}`}>
                         <div className={`flex items-center gap-3 overflow-hidden whitespace-nowrap`}>
-                            <img src="/logo.png" alt="Logo" className={`${(isOpen || isMobileOpen) ? 'h-14' : 'h-10'} w-auto object-contain transition-all`} />
+                            <img
+                                src={(!isOpen && !isMobileOpen && !iconLogoError) ? '/logo-icon.png' : '/logo.png'}
+                                onError={() => {
+                                    if (!isOpen && !isMobileOpen) {
+                                        setIconLogoError(true);
+                                    }
+                                }}
+                                alt="Logo"
+                                className={`${(isOpen || isMobileOpen) ? 'h-14' : 'h-10'} w-auto object-contain transition-all`}
+                            />
                         </div>
                     </div>
 

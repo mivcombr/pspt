@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
-import { formatCurrency, formatDate, parseCurrency } from '../utils/formatters';
+import { APP_TIME_ZONE, formatCurrency, formatDate, parseCurrency } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { useNotification } from '../hooks/useNotification';
 
@@ -591,9 +591,9 @@ const Financials: React.FC = () => {
     const formatRangeLabel = () => {
         if (!tempStartDate) return 'Selecione uma data';
         const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-        const start = tempStartDate.toLocaleDateString('pt-BR', options);
+        const start = tempStartDate.toLocaleDateString('pt-BR', { ...options, timeZone: APP_TIME_ZONE });
         if (tempEndDate) {
-            const end = tempEndDate.toLocaleDateString('pt-BR', options);
+            const end = tempEndDate.toLocaleDateString('pt-BR', { ...options, timeZone: APP_TIME_ZONE });
             return `${start} - ${end}`;
         }
         return start;
@@ -654,43 +654,45 @@ const Financials: React.FC = () => {
     };
 
     return (
-        <div className="max-w-screen-xl w-full mx-auto space-y-8 pb-8 relative px-4 sm:px-6">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
+        <div className="max-w-screen-xl w-full mx-auto space-y-6 sm:space-y-8 pb-8 relative px-4 sm:px-6">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 sm:gap-5">
                 <div>
                     <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Pagamentos</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Acompanhe registros financeiros e repasses.</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
                     <button
                         onClick={handleExportReport}
                         disabled={isExporting || filteredTransactions.length === 0}
-                        className="h-10 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center gap-2 text-xs font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="h-10 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center gap-2 text-xs font-bold disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto justify-center"
                     >
                         <span className="material-symbols-outlined text-[18px]">download</span>
                         {isExporting ? 'Exportando...' : 'Exportar PDF'}
                     </button>
-                    {['Este Ano', 'Este Mês', 'Hoje', 'Últimos 7 dias'].map(filter => (
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
+                        {['Este Ano', 'Este Mês', 'Hoje', 'Últimos 7 dias'].map(filter => (
+                            <button
+                                key={filter}
+                                onClick={() => setActiveDateFilter(filter)}
+                                className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${activeDateFilter === filter ? 'bg-white text-primary border border-red-100 dark:bg-primary/20 dark:text-primary-hover dark:border-primary/30' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                            >
+                                {filter}
+                            </button>
+                        ))}
                         <button
-                            key={filter}
-                            onClick={() => setActiveDateFilter(filter)}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeDateFilter === filter ? 'bg-red-50 text-primary border border-red-100 dark:bg-primary/20 dark:text-primary-hover dark:border-primary/30' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400'}`}
+                            onClick={() => setIsCalendarOpen(true)}
+                            className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${activeDateFilter === 'Personalizado' ? 'bg-white text-slate-800 dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                         >
-                            {filter}
+                            Personalizado
                         </button>
-                    ))}
-                    <button
-                        onClick={() => setIsCalendarOpen(true)}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeDateFilter === 'Personalizado' ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400'}`}
-                    >
-                        Personalizado
-                    </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-5">
                 {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="h-[8.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
+                        <div key={i} className="h-[7.5rem] sm:h-[8.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
                     ))
                 ) : (
                     [
@@ -715,16 +717,16 @@ const Financials: React.FC = () => {
                     ].map((card, i) => (
                         <div
                             key={i}
-                            className={`relative p-6 rounded-3xl border shadow-sm card-shadow min-h-[8.5rem] min-w-0 ${card.highlight ? 'bg-[rgb(254,242,242)] border-red-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}
+                            className={`relative p-4 sm:p-6 rounded-3xl border shadow-sm card-shadow min-h-[7.5rem] sm:min-h-[8.5rem] min-w-0 ${card.highlight ? 'bg-[rgb(254,242,242)] border-red-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}
                         >
                             <div className="flex items-start justify-between gap-3">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${card.highlight ? 'bg-white text-primary border border-red-100' : 'bg-red-50 dark:bg-slate-800 text-primary dark:text-primary-hover'}`}>
-                                    <span className="material-symbols-outlined text-[22px]">{card.icon}</span>
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shrink-0 ${card.highlight ? 'bg-white text-primary border border-red-100' : 'bg-red-50 dark:bg-slate-800 text-primary dark:text-primary-hover'}`}>
+                                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{card.icon}</span>
                                 </div>
                             </div>
                             <div className="mt-4 min-w-0">
-                                <p className={`text-[10px] font-semibold uppercase tracking-wide ${card.highlight ? 'text-slate-500' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
-                                <h3 className="text-[clamp(1rem,2.6vw,1.35rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-2 leading-tight whitespace-normal break-words">
+                                <p className={`text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide ${card.highlight ? 'text-slate-500' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
+                                <h3 className="text-[clamp(0.95rem,4vw,1.25rem)] sm:text-[clamp(1rem,2.6vw,1.35rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-2 leading-tight whitespace-normal break-words">
                                     {card.value}
                                 </h3>
                                 {card.helper ? (
@@ -741,7 +743,7 @@ const Financials: React.FC = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
                 {isLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="h-[5.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
@@ -752,21 +754,21 @@ const Financials: React.FC = () => {
                         { title: 'Cirurgias', value: formatCurrency(filteredCategoryTotals.cirurgias.value), icon: 'medical_services', color: 'teal', pct: filteredCategoryTotals.cirurgias.pct },
                         { title: 'Consultas', value: formatCurrency(filteredCategoryTotals.consultas.value), icon: 'stethoscope', color: 'purple', pct: filteredCategoryTotals.consultas.pct }
                     ].map((item, i) => (
-                        <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-3 min-w-0">
-                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                                <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                    <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                        <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-5 gap-2 sm:gap-3 min-w-0 text-center sm:text-left">
+                            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 min-w-0">
+                                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
+                                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{item.icon}</span>
                                 </div>
                                 <p className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-tight whitespace-normal">{item.title}</p>
                             </div>
-                            <h3 className="text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white leading-tight whitespace-normal break-words">{item.value}</h3>
+                            <h3 className="text-[clamp(0.95rem,4vw,1.2rem)] sm:text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white leading-tight whitespace-normal break-words">{item.value}</h3>
                         </div>
                     ))
                 )}
             </div>
 
             <div className="bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col lg:flex-row gap-4 items-center justify-between">
-                <div className="flex flex-col xl:flex-row items-center gap-4 w-full flex-1">
+                <div className="flex flex-col xl:flex-row items-center gap-3 sm:gap-4 w-full flex-1">
                     <div className="relative w-full xl:max-w-md">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
                         <input
@@ -777,9 +779,9 @@ const Financials: React.FC = () => {
                         />
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap items-center gap-2 w-full xl:w-auto">
                         {isAdmin ? (
-                            <div className="relative flex-1 sm:flex-none sm:w-56">
+                            <div className="relative w-full sm:flex-none sm:w-56">
                                 <select
                                     value={selectedHospital}
                                     onChange={(e) => setSelectedHospital(e.target.value)}
@@ -791,7 +793,7 @@ const Financials: React.FC = () => {
                                 <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[20px]">expand_more</span>
                             </div>
                         ) : (
-                            <div className="relative flex-1 sm:flex-none sm:w-56">
+                            <div className="relative w-full sm:flex-none sm:w-56">
                                 <div className="w-full h-12 px-4 flex items-center rounded-2xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-400 cursor-not-allowed">
                                     <span className="material-symbols-outlined text-[18px] mr-2">lock</span>
                                     <span className="truncate">{user?.hospitalName}</span>
@@ -799,7 +801,7 @@ const Financials: React.FC = () => {
                             </div>
                         )}
 
-                        <div className="relative flex-1 sm:flex-none sm:w-44">
+                        <div className="relative w-full sm:flex-none sm:w-44">
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -813,7 +815,7 @@ const Financials: React.FC = () => {
                             <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">payments</span>
                         </div>
 
-                        <div className="relative flex-1 sm:flex-none sm:w-44">
+                        <div className="relative w-full sm:flex-none sm:w-44">
                             <select
                                 value={repasseStatusFilter}
                                 onChange={(e) => setRepasseStatusFilter(e.target.value)}
@@ -834,7 +836,7 @@ const Financials: React.FC = () => {
                                     setRepasseStatusFilter('Todos Acertos');
                                     if (isAdmin) setSelectedHospital('Todos os Hospitais');
                                 }}
-                                className="h-12 px-4 rounded-2xl bg-red-50 text-primary hover:bg-red-100 transition-colors flex items-center gap-2 text-xs font-bold"
+                                className="h-12 px-4 rounded-2xl bg-red-50 text-primary hover:bg-red-100 transition-colors flex items-center gap-2 text-xs font-bold w-full sm:w-auto justify-center"
                             >
                                 <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
                                 Limpar
@@ -1013,6 +1015,26 @@ const Financials: React.FC = () => {
                                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Pagamento</p>
                                                         <div className="scale-75 origin-left">{renderPaymentMethod(item)}</div>
                                                         <p className="text-xs font-black text-slate-900 dark:text-white mt-1">{formatCurrency(item.total_cost)}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3 mb-4">
+                                                    <div>
+                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Distribuição</p>
+                                                        <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                                                            <span>Hospital</span>
+                                                            <span className="text-slate-700 dark:text-slate-300">{formatCurrency(item.hospital_value)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] font-bold text-slate-500 mt-1">
+                                                            <span>Programa</span>
+                                                            <span className="text-primary">{formatCurrency(item.repasse_value)}</span>
+                                                        </div>
+                                                        {isAdmin && (
+                                                            <div className="flex justify-between text-[10px] font-bold text-slate-500 mt-1">
+                                                                <span>Adicional</span>
+                                                                <span className="text-amber-600">{formatCurrency(item.financial_additional || 0)}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -1216,7 +1238,7 @@ const Financials: React.FC = () => {
                                 <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <button onClick={() => handleCalendarNav(-1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-colors"><span className="material-symbols-outlined">chevron_left</span></button>
-                                        <span className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-wide">{viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+                                        <span className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-wide">{viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}</span>
                                         <button onClick={() => handleCalendarNav(1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-colors"><span className="material-symbols-outlined">chevron_right</span></button>
                                     </div>
                                     <div className="text-right">

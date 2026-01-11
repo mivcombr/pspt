@@ -25,6 +25,7 @@ const Patients: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedHospital, setSelectedHospital] = useState('Todos os Hospitais');
     const [hospitals, setHospitals] = useState<any[]>([]);
+    const [viewMode, setViewMode] = useState<'grid' | 'rows'>('grid');
 
     // History Modal State
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -127,6 +128,23 @@ const Patients: React.FC = () => {
         return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
     };
 
+    const getHistoryBadgeClass = (type: string) => {
+        const colors: Record<string, string> = {
+            'CONSULTA': 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20',
+            'CIRURGIA': 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-100 dark:border-rose-500/20',
+            'EXAMES': 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-100 dark:border-amber-500/20',
+            'RETORNO': 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20'
+        };
+
+        let baseType = type;
+        if (type.includes('RETORNO')) baseType = 'RETORNO';
+        else if (type.includes('CONSULTA')) baseType = 'CONSULTA';
+        else if (type.includes('CIRURGIA')) baseType = 'CIRURGIA';
+        else if (type.includes('EXAME')) baseType = 'EXAMES';
+
+        return colors[baseType] || 'bg-slate-50 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400 border-slate-100 dark:border-slate-500/20';
+    };
+
     return (
         <div className="max-w-[1600px] mx-auto space-y-8 pb-8 relative animate-in fade-in duration-500">
             {/* Header */}
@@ -167,104 +185,178 @@ const Patients: React.FC = () => {
                             {user?.hospitalName || 'Meu Hospital'}
                         </div>
                     )}
+
+                    {/* View Toggle */}
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('grid')}
+                            className={`px-3 h-10 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                        >
+                            <span className="material-symbols-outlined text-[16px]">grid_view</span>
+                            Cards
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('rows')}
+                            className={`px-3 h-10 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'rows' ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                        >
+                            <span className="material-symbols-outlined text-[16px]">view_agenda</span>
+                            Linhas
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Patients Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {isLoading ? (
-                    Array.from({ length: 8 }).map((_, i) => (
-                        <div key={i} className="h-64 rounded-[32px] bg-slate-100 dark:bg-slate-800 animate-pulse" />
-                    ))
-                ) : patients.length > 0 ? (
-                    patients.map((patient, idx) => (
-                        <div
-                            key={idx}
-                            onClick={() => handleOpenHistory(patient)}
-                            className="group bg-white dark:bg-slate-900 rounded-[32px] p-6 border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-500 cursor-pointer relative overflow-hidden"
-                        >
-                            <div className="flex flex-col h-full relative z-10">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="size-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 text-primary flex items-center justify-center font-black text-xl group-hover:from-primary group-hover:to-primary/80 group-hover:text-white transition-all duration-500 shadow-inner">
-                                        {getInitials(patient.name)}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <h3 className="font-black text-slate-900 dark:text-white text-lg truncate group-hover:text-primary transition-colors duration-300 tracking-tight">{patient.name}</h3>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="size-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ativo</span>
+            {/* Patients View */}
+            {viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {isLoading ? (
+                        Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="h-64 rounded-[32px] bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                        ))
+                    ) : patients.length > 0 ? (
+                        patients.map((patient, idx) => (
+                            <div
+                                key={idx}
+                                onClick={() => handleOpenHistory(patient)}
+                                className="group bg-white dark:bg-slate-900 rounded-[32px] p-6 border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-500 cursor-pointer relative overflow-hidden"
+                            >
+                                <div className="flex flex-col h-full relative z-10">
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <div className="size-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 text-primary flex items-center justify-center font-black text-xl group-hover:from-primary group-hover:to-primary/80 group-hover:text-white transition-all duration-500 shadow-inner">
+                                            {getInitials(patient.name)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="font-black text-slate-900 dark:text-white text-lg truncate group-hover:text-primary transition-colors duration-300 tracking-tight">{patient.name}</h3>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="size-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ativo</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-3 mb-6">
-                                    <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
-                                        <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center group-hover:bg-primary/5 transition-colors">
-                                            <span className="material-symbols-outlined text-[18px]">call</span>
+                                    <div className="space-y-3 mb-6">
+                                        <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+                                            <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center group-hover:bg-primary/5 transition-colors">
+                                                <span className="material-symbols-outlined text-[18px]">call</span>
+                                            </div>
+                                            <span className="text-sm font-bold">{patient.phone || 'Sem telefone'}</span>
                                         </div>
-                                        <span className="text-sm font-bold">{patient.phone || 'Sem telefone'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
-                                        <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center group-hover:bg-primary/5 transition-colors">
-                                            <span className="material-symbols-outlined text-[18px]">cake</span>
+                                        <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+                                            <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center group-hover:bg-primary/5 transition-colors">
+                                                <span className="material-symbols-outlined text-[18px]">cake</span>
+                                            </div>
+                                            <span className="text-sm font-bold">{formatDate(patient.birthDate)}</span>
                                         </div>
-                                        <span className="text-sm font-bold">{formatDate(patient.birthDate)}</span>
                                     </div>
-                                </div>
 
-                                {/* History Badges */}
-                                <div className="flex flex-wrap gap-1.5 mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/60">
-                                    {patient.history && patient.history.length > 0 ? (
-                                        patient.history.map((type, hIdx) => {
-                                            const colors: Record<string, string> = {
-                                                'CONSULTA': 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20',
-                                                'CIRURGIA': 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-100 dark:border-rose-500/20',
-                                                'EXAMES': 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-100 dark:border-amber-500/20',
-                                                'RETORNO': 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20'
-                                            };
-
-                                            // Determine base type for coloring
-                                            let baseType = type;
-                                            if (type.includes('RETORNO')) baseType = 'RETORNO';
-                                            else if (type.includes('CONSULTA')) baseType = 'CONSULTA';
-                                            else if (type.includes('CIRURGIA')) baseType = 'CIRURGIA';
-                                            else if (type.includes('EXAME')) baseType = 'EXAMES'; // Handles both EXAME and EXAMES
-
-                                            const colorClass = colors[baseType] || 'bg-slate-50 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400 border-slate-100 dark:border-slate-500/20';
-
-                                            return (
+                                    {/* History Badges */}
+                                    <div className="flex flex-wrap gap-1.5 mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                                        {patient.history && patient.history.length > 0 ? (
+                                            patient.history.map((type, hIdx) => (
                                                 <span
                                                     key={hIdx}
-                                                    className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-tighter uppercase border ${colorClass} transition-all hover:scale-110 active:scale-95`}
+                                                    className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-tighter uppercase border ${getHistoryBadgeClass(type)} transition-all hover:scale-110 active:scale-95`}
                                                 >
                                                     {type}
                                                 </span>
-                                            );
-                                        })
-                                    ) : (
-                                        <span className="text-[10px] font-bold text-slate-300 italic">Sem histórico</span>
-                                    )}
+                                            ))
+                                        ) : (
+                                            <span className="text-[10px] font-bold text-slate-300 italic">Sem histórico</span>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Hover Arrow */}
-                            <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
-                                <div className="size-8 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
-                                    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                                {/* Hover Arrow */}
+                                <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                                    <div className="size-8 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
+                                        <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Background Pattern */}
-                            <div className="absolute -bottom-6 -right-6 size-32 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-500"></div>
+                                {/* Background Pattern */}
+                                <div className="absolute -bottom-6 -right-6 size-32 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-500"></div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-300 dark:border-slate-700">
+                            <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">person_search</span>
+                            <p className="text-slate-400 font-bold">Nenhum paciente encontrado.</p>
                         </div>
-                    ))
-                ) : (
-                    <div className="col-span-full flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-300 dark:border-slate-700">
-                        <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">person_search</span>
-                        <p className="text-slate-400 font-bold">Nenhum paciente encontrado.</p>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {isLoading ? (
+                        Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                        ))
+                    ) : patients.length > 0 ? (
+                        patients.map((patient, idx) => {
+                            const historyPreview = patient.history?.slice(0, 3) || [];
+                            const extraHistoryCount = (patient.history?.length || 0) - historyPreview.length;
+
+                            return (
+                                <div
+                                    key={idx}
+                                    onClick={() => handleOpenHistory(patient)}
+                                    className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                                >
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="size-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center font-black text-sm shrink-0">
+                                                {getInitials(patient.name)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{patient.name}</h3>
+                                                    <span className="hidden sm:inline text-[10px] font-black text-slate-400 uppercase tracking-widest">Ativo</span>
+                                                </div>
+                                                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+                                                    {patient.phone || 'Sem telefone'} • {formatDate(patient.birthDate)}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col sm:items-end gap-2 min-w-[160px]">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hospital</span>
+                                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{patient.hospital_name || 'Não informado'}</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 flex-wrap sm:justify-end">
+                                            {historyPreview.length > 0 ? (
+                                                <>
+                                                    {historyPreview.map((type, hIdx) => (
+                                                        <span
+                                                            key={hIdx}
+                                                            className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-tighter uppercase border ${getHistoryBadgeClass(type)}`}
+                                                        >
+                                                            {type}
+                                                        </span>
+                                                    ))}
+                                                    {extraHistoryCount > 0 && (
+                                                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-tighter uppercase border bg-slate-50 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400 border-slate-100 dark:border-slate-500/20">
+                                                            +{extraHistoryCount}
+                                                        </span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-slate-300 italic">Sem histórico</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-300 dark:border-slate-700">
+                            <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">person_search</span>
+                            <p className="text-slate-400 font-bold">Nenhum paciente encontrado.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* History Sidebar/Modal */}
             {isHistoryOpen && (

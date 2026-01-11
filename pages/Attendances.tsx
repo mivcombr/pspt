@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Appointment, PaymentPart, UserRole } from '../types';
-import { formatCurrency, parseCurrency } from '../utils/formatters';
+import { APP_TIME_ZONE, formatCurrency, parseCurrency } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -302,7 +302,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     const getFormattedDate = (dateStr: string) => {
         const date = new Date(dateStr + 'T12:00:00');
-        const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+        const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', timeZone: APP_TIME_ZONE };
         return date.toLocaleDateString('pt-BR', options);
     };
 
@@ -310,7 +310,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         const dates = getWeekDays(dateStr);
         const first = new Date(dates[0] + 'T12:00:00');
         const last = new Date(dates[6] + 'T12:00:00');
-        const opt: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+        const opt: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', timeZone: APP_TIME_ZONE };
         const startStr = first.toLocaleDateString('pt-BR', opt).replace('.', '');
         const endStr = last.toLocaleDateString('pt-BR', opt).replace('.', '');
         return `${startStr} - ${endStr}`;
@@ -318,7 +318,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     const getDayLabel = (dateStr: string) => {
         const date = new Date(dateStr + 'T12:00:00');
-        const weekDay = date.toLocaleDateString('pt-BR', { weekday: 'short' }).toUpperCase().replace('.', '');
+        const weekDay = date.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: APP_TIME_ZONE }).toUpperCase().replace('.', '');
         const dayNum = date.getDate();
         return { weekDay, dayNum };
     };
@@ -875,118 +875,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 )}
 
                 {/* If embedded, we align filters to the left/start or fill. If standalone, we align to the right/end typically */}
-                <div className={`flex flex-col sm:flex-row items-center gap-4 w-full ${isEmbedded ? 'xl:w-full' : 'xl:w-auto'}`}>
-
-                    {/* Filter Tabs */}
-                    <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-sm card-shadow border border-slate-200 dark:border-slate-700">
-                        {['Todos', 'Consultas', 'Exames', 'Cirurgias'].map((filter) => (
-                            <button
-                                key={filter}
-                                onClick={() => setActiveFilter(filter)}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeFilter === filter
-                                    ? 'bg-slate-900 text-white shadow-sm dark:bg-primary'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
-                                    }`}
-                            >
-                                {filter}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Date Navigator & Custom Picker */}
-                    <div className="flex items-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-1.5 shadow-sm card-shadow relative" ref={datePickerRef}>
-                        <button onClick={() => navigateDate(-7)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-500" title="Semana Anterior">
-                            <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                        </button>
-
-                        <div
-                            className="px-4 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors relative select-none border-x border-slate-200 dark:border-slate-700 mx-1"
-                            onClick={toggleDatePicker}
-                        >
-                            <span className="material-symbols-outlined text-[20px] text-slate-400">calendar_month</span>
-                            <span className="text-sm font-bold text-slate-700 dark:text-white whitespace-nowrap min-w-[140px] text-center">
-                                {getWeekRangeLabel(selectedDate)}
-                            </span>
-                        </div>
-
-                        <button onClick={() => navigateDate(7)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-500" title="Próxima Semana">
-                            <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                        </button>
-
-                        {/* --- Custom Calendar Popover --- */}
-                        {isDatePickerOpen && (
-                            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-3xl p-6 z-50 w-[340px] animate-in fade-in zoom-in-95 duration-200">
-                                {/* Calendar Header */}
-                                <div className="flex items-center justify-between mb-6">
-                                    <button onClick={() => changePickerMonth(-1)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full text-slate-500">
-                                        <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                                    </button>
-                                    <span className="font-bold text-slate-900 dark:text-white capitalize text-lg">
-                                        {pickerMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                                    </span>
-                                    <button onClick={() => changePickerMonth(1)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full text-slate-500">
-                                        <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                                    </button>
-                                </div>
-
-                                {/* Calendar Days Header */}
-                                <div className="grid grid-cols-7 mb-3 text-center">
-                                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-                                        <div key={i} className="text-xs font-bold text-slate-400">{d}</div>
-                                    ))}
-                                </div>
-
-                                {/* Calendar Grid */}
-                                <div className="grid grid-cols-7 gap-2">
-                                    {getCalendarDays().map((day, i) => {
-                                        if (day === null) return <div key={i}></div>;
-
-                                        // Check if this day is the selected one
-                                        const currentYear = pickerMonth.getFullYear();
-                                        const currentMonth = pickerMonth.getMonth();
-                                        const isSelected = new Date(selectedDate).getDate() === day &&
-                                            new Date(selectedDate).getMonth() === currentMonth &&
-                                            new Date(selectedDate).getFullYear() === currentYear;
-
-                                        const isToday = new Date().getDate() === day &&
-                                            new Date().getMonth() === currentMonth &&
-                                            new Date().getFullYear() === currentYear;
-
-                                        return (
-                                            <button
-                                                key={i}
-                                                onClick={() => handleDaySelect(day)}
-                                                className={`
-                                            h-9 w-9 rounded-xl flex items-center justify-center text-sm font-medium transition-all
-                                            ${isSelected ? 'bg-primary text-white font-bold shadow-md shadow-primary/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}
-                                            ${isToday && !isSelected ? 'border-2 border-primary text-primary font-bold' : ''}
-                                        `}
-                                            >
-                                                {day}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-center">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedDate(new Date().toISOString().split('T')[0]);
-                                            setIsDatePickerOpen(false);
-                                        }}
-                                        className="text-xs font-bold text-primary hover:underline bg-primary/5 px-4 py-2 rounded-xl"
-                                    >
-                                        Voltar para Hoje
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
+                <div className={`flex flex-row sm:flex-row items-center gap-3 sm:gap-4 w-full justify-between sm:justify-start ${isEmbedded ? 'xl:w-full' : 'xl:w-auto'}`}>
                     <Button
                         onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
                         variant="ghost"
                         size="sm"
+                        className="w-full sm:w-auto flex-1 sm:flex-none justify-center"
                     >
                         Hoje
                     </Button>
@@ -995,9 +889,9 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                         onClick={() => navigate('/new-appointment')}
                         icon="add"
                         variant="success"
-                        className="ml-auto xl:ml-0"
+                        className="w-full sm:w-auto flex-1 sm:flex-none justify-center sm:ml-auto xl:ml-0"
                     >
-                        <span className="hidden sm:inline">Agendar</span>
+                        <span className="inline sm:inline">Agendar</span>
                     </Button>
                 </div>
             </div>
@@ -1006,53 +900,166 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             <div className={`flex-1 flex flex-col gap-6 ${isEmbedded ? '' : 'min-h-0'}`}>
 
                 {/* TOP: CALENDAR GRID (Fixed height relative to viewport for overview) */}
-                <Card noPadding className="h-[350px] shrink-0 flex flex-col overflow-hidden">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[16px]">calendar_view_week</span>
-                            Visão Semanal
-                        </h3>
-                        {/* Interactive Hospital Selector for Admin, Indicator for others */}
-                        <div className="flex items-center gap-2">
-                            {!isEmbedded && user?.role === UserRole.ADMIN ? (
-                                <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-750">
-                                    <span className="material-symbols-outlined text-[16px] text-slate-400">domain</span>
-                                    <select
-                                        value={selectedHospitalId}
-                                        onChange={(e) => setSelectedHospitalId(e.target.value)}
-                                        className="bg-transparent border-none p-0 text-[10px] font-black text-slate-600 dark:text-slate-300 focus:ring-0 cursor-pointer uppercase tracking-widest min-w-[120px]"
-                                    >
-                                        <option value="">Todos os Parceiros</option>
-                                        {hospitalsList.map(h => (
-                                            <option key={h.id} value={h.id}>{h.name}</option>
+                <Card noPadding className="h-auto sm:h-[350px] sm:shrink-0 flex flex-col overflow-visible">
+                    <div className="flex flex-col gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-700">
+                        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[16px]">calendar_view_week</span>
+                                    Visão Semanal
+                                </h3>
+
+                                <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                                    {/* Filter Tabs */}
+                                    <div className="flex w-full sm:w-auto bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-sm card-shadow border border-slate-200 dark:border-slate-700 overflow-x-auto sm:overflow-visible whitespace-nowrap scrollbar-hide">
+                                        {['Todos', 'Consultas', 'Exames', 'Cirurgias'].map((filter) => (
+                                            <button
+                                                key={filter}
+                                                onClick={() => setActiveFilter(filter)}
+                                                className={`px-3 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all ${activeFilter === filter
+                                                    ? 'bg-slate-900 text-white shadow-sm dark:bg-primary'
+                                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                                    }`}
+                                            >
+                                                {filter}
+                                            </button>
                                         ))}
-                                    </select>
+                                    </div>
+
+                                    {/* Date Navigator & Custom Picker */}
+                                    <div className="flex items-center w-full sm:w-auto justify-between bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-1.5 shadow-sm card-shadow relative" ref={datePickerRef}>
+                                        <button onClick={() => navigateDate(-7)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-500" title="Semana Anterior">
+                                            <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                                        </button>
+
+                                        <div
+                                            className="px-4 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors relative select-none border-x border-slate-200 dark:border-slate-700 mx-1"
+                                            onClick={toggleDatePicker}
+                                        >
+                                            <span className="material-symbols-outlined text-[20px] text-slate-400">calendar_month</span>
+                                            <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-white whitespace-nowrap min-w-[110px] sm:min-w-[140px] text-center">
+                                                {getWeekRangeLabel(selectedDate)}
+                                            </span>
+                                        </div>
+
+                                        <button onClick={() => navigateDate(7)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-500" title="Próxima Semana">
+                                            <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                                        </button>
+
+                                        {/* --- Custom Calendar Popover --- */}
+                                        {isDatePickerOpen && (
+                                            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-3xl p-6 z-50 w-[340px] animate-in fade-in zoom-in-95 duration-200">
+                                                {/* Calendar Header */}
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <button onClick={() => changePickerMonth(-1)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full text-slate-500">
+                                                        <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                                                    </button>
+                                                    <span className="font-bold text-slate-900 dark:text-white capitalize text-lg">
+                                        {pickerMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}
+                                                    </span>
+                                                    <button onClick={() => changePickerMonth(1)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full text-slate-500">
+                                                        <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                                                    </button>
+                                                </div>
+
+                                                {/* Calendar Days Header */}
+                                                <div className="grid grid-cols-7 mb-3 text-center">
+                                                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                                                        <div key={i} className="text-xs font-bold text-slate-400">{d}</div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Calendar Grid */}
+                                                <div className="grid grid-cols-7 gap-2">
+                                                    {getCalendarDays().map((day, i) => {
+                                                        if (day === null) return <div key={i}></div>;
+
+                                                        // Check if this day is the selected one
+                                                        const currentYear = pickerMonth.getFullYear();
+                                                        const currentMonth = pickerMonth.getMonth();
+                                                        const isSelected = new Date(selectedDate).getDate() === day &&
+                                                            new Date(selectedDate).getMonth() === currentMonth &&
+                                                            new Date(selectedDate).getFullYear() === currentYear;
+
+                                                        const isToday = new Date().getDate() === day &&
+                                                            new Date().getMonth() === currentMonth &&
+                                                            new Date().getFullYear() === currentYear;
+
+                                                        return (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => handleDaySelect(day)}
+                                                                className={`
+                                            h-9 w-9 rounded-xl flex items-center justify-center text-sm font-medium transition-all
+                                            ${isSelected ? 'bg-primary text-white font-bold shadow-md shadow-primary/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}
+                                            ${isToday && !isSelected ? 'border-2 border-primary text-primary font-bold' : ''}
+                                        `}
+                                                            >
+                                                                {day}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-center">
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedDate(new Date().toISOString().split('T')[0]);
+                                                            setIsDatePickerOpen(false);
+                                                        }}
+                                                        className="text-xs font-bold text-primary hover:underline bg-primary/5 px-4 py-2 rounded-xl"
+                                                    >
+                                                        Voltar para Hoje
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            ) : (
-                                !isEmbedded && (
-                                    <span className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 dark:text-slate-500 px-3 py-1 rounded-full uppercase tracking-widest">
+                            </div>
+
+                            {/* Interactive Hospital Selector for Admin, Indicator for others */}
+                            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                                {!isEmbedded && user?.role === UserRole.ADMIN ? (
+                                    <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-750 w-full sm:w-auto">
+                                        <span className="material-symbols-outlined text-[16px] text-slate-400">domain</span>
+                                        <select
+                                            value={selectedHospitalId}
+                                            onChange={(e) => setSelectedHospitalId(e.target.value)}
+                                            className="bg-transparent border-none p-0 text-[10px] font-black text-slate-600 dark:text-slate-300 focus:ring-0 cursor-pointer uppercase tracking-widest min-w-[120px] w-full"
+                                        >
+                                            <option value="">Todos os Parceiros</option>
+                                            {hospitalsList.map(h => (
+                                                <option key={h.id} value={h.id}>{h.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ) : (
+                                    !isEmbedded && (
+                                    <span className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 dark:text-slate-500 px-3 py-1 rounded-full uppercase tracking-widest w-full sm:w-auto text-center">
                                         {user?.hospitalName || 'Todos os Parceiros'}
                                     </span>
                                 )
                             )}
 
-                            {user?.role === UserRole.ADMIN && selectedHospitalId && (
-                                <button
-                                    onClick={() => {
-                                        setBlockForm({ ...blockForm, hospital_id: selectedHospitalId });
-                                        setIsBlockModalOpen(true);
-                                    }}
-                                    className="p-2 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 transition-all flex items-center gap-1.5"
-                                    title="Configurar Bloqueios"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">block</span>
-                                    <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Bloqueios</span>
-                                </button>
-                            )}
+                                {user?.role === UserRole.ADMIN && selectedHospitalId && (
+                                    <button
+                                        onClick={() => {
+                                            setBlockForm({ ...blockForm, hospital_id: selectedHospitalId });
+                                            setIsBlockModalOpen(true);
+                                        }}
+                                        className="p-2 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 transition-all flex items-center gap-1.5"
+                                        title="Configurar Bloqueios"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">block</span>
+                                        <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Bloqueios</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col min-h-0 overflow-x-auto lg:overflow-x-hidden scrollbar-hide">
+                    <div className="flex-none sm:flex-1 flex flex-col min-h-0 overflow-x-auto overflow-y-visible sm:overflow-y-hidden lg:overflow-x-hidden scrollbar-hide">
                         {/* Calendar Header */}
                         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 min-w-[700px] lg:min-w-0">
                             {currentWeekDays.map((dateStr) => {
@@ -1076,8 +1083,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                         </div>
 
                         {/* Calendar Grid Content */}
-                        <div className="flex-1 overflow-y-auto overflow-x-auto lg:overflow-x-hidden bg-slate-50/30 dark:bg-slate-900/50 scrollbar-hide">
-                            <div className="grid grid-cols-7 h-full min-w-[700px] lg:min-w-0 divide-x divide-slate-200 dark:divide-slate-700">
+                        <div className="flex-none sm:flex-1 overflow-visible sm:overflow-y-auto overflow-x-auto lg:overflow-x-hidden bg-slate-50/30 dark:bg-slate-900/50 scrollbar-hide">
+                            <div className="grid grid-cols-7 h-auto sm:h-full min-w-[700px] lg:min-w-0 divide-x divide-slate-200 dark:divide-slate-700">
                                 {currentWeekDays.map((dateStr) => {
                                     const dayAppointments = getAppointmentsForDay(dateStr);
                                     const isSelected = dateStr === selectedDate;
@@ -1872,7 +1879,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                         <div key={log.id} className="relative pl-6 pb-6 border-l-2 border-slate-100 dark:border-slate-800 last:pb-0 last:border-0">
                                             <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-900"></div>
                                             <div className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-2">
-                                                <span>{new Date(log.changed_at).toLocaleString('pt-BR')}</span>
+                                                <span>{new Date(log.changed_at).toLocaleString('pt-BR', { timeZone: APP_TIME_ZONE })}</span>
                                                 <span className="w-1 h-1 rounded-full bg-slate-300"></span>
                                                 {/* Display user name if available, otherwise fallback to email or 'Usuário' */}
                                                 <span>{log.user?.name || log.user?.email || 'Usuário'}</span>
@@ -2032,7 +2039,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                         <div className="flex items-center gap-2">
                                                             <p className="font-black text-slate-900 dark:text-white text-sm">
                                                                 {block.block_type === 'SPECIFIC_DAY'
-                                                                    ? (block.date ? new Date(block.date + 'T12:00:00').toLocaleDateString('pt-BR') : '-')
+                                                                    ? (block.date ? new Date(block.date + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: APP_TIME_ZONE }) : '-')
                                                                     : ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][block.day_of_week || 0]
                                                                 }
                                                             </p>

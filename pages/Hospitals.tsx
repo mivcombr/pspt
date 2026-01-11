@@ -349,11 +349,11 @@ const Hospitals: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-            {/* Sidebar List */}
-            <aside className="hidden lg:flex w-80 flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-sm card-shadow border border-slate-200 dark:border-slate-700 sticky top-0 h-[calc(100vh-5rem)]">
-                <div className="p-6">
-                    <div className="relative">
+        <div className="space-y-6">
+            {/* Header List */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow border border-slate-200 dark:border-slate-700 p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    <div className="relative flex-1">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
                         <input
                             className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400"
@@ -362,47 +362,47 @@ const Hospitals: React.FC = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                </div>
-                <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2 custom-scrollbar">
-                    {filteredHospitals.map((h) => (
-                        <div
-                            key={h.id}
-                            onClick={() => setSelectedHospital(h)}
-                            className={`flex items-center p-3 rounded-2xl cursor-pointer border transition-all ${selectedHospital?.id === h.id
-                                ? 'bg-primary/5 text-primary border-primary'
-                                : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent'
-                                } `}
-                        >
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm mr-4 border ${selectedHospital?.id === h.id
-                                ? 'bg-white dark:bg-slate-800 text-primary border-slate-200 dark:border-slate-700'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
-                                } `}>
-                                <span className="material-symbols-outlined">local_hospital</span>
-                            </div>
-                            <div>
-                                <p className="font-bold text-sm truncate max-w-[160px]">{h.name}</p>
-                                <p className="text-xs opacity-70 truncate max-w-[160px]">{h.location}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="p-4 border-t border-slate-200 dark:border-slate-700">
                     <button
                         onClick={() => {
                             setHospitalForm({ id: '', name: '', code: '', location: '', status: 'Ativo' });
                             setIsEditingHospital(false);
                             setIsHospitalModalOpen(true);
                         }}
-                        className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 rounded-2xl hover:bg-green-700 transition-all text-sm shadow-md"
+                        className="flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 px-5 rounded-2xl hover:bg-green-700 transition-all text-sm shadow-md whitespace-nowrap"
                     >
                         <span className="material-symbols-outlined text-[20px]">add_circle</span>
                         Adicionar Hospital
                     </button>
                 </div>
-            </aside>
+
+                <div className="mt-5 flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                    {filteredHospitals.map((h) => (
+                        <button
+                            key={h.id}
+                            onClick={() => setSelectedHospital(h)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all shrink-0 ${selectedHospital?.id === h.id
+                                ? 'bg-primary/5 text-primary border-primary'
+                                : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
+                                } `}
+                            type="button"
+                        >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border ${selectedHospital?.id === h.id
+                                ? 'bg-white dark:bg-slate-800 text-primary border-slate-200 dark:border-slate-700'
+                                : 'bg-white/80 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
+                                } `}>
+                                <span className="material-symbols-outlined text-[20px]">local_hospital</span>
+                            </div>
+                            <div className="text-left">
+                                <p className="font-bold text-sm truncate max-w-[180px]">{h.name}</p>
+                                <p className="text-xs opacity-70 truncate max-w-[180px]">{h.location}</p>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             {/* Main Content */}
-            <div className="flex-1 rounded-3xl min-w-0 w-full">
+            <div className="rounded-3xl min-w-0 w-full">
                 {selectedHospital ? (
                     <div className="space-y-6">
                             {/* Hospital Header Card-Details Mode */}

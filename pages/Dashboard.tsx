@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
-import { formatCurrency, formatNumber, formatCurrencyNoDecimals } from '../utils/formatters';
+import { APP_TIME_ZONE, formatCurrency, formatNumber, formatCurrencyNoDecimals } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
@@ -21,6 +21,8 @@ const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
 
     const revenue = payload.find((item: any) => item.dataKey === 'revenue');
     const repasse = payload.find((item: any) => item.dataKey === 'repasse');
+    const hospital = payload.find((item: any) => item.dataKey === 'hospital');
+    const expenses = payload.find((item: any) => item.dataKey === 'expenses');
 
     return (
         <div className="rounded-2xl bg-white/95 backdrop-blur px-4 py-3 shadow-lg border border-slate-100">
@@ -31,8 +33,18 @@ const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
                 </p>
             ) : null}
             {repasse ? (
-                <p className="text-xs font-semibold text-slate-400 mt-1">
+                <p className="text-xs font-semibold text-blue-600 mt-1">
                     Repasse: {formatCurrency(repasse.value as number)}
+                </p>
+            ) : null}
+            {hospital ? (
+                <p className="text-xs font-semibold text-amber-600 mt-1">
+                    Hospital: {formatCurrency(hospital.value as number)}
+                </p>
+            ) : null}
+            {expenses ? (
+                <p className="text-xs font-semibold text-red-600 mt-1">
+                    Despesas: {formatCurrency(expenses.value as number)}
                 </p>
             ) : null}
         </div>
@@ -46,12 +58,14 @@ const Dashboard: React.FC = () => {
     const [selectedHospitalId, setSelectedHospitalId] = useState<string>(
         user?.role === 'ADMIN' ? '' : (user?.hospitalId || '')
     );
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+    const currentYear = new Date().getFullYear();
+    const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+    const yearOptions = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString());
 
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [dashboardData, setDashboardData] = useState<any>({
         chartData: [],
-        totals: { revenue: 0, repasse: 0, consultas: 0, exames: 0, cirurgias: 0 },
+        totals: { revenue: 0, repasse: 0, hospital: 0, expenses: 0, consultas: 0, exames: 0, cirurgias: 0 },
         partnerBreakdown: []
     });
     const [isLoading, setIsLoading] = useState(true);
@@ -161,9 +175,9 @@ const Dashboard: React.FC = () => {
     const formatRangeLabel = () => {
         if (!tempStartDate) return 'Selecione uma data';
         const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-        const start = tempStartDate.toLocaleDateString('pt-BR', options);
+        const start = tempStartDate.toLocaleDateString('pt-BR', { ...options, timeZone: APP_TIME_ZONE });
         if (tempEndDate) {
-            const end = tempEndDate.toLocaleDateString('pt-BR', options);
+            const end = tempEndDate.toLocaleDateString('pt-BR', { ...options, timeZone: APP_TIME_ZONE });
             return `${start} - ${end}`;
         }
         return start;
@@ -211,12 +225,18 @@ const Dashboard: React.FC = () => {
                 end.setDate(start.getDate() + 6);
                 break;
             case 'Este mês':
+            case 'Este Mês':
                 start = new Date(today.getFullYear(), today.getMonth(), 1);
                 end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
                 break;
             case 'Mês passado':
+            case 'Mês Passado':
                 start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
                 end = new Date(today.getFullYear(), today.getMonth(), 0);
+                break;
+            case 'Este Ano':
+                start = new Date(today.getFullYear(), 0, 1);
+                end = new Date(today.getFullYear(), 11, 31);
                 break;
         }
         setTempStartDate(start);
@@ -227,16 +247,16 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="max-w-screen-xl w-full mx-auto space-y-6 relative pb-8 px-4 sm:px-6">
+        <div className="max-w-screen-xl w-full mx-auto space-y-5 sm:space-y-6 relative pb-8 px-4 sm:px-6">
 
             {/* Header & Filters */}
-            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 pb-2">
+            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 pb-2">
                 <div>
                     <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Visão consolidada financeira e operacional.</p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 items-center flex-wrap">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center flex-wrap w-full xl:w-auto">
                     {/* Hospital Select (Admin only) */}
                     {user?.role === 'ADMIN' ? (
                         <div className="relative w-full sm:w-auto">
@@ -251,47 +271,34 @@ const Dashboard: React.FC = () => {
                             <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">expand_more</span>
                         </div>
                     ) : (
-                        <div className="px-5 py-2.5 bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                        <div className="px-4 py-2.5 bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-2 w-full sm:w-auto">
                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                             <span className="text-sm font-black text-slate-700 dark:text-slate-300">{user?.hospitalName}</span>
                         </div>
                     )}
 
-                    {/* Date Filters (Pill Style) */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            onClick={() => applyPreset('Este mês')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeDateFilter === 'Este mês' ? 'bg-primary text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'}`}
-                        >
-                            Este Mês
-                        </button>
+                    {/* Date Filters (Same as Expenses) */}
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
+                        {['Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
+                            <button
+                                key={preset}
+                                onClick={() => applyPreset(preset)}
+                                className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === preset ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                            >
+                                {preset}
+                            </button>
+                        ))}
 
-                        <button
-                            onClick={() => setActiveDateFilter('Este Mês')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1 ${activeDateFilter === 'Este Mês' ? 'bg-red-50 text-primary border border-red-100 dark:bg-primary/20 dark:text-primary-hover dark:border-primary/30' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400'}`}
-                        >
-                            Este Mês <span className="material-symbols-outlined text-[18px]">expand_more</span>
-                        </button>
-
-                        <button
-                            onClick={() => setActiveDateFilter('Hoje')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeDateFilter === 'Hoje' ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'}`}
-                        >
-                            Hoje
-                        </button>
-
-                        <button
-                            onClick={() => setActiveDateFilter('Últimos 7 dias')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeDateFilter === 'Últimos 7 dias' ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'}`}
-                        >
-                            Últimos 7 dias
-                        </button>
+                        <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0"></div>
 
                         <button
                             onClick={() => setIsCalendarOpen(true)}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeDateFilter === 'Personalizado' ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'}`}
+                            className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === 'Personalizado' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                         >
-                            Personalizado
+                            <span className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                                {activeDateFilter === 'Personalizado' ? formatRangeLabel() : 'Personalizado'}
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -301,9 +308,9 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 {isLoading ? (
                     Array.from({ length: 2 }).map((_, i) => (
-                        <Card key={i} className="p-5 min-h-[110px] animate-pulse">
+                        <Card key={i} className="p-4 sm:p-5 min-h-[100px] sm:min-h-[110px] animate-pulse">
                             <div className="flex items-start gap-3 sm:gap-4">
-                                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800" />
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-100 dark:bg-slate-800" />
                                 <div className="flex-1 min-w-0">
                                     <div className="h-3 w-40 bg-slate-100 dark:bg-slate-800 rounded" />
                                     <div className="h-7 w-28 bg-slate-100 dark:bg-slate-800 rounded mt-3" />
@@ -313,25 +320,31 @@ const Dashboard: React.FC = () => {
                     ))
                 ) : (
                     <>
-                        <Card className="flex flex-wrap md:flex-nowrap items-start gap-3 sm:gap-4 p-5 relative overflow-hidden group min-h-[110px]">
-                            <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                <span className="material-symbols-outlined text-[24px]">attach_money</span>
+                        <Card className="flex flex-wrap md:flex-nowrap items-center sm:items-start gap-3 sm:gap-4 p-4 sm:p-5 relative overflow-hidden group min-h-[100px] sm:min-h-[110px]">
+                            <div className="w-12 h-12 sm:w-12 sm:h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
+                                <span className="material-symbols-outlined text-[22px] sm:text-[24px]">attach_money</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
-                                <h3 className="text-[clamp(1.25rem,4vw,1.875rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
+                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                    <span className="sm:hidden">Faturamento Total</span>
+                                    <span className="hidden sm:inline">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</span>
+                                </p>
+                                <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
                                     {formatCurrencyNoDecimals(dashboardData.totals.revenue)}
                                 </h3>
                             </div>
                         </Card>
 
-                        <Card className="flex flex-wrap md:flex-nowrap items-start gap-3 sm:gap-4 p-5 relative overflow-hidden group min-h-[110px]">
-                            <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                <span className="material-symbols-outlined text-[24px]">payments</span>
+                        <Card className="flex flex-wrap md:flex-nowrap items-center sm:items-start gap-3 sm:gap-4 p-4 sm:p-5 relative overflow-hidden group min-h-[100px] sm:min-h-[110px]">
+                            <div className="w-12 h-12 sm:w-12 sm:h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
+                                <span className="material-symbols-outlined text-[22px] sm:text-[24px]">payments</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</p>
-                                <h3 className="text-[clamp(1.25rem,4vw,1.875rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
+                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                    <span className="sm:hidden">Valor de Repasse</span>
+                                    <span className="hidden sm:inline">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</span>
+                                </p>
+                                <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
                                     {formatCurrencyNoDecimals(dashboardData.totals.repasse)}
                                 </h3>
                             </div>
@@ -341,7 +354,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Row 2: Detailed Service KPIs - CLEAN STYLE */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
                 {isLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="h-[5.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
@@ -352,16 +365,23 @@ const Dashboard: React.FC = () => {
                         { title: 'Exames', count: dashboardData.totals.exames, value: formatCurrency(dashboardData.totals.exames_revenue || 0), icon: 'biotech' },
                         { title: 'Cirurgias', count: dashboardData.totals.cirurgias, value: formatCurrency(dashboardData.totals.cirurgias_revenue || 0), icon: 'medical_services' }
                     ].map((item, i) => (
-                        <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap min-w-0">
-                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                                <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                    <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
+                        <div
+                            key={i}
+                            className="bg-white dark:bg-slate-900 rounded-3xl p-3 sm:p-5 card-shadow border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 min-w-0 text-center sm:text-left"
+                        >
+                            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 min-w-0">
+                                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
+                                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{item.icon}</span>
                                 </div>
                                 <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-tight whitespace-normal">
-                                    {item.title} <span className="font-normal opacity-70">({formatNumber(item.count)})</span>
+                                    <span className="block sm:hidden">{item.title}</span>
+                                    <span className="block sm:hidden font-normal opacity-70">{formatNumber(item.count)} un.</span>
+                                    <span className="hidden sm:inline">
+                                        {item.title} <span className="font-normal opacity-70">({formatNumber(item.count)})</span>
+                                    </span>
                                 </p>
                             </div>
-                            <h3 className="text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in leading-tight whitespace-normal break-words">
+                            <h3 className="text-[clamp(0.9rem,4vw,1.1rem)] sm:text-[clamp(1rem,3vw,1.375rem)] font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in leading-tight whitespace-normal break-words">
                                 {item.value}
                             </h3>
                         </div>
@@ -391,34 +411,42 @@ const Dashboard: React.FC = () => {
             ) : (
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden flex flex-col">
                     {/* Block Header */}
-                    <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
                                 <span className="material-symbols-outlined text-slate-400">monitoring</span>
                                 Evolução da Receita
                             </h3>
-                            <div className="flex gap-4 mt-2">
+                            <div className="flex gap-3 sm:gap-4 mt-2 flex-wrap">
                                 <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-pink-400"></span>
+                                    <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
                                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Faturamento</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
                                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Repasse</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Hospital</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Despesas</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Year Selector */}
-                        <div className="relative">
+                        <div className="relative w-full sm:w-auto">
                             <select
                                 value={selectedYear}
                                 onChange={(e) => setSelectedYear(e.target.value)}
-                                className="appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-slate-200 py-2 pl-4 pr-10 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer hover:bg-slate-100 transition-colors"
+                                className="w-full sm:w-auto appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-slate-200 py-2 pl-4 pr-10 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer hover:bg-slate-100 transition-colors"
                             >
-                                <option value="2024">2024</option>
-                                <option value="2023">2023</option>
-                                <option value="2022">2022</option>
+                                {yearOptions.map((year) => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
                             </select>
                             <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">expand_more</span>
                         </div>
@@ -426,13 +454,13 @@ const Dashboard: React.FC = () => {
 
                     {/* Block Content */}
                     <div className="grid grid-cols-1 lg:grid-cols-12">
-                        <div className="lg:col-span-8 p-6 h-[400px]">
+                        <div className="order-2 lg:order-1 lg:col-span-8 p-4 sm:p-6 h-[320px] sm:h-[400px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <ComposedChart data={dashboardData.chartData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#f472b6" stopOpacity={0.25} />
-                                            <stop offset="100%" stopColor="#f472b6" stopOpacity={0.02} />
+                                            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.25} />
+                                            <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid vertical={false} strokeDasharray="4 6" stroke="#e2e8f0" />
@@ -456,20 +484,20 @@ const Dashboard: React.FC = () => {
                                     <Area
                                         type="monotone"
                                         dataKey="revenue"
-                                        stroke="#f472b6"
+                                        stroke="#22c55e"
                                         strokeWidth={3}
                                         fill="url(#revenueGradient)"
                                         dot={false}
-                                        activeDot={{ r: 7, fill: '#f472b6', strokeWidth: 0 }}
+                                        activeDot={{ r: 7, fill: '#22c55e', strokeWidth: 0 }}
                                         animationDuration={500}
                                     />
                                     <Line
                                         type="monotone"
                                         dataKey="revenue"
-                                        stroke="#f472b6"
+                                        stroke="#22c55e"
                                         strokeWidth={3}
                                         dot={false}
-                                        activeDot={{ r: 7, fill: '#f472b6', strokeWidth: 0 }}
+                                        activeDot={{ r: 7, fill: '#22c55e', strokeWidth: 0 }}
                                         animationDuration={500}
                                     >
                                         <LabelList content={renderCustomLabel} />
@@ -477,11 +505,34 @@ const Dashboard: React.FC = () => {
                                     <Line
                                         type="monotone"
                                         dataKey="repasse"
-                                        stroke="#94a3b8"
+                                        stroke="#3b82f6"
                                         strokeWidth={2}
                                         strokeDasharray="6 6"
                                         dot={false}
-                                        activeDot={{ r: 6, fill: '#94a3b8', strokeWidth: 0 }}
+                                        activeDot={{ r: 6, fill: '#3b82f6', strokeWidth: 0 }}
+                                        animationDuration={500}
+                                    >
+                                        <LabelList content={renderCustomLabel} />
+                                    </Line>
+                                    <Line
+                                        type="monotone"
+                                        dataKey="hospital"
+                                        stroke="#f59e0b"
+                                        strokeWidth={2}
+                                        dot={false}
+                                        activeDot={{ r: 6, fill: '#f59e0b', strokeWidth: 0 }}
+                                        animationDuration={500}
+                                    >
+                                        <LabelList content={renderCustomLabel} />
+                                    </Line>
+                                    <Line
+                                        type="monotone"
+                                        dataKey="expenses"
+                                        stroke="#ef4444"
+                                        strokeWidth={2}
+                                        strokeDasharray="4 4"
+                                        dot={false}
+                                        activeDot={{ r: 6, fill: '#ef4444', strokeWidth: 0 }}
                                         animationDuration={500}
                                     >
                                         <LabelList content={renderCustomLabel} />
@@ -490,24 +541,52 @@ const Dashboard: React.FC = () => {
                             </ResponsiveContainer>
                         </div>
 
-                        <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 p-8 flex flex-col justify-center space-y-8 lg:space-y-10 bg-slate-50/30 dark:bg-slate-800/20">
-                            <div className="min-w-0">
-                                <span className="inline-flex items-center justify-center p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-500 mb-3 border border-slate-200 dark:border-slate-700 shadow-sm">
-                                    <span className="material-symbols-outlined text-[20px]">calendar_today</span>
-                                </span>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1 truncate">Total Faturado</p>
-                                <h4 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight animate-in fade-in truncate">
-                                    {formatCurrency(dashboardData.totals.revenue)}
-                                </h4>
-                            </div>
-                            <div className="min-w-0">
-                                <span className="inline-flex items-center justify-center p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-primary mb-3 border border-red-100 dark:border-red-900/30 shadow-sm">
-                                    <span className="material-symbols-outlined text-[20px]">outbound</span>
-                                </span>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1 truncate">Total Repassado</p>
-                                <h4 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight animate-in fade-in truncate">
-                                    {formatCurrency(dashboardData.totals.repasse)}
-                                </h4>
+                        <div className="order-1 lg:order-2 lg:col-span-4 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 p-4 sm:p-6 bg-slate-50/30 dark:bg-slate-800/20">
+                            <div className="grid grid-cols-2 sm:flex sm:flex-col gap-3 sm:gap-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border border-emerald-100 dark:border-emerald-900/30 shadow-sm shrink-0">
+                                        <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider truncate">Total Faturado</p>
+                                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                                            {formatCurrency(dashboardData.totals.revenue)}
+                                        </h4>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 border border-blue-100 dark:border-blue-900/30 shadow-sm shrink-0">
+                                        <span className="material-symbols-outlined text-[16px]">outbound</span>
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider truncate">Total Repassado</p>
+                                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                                            {formatCurrency(dashboardData.totals.repasse)}
+                                        </h4>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 border border-amber-100 dark:border-amber-900/30 shadow-sm shrink-0">
+                                        <span className="material-symbols-outlined text-[16px]">domain</span>
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider truncate">Total Hospital</p>
+                                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                                            {formatCurrency(dashboardData.totals.hospital || 0)}
+                                        </h4>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 border border-red-100 dark:border-red-900/30 shadow-sm shrink-0">
+                                        <span className="material-symbols-outlined text-[16px]">receipt_long</span>
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider truncate">Total Despesas</p>
+                                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                                            {formatCurrency(dashboardData.totals.expenses || 0)}
+                                        </h4>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -515,23 +594,23 @@ const Dashboard: React.FC = () => {
             )}
 
             {/* Row 4: Lists Blocks */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
                 {/* List 1: Faturamento */}
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden flex flex-col">
-                    <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-900">
+                    <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-900">
                         <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
                             <span className="material-symbols-outlined text-slate-400">receipt_long</span>
                             Faturamento por Parceiro
                         </h3>
                     </div>
-                    <div className="p-6 space-y-3 bg-slate-50/30 dark:bg-slate-900/50 flex-1">
+                    <div className="p-4 sm:p-6 space-y-3 bg-slate-50/30 dark:bg-slate-900/50 flex-1">
                         {isLoading ? (
                             Array.from({ length: 4 }).map((_, i) => (
                                 <div key={i} className="h-16 rounded-2xl bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 animate-pulse" />
                             ))
                         ) : (
                             dashboardData.partnerBreakdown.map((p, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
+                                <div key={i} className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300`}>
                                             {p.code}
@@ -541,7 +620,7 @@ const Dashboard: React.FC = () => {
                                             <p className="text-xs text-slate-500 font-medium">{p.location}</p>
                                         </div>
                                     </div>
-                                    <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-sm">
+                                    <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-xs">
                                         {formatCurrency(p.totalRevenue)}
                                     </span>
                                 </div>
@@ -552,25 +631,25 @@ const Dashboard: React.FC = () => {
 
                 {/* List 2: Repasse */}
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden flex flex-col">
-                    <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-900">
+                    <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-900">
                         <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
                             <span className="material-symbols-outlined text-slate-400">payments</span>
                             Repasse por Parceiro
                         </h3>
                     </div>
-                    <div className="p-6 space-y-3 bg-slate-50/30 dark:bg-slate-900/50 flex-1">
+                    <div className="p-4 sm:p-6 space-y-3 bg-slate-50/30 dark:bg-slate-900/50 flex-1">
                         {isLoading ? (
                             Array.from({ length: 4 }).map((_, i) => (
                                 <div key={i} className="h-16 rounded-2xl bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 animate-pulse" />
                             ))
                         ) : (
                             dashboardData.partnerBreakdown.map((p, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
+                                <div key={i} className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
                                     <div>
                                         <p className="font-bold text-slate-900 dark:text-white text-sm">{p.name}</p>
                                         <p className="text-xs text-slate-500 font-medium">{p.location}</p>
                                     </div>
-                                    <span className="font-bold text-slate-700 dark:text-slate-300">
+                                    <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
                                         {formatCurrency(p.totalRepasse)}
                                     </span>
                                 </div>
@@ -608,7 +687,7 @@ const Dashboard: React.FC = () => {
                                         <span className="material-symbols-outlined">chevron_left</span>
                                     </button>
                                     <span className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-wide">
-                                        {viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                                        {viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}
                                     </span>
                                     <button onClick={() => handleCalendarNav(1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-colors">
                                         <span className="material-symbols-outlined">chevron_right</span>
