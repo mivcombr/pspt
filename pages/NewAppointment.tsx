@@ -168,6 +168,28 @@ const NewAppointment: React.FC = () => {
   };
 
   const selectPatient = (patient: any) => {
+    const patientHospitalId = patient.hospitalId || patient.hospital_id;
+    if (patientHospitalId && formData.hospitalId && patientHospitalId !== formData.hospitalId) {
+      if (user?.role === UserRole.ADMIN) {
+        setFormData(prev => ({
+          ...prev,
+          hospitalId: patientHospitalId,
+          doctor: '',
+          paymentMethod: ''
+        }));
+      } else {
+        notify.error('Este paciente está vinculado a outro hospital.');
+        return;
+      }
+    }
+    if (patientHospitalId && !formData.hospitalId) {
+      setFormData(prev => ({
+        ...prev,
+        hospitalId: patientHospitalId,
+        doctor: '',
+        paymentMethod: ''
+      }));
+    }
     setSelectedPatient(patient);
     setSearchTerm(patient.name.toLowerCase().replace(/(?:^|\s)\S/g, (a: string) => a.toUpperCase()));
     setSearchResults([]);
@@ -196,6 +218,14 @@ const NewAppointment: React.FC = () => {
 
     const updatedData = { ...newPatientData, [name]: value };
     setNewPatientData(updatedData);
+    if (name === 'hospitalId') {
+      setFormData(prev => ({
+        ...prev,
+        hospitalId: value,
+        doctor: '',
+        paymentMethod: ''
+      }));
+    }
 
     if (updatedData.name) {
       setSelectedPatient({
@@ -211,6 +241,11 @@ const NewAppointment: React.FC = () => {
     const { name, value } = e.target;
 
     if (name === 'hospitalId') {
+      const selectedHospitalId = selectedPatient?.hospitalId || selectedPatient?.hospital_id;
+      if (selectedHospitalId && value !== selectedHospitalId) {
+        notify.warning('O hospital do agendamento deve ser o mesmo do paciente.');
+        return;
+      }
       setFormData(prev => ({
         ...prev,
         [name]: value,
@@ -268,6 +303,12 @@ const NewAppointment: React.FC = () => {
 
     if (!formData.procedureName || !formData.hospitalId) {
       notify.warning('Por favor, preencha os campos obrigatórios do agendamento (Procedimento e Hospital).');
+      return;
+    }
+
+    const selectedHospitalId = selectedPatient?.hospitalId || selectedPatient?.hospital_id;
+    if (selectedHospitalId && formData.hospitalId !== selectedHospitalId) {
+      notify.warning('O hospital do agendamento deve ser o mesmo do paciente.');
       return;
     }
 

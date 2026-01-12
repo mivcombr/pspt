@@ -434,12 +434,14 @@ export const appointmentService = {
     },
 
     async getPatients(searchTerm: string) {
-        // Query unique patients from appointments
+        // Query unique patients from appointments (latest appointment first)
         const { data, error } = await supabase
             .from('appointments')
-            .select('patient_name, patient_phone, patient_birth_date')
+            .select('id, patient_name, patient_phone, patient_birth_date, hospital_id, hospital:hospitals(name)')
             .ilike('patient_name', `%${searchTerm}%`)
-            .limit(10);
+            .order('date', { ascending: false })
+            .order('time', { ascending: false })
+            .limit(25);
 
         if (error) {
             logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
@@ -452,9 +454,12 @@ export const appointmentService = {
             const key = `${p.patient_name}-${p.patient_birth_date}`;
             if (!uniquePatients.has(key)) {
                 uniquePatients.set(key, {
+                    id: p.id,
                     name: p.patient_name,
                     phone: p.patient_phone,
-                    birthDate: p.patient_birth_date
+                    birthDate: p.patient_birth_date,
+                    hospitalId: p.hospital_id,
+                    hospitalName: Array.isArray(p.hospital) ? p.hospital[0]?.name : (p.hospital as any)?.name
                 });
             }
         });
@@ -558,6 +563,28 @@ export const appointmentService = {
             throw error;
         }
         logger.info({ action: 'update', entity: 'appointments', fields: ['patient_phone'], patient_name: name }, 'crud');
+        return data;
+    },
+
+    async updatePatientHospital(name: string, birthDate: string | null | undefined, hospitalId: string) {
+        let query = supabase
+            .from('appointments')
+            .update({ hospital_id: hospitalId })
+            .eq('patient_name', name);
+
+        if (birthDate && birthDate.trim() !== '') {
+            query = query.eq('patient_birth_date', birthDate);
+        } else {
+            query = query.is('patient_birth_date', null);
+        }
+
+        const { data, error } = await query.select();
+
+        if (error) {
+            logger.error({ action: 'update', entity: 'appointments', patient_name: name, error }, 'crud');
+            throw error;
+        }
+        logger.info({ action: 'update', entity: 'appointments', fields: ['hospital_id'], patient_name: name }, 'crud');
         return data;
     },
 

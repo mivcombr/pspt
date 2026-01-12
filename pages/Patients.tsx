@@ -36,6 +36,8 @@ const Patients: React.FC = () => {
     // Phone Editing State
     const [isEditingPhone, setIsEditingPhone] = useState(false);
     const [phoneInputValue, setPhoneInputValue] = useState('');
+    const [isEditingHospital, setIsEditingHospital] = useState(false);
+    const [hospitalInputValue, setHospitalInputValue] = useState('');
 
     const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -68,6 +70,8 @@ const Patients: React.FC = () => {
         setSelectedPatient(patient);
         setPhoneInputValue(patient.phone || '');
         setIsEditingPhone(false);
+        setHospitalInputValue(patient.hospital_id || '');
+        setIsEditingHospital(false);
         setIsHistoryOpen(true);
         setIsFetchingHistory(true);
         try {
@@ -108,6 +112,41 @@ const Patients: React.FC = () => {
             console.error('Error updating phone:', err);
             notify.dismiss(loadingToast);
             notify.error('Erro ao atualizar telefone.');
+        }
+    };
+
+    const handleSaveHospital = async () => {
+        if (!selectedPatient) return;
+        if (!hospitalInputValue) {
+            notify.warning('Selecione um hospital para atualizar.');
+            return;
+        }
+
+        const loadingToast = notify.loading('Atualizando hospital...');
+
+        try {
+            await appointmentService.updatePatientHospital(
+                selectedPatient.name,
+                selectedPatient.birthDate,
+                hospitalInputValue
+            );
+
+            const selectedHospitalName = hospitals.find(h => h.id === hospitalInputValue)?.name || '';
+            setSelectedPatient({
+                ...selectedPatient,
+                hospital_id: hospitalInputValue,
+                hospital_name: selectedHospitalName
+            });
+
+            setIsEditingHospital(false);
+            notify.dismiss(loadingToast);
+            notify.success('Hospital atualizado com sucesso!');
+
+            await fetchData();
+        } catch (err) {
+            console.error('Error updating hospital:', err);
+            notify.dismiss(loadingToast);
+            notify.error('Erro ao atualizar hospital.');
         }
     };
 
@@ -432,9 +471,48 @@ const Patients: React.FC = () => {
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nascimento</p>
                                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient && formatDate(selectedPatient.birthDate)}</p>
                                 </div>
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 col-span-2 sm:col-span-1">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 col-span-2 sm:col-span-1 relative group">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hospital Principal</p>
-                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{selectedPatient?.hospital_name}</p>
+                                    {isAdmin && isEditingHospital ? (
+                                        <div className="space-y-2">
+                                            <div className="relative">
+                                                <select
+                                                    value={hospitalInputValue}
+                                                    onChange={(e) => setHospitalInputValue(e.target.value)}
+                                                    className="w-full h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none appearance-none"
+                                                >
+                                                    <option value="" disabled>Selecione</option>
+                                                    {hospitals.map(h => (
+                                                        <option key={h.id} value={h.id}>{h.name}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">expand_more</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={handleSaveHospital} className="flex-1 h-8 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-1 text-[10px] font-black uppercase">
+                                                    <span className="material-symbols-outlined text-[16px]">check</span>
+                                                    Salvar
+                                                </button>
+                                                <button onClick={() => { setIsEditingHospital(false); setHospitalInputValue(selectedPatient?.hospital_id || ''); }} className="flex-1 h-8 bg-red-100 text-red-500 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-1 text-[10px] font-black uppercase">
+                                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                                    Sair
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{selectedPatient?.hospital_name}</p>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => setIsEditingHospital(true)}
+                                                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                                                    title="Editar hospital"
+                                                >
+                                                    <span className="material-symbols-outlined text-[16px]">edit</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -479,6 +557,7 @@ const Patients: React.FC = () => {
                                                     <div>
                                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Custos</p>
                                                         <p className="text-xs font-bold text-slate-900 dark:text-white">{formatCurrency(item.total_cost)}</p>
+                                                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{item.payment_method || 'Forma não informada'}</p>
                                                     </div>
                                                     <div className="col-span-2">
                                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Hospital / Clínica</p>
