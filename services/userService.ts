@@ -69,10 +69,9 @@ export const userService = {
      * Delete user profile (Note: This doesn't delete the Auth user)
      */
     async deleteUser(userId: string) {
-        const { error } = await supabase
-            .from('profiles')
-            .delete()
-            .eq('id', userId);
+        const { error } = await supabase.functions.invoke('delete-user', {
+            body: { user_id: userId },
+        });
 
         if (error) {
             logger.error({ action: 'delete', entity: 'profiles', id: userId, error }, 'crud');
