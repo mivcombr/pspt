@@ -22,7 +22,23 @@ export const userService = {
         if (error) {
             console.error('Error invoking create-user function:', error);
             logger.error({ action: 'create', entity: 'profiles', error }, 'crud');
-            throw new Error(error.message || 'Failed to create user');
+            let message = error.message || 'Failed to create user';
+            const body = (error as any)?.context?.body;
+            if (body) {
+                try {
+                    const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+                    if (parsed?.error) {
+                        message = parsed.error;
+                    } else if (typeof body === 'string' && body.trim()) {
+                        message = body;
+                    }
+                } catch {
+                    if (typeof body === 'string' && body.trim()) {
+                        message = body;
+                    }
+                }
+            }
+            throw new Error(message);
         }
 
         logger.info({ action: 'create', entity: 'profiles' }, 'crud');
