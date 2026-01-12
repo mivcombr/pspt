@@ -98,33 +98,86 @@ serve(async (req) => {
             }
         )
 
-        // Create the user in Supabase Auth
-        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true, // Auto-confirm email
-            user_metadata: {
-                name,
-                role,
-                hospital_id,
-            }
-        })
+        const { data: existingUser, error: existingError } = await supabaseAdmin.auth.admin.getUserByEmail(email)
+        if (existingError) {
+            console.error('Error checking existing user:', existingError)
+        }
 
-        if (createError) {
-            console.error('Error creating user:', createError)
-            return new Response(
-                JSON.stringify({ error: createError.message }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400,
+        let resolvedUser = existingUser?.user
+
+        if (resolvedUser) {
+            const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('id', resolvedUser.id)
+                .maybeSingle()
+
+            if (existingProfileError) {
+                console.error('Error checking existing profile:', existingProfileError)
+            }
+
+            if (existingProfile?.id) {
+                return new Response(
+                    JSON.stringify({ error: 'E-mail já cadastrado para outro usuário.' }),
+                    {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                        status: 409,
+                    }
+                )
+            }
+
+            const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(resolvedUser.id, {
+                password,
+                email_confirm: true,
+                user_metadata: {
+                    name,
+                    role,
+                    hospital_id,
                 }
-            )
+            })
+
+            if (updateError) {
+                console.error('Error updating existing user:', updateError)
+                return new Response(
+                    JSON.stringify({ error: updateError.message }),
+                    {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                        status: 400,
+                    }
+                )
+            }
+
+            resolvedUser = updatedUser.user
+        } else {
+            const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+                email,
+                password,
+                email_confirm: true, // Auto-confirm email
+                user_metadata: {
+                    name,
+                    role,
+                    hospital_id,
+                }
+            })
+
+            if (createError) {
+                console.error('Error creating user:', createError)
+                return new Response(
+                    JSON.stringify({ error: createError.message }),
+                    {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                        status: 400,
+                    }
+                )
+            }
+
+            resolvedUser = newUser.user
         }
 
         // The profile should be created automatically by the trigger
         // Ensure profile exists and is linked to the hospital
         const profilePayload = {
-            id: newUser.user.id,
+            id: resolvedUser.id,
             name,
             role,
             hospital_id,
@@ -145,8 +198,8 @@ serve(async (req) => {
             JSON.stringify({
                 success: true,
                 user: {
-                    id: newUser.user.id,
-                    email: newUser.user.email,
+                    id: resolvedUser.id,
+                    email: resolvedUser.email,
                     name,
                     role,
                     hospital_id,

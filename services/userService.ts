@@ -74,8 +74,15 @@ export const userService = {
         });
 
         if (error) {
-            logger.error({ action: 'delete', entity: 'profiles', id: userId, error }, 'crud');
-            throw error;
+            logger.error({ action: 'delete', entity: 'profiles', id: userId, error, fallback: 'profile-only' }, 'crud');
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', userId);
+
+            if (profileError) {
+                throw profileError;
+            }
         }
         logger.info({ action: 'delete', entity: 'profiles', id: userId }, 'crud');
     }
