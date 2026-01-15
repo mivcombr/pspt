@@ -6,11 +6,12 @@ import { doctorService } from '../services/doctorService';
 import { userService } from '../services/userService';
 import { hospitalDocumentService } from '../services/hospitalDocumentService';
 import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, parseCurrency } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { useNotification } from '../hooks/useNotification';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 
 const Hospitals: React.FC = () => {
     const { user } = useAuth();
@@ -69,6 +70,32 @@ const Hospitals: React.FC = () => {
         onConfirm: () => { },
         variant: 'info',
     });
+
+    const formatMoneyInput = (value: string) => {
+        const digits = value.replace(/\D/g, '');
+        if (!digits) return '';
+        const numeric = Number(digits) / 100;
+        return numeric.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const isProcedureFree =
+        procedureForm.standard_price !== ''
+        && procedureForm.cash_price !== ''
+        && procedureForm.repasse_value !== ''
+        && parseCurrency(procedureForm.standard_price) === 0
+        && parseCurrency(procedureForm.cash_price) === 0
+        && parseCurrency(procedureForm.repasse_value) === 0;
+
+    useEffect(() => {
+        if (!selectedHospital?.id) return;
+        // Reset hospital-scoped forms when switching hospitals.
+        setIsUserFormOpen(false);
+        setIsEditingUser(false);
+        setEditingUserId(null);
+        setUserForm({ name: '', email: '', password: '', role: 'RECEPTION' });
+        setIsDoctorFormOpen(false);
+        setDoctorForm({ name: '', specialty: '', crm: '' });
+    }, [selectedHospital?.id]);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -331,18 +358,21 @@ const Hospitals: React.FC = () => {
 
     if (isLoading && hospitals.length === 0) {
         return (
-            <div className="flex flex-col lg:flex-row gap-8 items-start animate-pulse">
-                <aside className="hidden lg:flex w-80 flex-col rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
-                    <div className="h-12 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl" />
-                    <div className="mt-6 space-y-3">
-                        {Array.from({ length: 6 }).map((_, i) => (
-                            <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/60" />
-                        ))}
+            <div className="flex flex-col gap-4">
+                <LoadingIndicator />
+                <div className="flex flex-col lg:flex-row gap-8 items-start animate-pulse">
+                    <aside className="hidden lg:flex w-80 flex-col rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
+                        <div className="h-12 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl" />
+                        <div className="mt-6 space-y-3">
+                            {Array.from({ length: 6 }).map((_, i) => (
+                                <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/60" />
+                            ))}
+                        </div>
+                    </aside>
+                    <div className="flex-1 space-y-6">
+                        <div className="h-40 rounded-3xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
+                        <div className="h-72 rounded-3xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
                     </div>
-                </aside>
-                <div className="flex-1 space-y-6">
-                    <div className="h-40 rounded-3xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
-                    <div className="h-72 rounded-3xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700" />
                 </div>
             </div>
         );
@@ -353,6 +383,7 @@ const Hospitals: React.FC = () => {
             {/* Header List */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow border border-slate-200 dark:border-slate-700 p-6">
                 <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    {isLoading && <LoadingIndicator />}
                     <div className="relative flex-1">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
                         <input
@@ -1088,10 +1119,10 @@ const Hospitals: React.FC = () => {
                                 <input
                                     type="checkbox"
                                     id="isFree"
-                                    checked={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
+                                    checked={isProcedureFree}
                                     onChange={(e) => {
                                         if (e.target.checked) {
-                                            setProcedureForm({ ...procedureForm, standard_price: '0', cash_price: '0', repasse_value: '0' });
+                                            setProcedureForm({ ...procedureForm, standard_price: '0,00', cash_price: '0,00', repasse_value: '0,00' });
                                         } else {
                                             setProcedureForm({ ...procedureForm, standard_price: '', cash_price: '', repasse_value: '' });
                                         }
@@ -1109,12 +1140,13 @@ const Hospitals: React.FC = () => {
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
                                         <input
-                                            type="number"
-                                            placeholder="0.00"
+                                            type="text"
+                                            inputMode="decimal"
+                                            placeholder="0,00"
                                             value={procedureForm.standard_price}
-                                            onChange={e => setProcedureForm({ ...procedureForm, standard_price: e.target.value })}
+                                            onChange={e => setProcedureForm({ ...procedureForm, standard_price: formatMoneyInput(e.target.value) })}
                                             className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
-                                            disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
+                                            disabled={isProcedureFree}
                                         />
                                     </div>
                                 </div>
@@ -1123,12 +1155,13 @@ const Hospitals: React.FC = () => {
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
                                         <input
-                                            type="number"
-                                            placeholder="0.00"
+                                            type="text"
+                                            inputMode="decimal"
+                                            placeholder="0,00"
                                             value={procedureForm.cash_price}
-                                            onChange={e => setProcedureForm({ ...procedureForm, cash_price: e.target.value })}
+                                            onChange={e => setProcedureForm({ ...procedureForm, cash_price: formatMoneyInput(e.target.value) })}
                                             className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
-                                            disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
+                                            disabled={isProcedureFree}
                                         />
                                     </div>
                                 </div>
@@ -1139,12 +1172,13 @@ const Hospitals: React.FC = () => {
                                 <div className="relative">
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
                                     <input
-                                        type="number"
-                                        placeholder="0.00"
+                                        type="text"
+                                        inputMode="decimal"
+                                        placeholder="0,00"
                                         value={procedureForm.repasse_value}
-                                        onChange={e => setProcedureForm({ ...procedureForm, repasse_value: e.target.value })}
+                                        onChange={e => setProcedureForm({ ...procedureForm, repasse_value: formatMoneyInput(e.target.value) })}
                                         className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
-                                        disabled={procedureForm.standard_price === '0' && procedureForm.standard_price !== '' && procedureForm.cash_price === '0' && procedureForm.repasse_value === '0'}
+                                        disabled={isProcedureFree}
                                     />
                                 </div>
 
@@ -1168,9 +1202,9 @@ const Hospitals: React.FC = () => {
                                         const payload = {
                                             name: procedureForm.name,
                                             type: procedureForm.type as any,
-                                            standard_price: parseFloat(procedureForm.standard_price.toString().replace(',', '.')) || 0,
-                                            cash_price: parseFloat(procedureForm.cash_price.toString().replace(',', '.')) || 0,
-                                            repasse_value: parseFloat(procedureForm.repasse_value.toString().replace(',', '.')) || 0,
+                                            standard_price: parseCurrency(procedureForm.standard_price),
+                                            cash_price: parseCurrency(procedureForm.cash_price),
+                                            repasse_value: parseCurrency(procedureForm.repasse_value),
                                             hospital_id: selectedHospital.id
                                         };
 

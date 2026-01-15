@@ -5,6 +5,7 @@ import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
 import { APP_TIME_ZONE, formatCurrency, formatDate, parseCurrency } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
+import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 import { useNotification } from '../hooks/useNotification';
 
 const ITEMS_PER_PAGE = 10;
@@ -56,9 +57,9 @@ const Financials: React.FC = () => {
     const [confirmForm, setConfirmForm] = useState({
         id: '',
         patient_name: '',
-        hospital_value: 0,
-        repasse_value: 0,
-        financial_additional: 0,
+        hospital_value: '',
+        repasse_value: '',
+        financial_additional: '',
         payments: [] as any[]
     });
 
@@ -470,9 +471,9 @@ const Financials: React.FC = () => {
         setConfirmForm({
             id: appt.id,
             patient_name: appt.patient_name,
-            hospital_value: appt.hospital_value || 0,
-            repasse_value: appt.repasse_value || 0,
-            financial_additional: appt.financial_additional || 0,
+            hospital_value: formatMoneyValue(appt.hospital_value),
+            repasse_value: formatMoneyValue(appt.repasse_value),
+            financial_additional: formatMoneyValue(appt.financial_additional || 0),
             payments: (appt.payments || []).map((p: any) => ({
                 ...p,
                 confirmed: p.confirmed ?? false
@@ -483,12 +484,15 @@ const Financials: React.FC = () => {
 
     const handleSaveConfirmation = async () => {
         try {
-            const net_value = Number(confirmForm.hospital_value) + Number(confirmForm.repasse_value) + Number(confirmForm.financial_additional);
+            const hospitalValue = parseCurrency(confirmForm.hospital_value);
+            const repasseValue = parseCurrency(confirmForm.repasse_value);
+            const additionalValue = parseCurrency(confirmForm.financial_additional);
+            const net_value = hospitalValue + repasseValue + additionalValue;
 
             await appointmentService.update(confirmForm.id, {
-                hospital_value: confirmForm.hospital_value,
-                repasse_value: confirmForm.repasse_value,
-                financial_additional: confirmForm.financial_additional,
+                hospital_value: hospitalValue,
+                repasse_value: repasseValue,
+                financial_additional: additionalValue,
                 net_value: net_value,
                 repasse_status: 'Pago',
                 repasse_paid_at: new Date().toISOString()
@@ -661,6 +665,7 @@ const Financials: React.FC = () => {
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Acompanhe registros financeiros e repasses.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
+                    {isLoading && <LoadingIndicator />}
                     <button
                         onClick={handleExportReport}
                         disabled={isExporting || filteredTransactions.length === 0}
@@ -1413,9 +1418,10 @@ const Financials: React.FC = () => {
                                         <div className="relative">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={confirmForm.hospital_value}
-                                                onChange={e => setConfirmForm({ ...confirmForm, hospital_value: parseFloat(e.target.value) || 0 })}
+                                                onChange={e => setConfirmForm({ ...confirmForm, hospital_value: formatMoneyInput(e.target.value) })}
                                                 className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-primary focus:ring-0 transition-all"
                                             />
                                         </div>
@@ -1425,9 +1431,10 @@ const Financials: React.FC = () => {
                                         <div className="relative">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 value={confirmForm.repasse_value}
-                                                onChange={e => setConfirmForm({ ...confirmForm, repasse_value: parseFloat(e.target.value) || 0 })}
+                                                onChange={e => setConfirmForm({ ...confirmForm, repasse_value: formatMoneyInput(e.target.value) })}
                                                 className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-primary focus:ring-0 transition-all"
                                             />
                                         </div>
@@ -1441,9 +1448,10 @@ const Financials: React.FC = () => {
                                             <div className="relative">
                                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                                 <input
-                                                    type="number"
+                                                    type="text"
+                                                    inputMode="decimal"
                                                     value={confirmForm.financial_additional}
-                                                    onChange={e => setConfirmForm({ ...confirmForm, financial_additional: parseFloat(e.target.value) || 0 })}
+                                                    onChange={e => setConfirmForm({ ...confirmForm, financial_additional: formatMoneyInput(e.target.value) })}
                                                     className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-amber-500 focus:ring-0 transition-all"
                                                 />
                                             </div>
@@ -1453,7 +1461,11 @@ const Financials: React.FC = () => {
                                             <div className="flex justify-between items-center">
                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Total Líquido da Venda</span>
                                                 <span className="text-xl font-black text-green-600 tracking-tight">
-                                                    {formatCurrency(Number(confirmForm.hospital_value) + Number(confirmForm.repasse_value) + Number(confirmForm.financial_additional))}
+                                                    {formatCurrency(
+                                                        parseCurrency(confirmForm.hospital_value)
+                                                        + parseCurrency(confirmForm.repasse_value)
+                                                        + parseCurrency(confirmForm.financial_additional)
+                                                    )}
                                                 </span>
                                             </div>
                                         </div>

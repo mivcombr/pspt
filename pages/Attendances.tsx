@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useNotification } from '../hooks/useNotification';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
@@ -126,6 +127,17 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const [selectedHospitalId, setSelectedHospitalId] = useState<string>(
         (!isEmbedded && user?.role !== UserRole.ADMIN) ? (user?.hospitalId || '') : (hospitalFilter || '')
     );
+    useEffect(() => {
+        if (!isEmbedded && user?.role !== UserRole.ADMIN) {
+            if (user?.hospitalId && user.hospitalId !== selectedHospitalId) {
+                setSelectedHospitalId(user.hospitalId);
+            }
+            return;
+        }
+        if (typeof hospitalFilter === 'string' && hospitalFilter !== selectedHospitalId) {
+            setSelectedHospitalId(hospitalFilter);
+        }
+    }, [hospitalFilter, isEmbedded, selectedHospitalId, user?.hospitalId, user?.role]);
 
     // Schedule Blocks State
     const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
@@ -156,7 +168,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
             const [appointmentsData, proceduresData] = await Promise.all([
                 appointmentService.getAll({ hospitalId: effectiveHospitalId }),
-                procedureService.getAll()
+                procedureService.getAll(effectiveHospitalId || undefined)
             ]);
 
             // Map the database structure to our Appointment interface
@@ -172,6 +184,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 procedure: apt.procedure,
                 provider: apt.provider,
                 hospital: apt.hospital?.name || 'N/A',
+                hospitalId: apt.hospital_id,
                 status: apt.status,
                 paymentStatus: apt.payment_status,
                 cost: Number(apt.total_cost),
@@ -400,6 +413,11 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setStatusInputValue(apt.status);
         setIsModalOpen(true);
     };
+
+    const visibleProcedures = useMemo(() => {
+        if (!currentAppointment?.hospitalId) return procedures;
+        return procedures.filter((proc) => proc.hospital_id === currentAppointment.hospitalId);
+    }, [currentAppointment?.hospitalId, procedures]);
 
     const closePaymentModal = () => {
         setIsModalOpen(false);
@@ -876,6 +894,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
                 {/* If embedded, we align filters to the left/start or fill. If standalone, we align to the right/end typically */}
                 <div className={`flex flex-row sm:flex-row items-center gap-3 sm:gap-4 w-full justify-between sm:justify-start ${isEmbedded ? 'xl:w-full' : 'xl:w-auto'}`}>
+                    {isLoading && <LoadingIndicator />}
                     <Button
                         onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
                         variant="ghost"
@@ -1471,7 +1490,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                     className="flex-1 h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 focus:outline-none"
                                                 >
                                                     <option value="">Selecione um procedimento</option>
-                                                    {procedures.map((proc) => (
+                                                    {visibleProcedures.map((proc) => (
                                                         <option key={proc.id} value={proc.name}>{proc.name}</option>
                                                     ))}
                                                 </select>

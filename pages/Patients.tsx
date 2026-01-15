@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { useNotification } from '../hooks/useNotification';
+import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 
 interface PatientRecord {
     name: string;
@@ -194,6 +195,7 @@ const Patients: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+                    {isLoading && <LoadingIndicator />}
                     {/* Search */}
                     <div className="relative w-full sm:w-80">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>

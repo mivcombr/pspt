@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { useNotification } from '../hooks/useNotification';
+import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
@@ -399,6 +400,7 @@ const NewAppointment: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto pb-12 animate-pulse">
         <div className="mb-8">
+          <LoadingIndicator />
           <div className="h-8 w-56 bg-slate-100 dark:bg-slate-800 rounded" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

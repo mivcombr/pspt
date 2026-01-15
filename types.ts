@@ -33,6 +33,7 @@ export interface Appointment {
   procedure: string;
   provider: string;
   hospital: string;
+  hospitalId?: string;
   status: 'Agendado' | 'Atendido' | 'Cancelado' | 'Falhou';
   paymentStatus: 'Pago' | 'Pendente' | 'Não realizado';
   cost: number;

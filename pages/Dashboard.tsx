@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import { APP_TIME_ZONE, formatCurrency, formatNumber, formatCurrencyNoDecimals } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
+import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
 import { useAuth } from '../contexts/AuthContext';
@@ -257,6 +258,7 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center flex-wrap w-full xl:w-auto">
+                    {isLoading && <LoadingIndicator />}
                     {/* Hospital Select (Admin only) */}
                     {user?.role === 'ADMIN' ? (
                         <div className="relative w-full sm:w-auto">

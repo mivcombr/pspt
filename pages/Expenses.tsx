@@ -8,6 +8,7 @@ import { withdrawalService, Withdrawal } from '../services/withdrawalService';
 import { APP_TIME_ZONE, formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 
 const renderCustomLabel = (props: any) => {
    const { x, y, value, stroke } = props;
@@ -511,6 +512,7 @@ const Expenses: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-wrap xl:justify-end w-full xl:w-auto">
+               {isLoading && <LoadingIndicator />}
                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
                   {['Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
                      <button
