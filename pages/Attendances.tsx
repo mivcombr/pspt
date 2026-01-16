@@ -66,6 +66,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     // Procedure Editing State
     const [isEditingProcedure, setIsEditingProcedure] = useState(false);
     const [procedureInputValue, setProcedureInputValue] = useState('');
+    const [procedureTypeInputValue, setProcedureTypeInputValue] = useState('Consulta');
 
     // Date/Time Editing State
     const [isEditingDateTime, setIsEditingDateTime] = useState(false);
@@ -399,6 +400,10 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         // Reset Procedure Edit State
         setIsEditingProcedure(false);
         setProcedureInputValue(apt.procedure);
+        const normalizedType = ['Consulta', 'Exame', 'Cirurgia'].find(
+            (type) => type.toUpperCase() === (apt.type || '').toUpperCase()
+        ) || 'Consulta';
+        setProcedureTypeInputValue(normalizedType);
 
         // Reset Date/Time Edit State
         setIsEditingDateTime(false);
@@ -415,9 +420,15 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     };
 
     const visibleProcedures = useMemo(() => {
-        if (!currentAppointment?.hospitalId) return procedures;
-        return procedures.filter((proc) => proc.hospital_id === currentAppointment.hospitalId);
-    }, [currentAppointment?.hospitalId, procedures]);
+        let filtered = procedures;
+        if (currentAppointment?.hospitalId) {
+            filtered = filtered.filter((proc) => proc.hospital_id === currentAppointment.hospitalId);
+        }
+        if (procedureTypeInputValue) {
+            filtered = filtered.filter((proc) => proc.type === procedureTypeInputValue);
+        }
+        return filtered;
+    }, [currentAppointment?.hospitalId, procedureTypeInputValue, procedures]);
 
     const closePaymentModal = () => {
         setIsModalOpen(false);
@@ -451,6 +462,18 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setCurrentValue(value);
     };
 
+    const applyProcedurePrice = (value: number) => {
+        const formattedCost = value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        setCostInputValue(formattedCost);
+
+        if (currentAppointment) {
+            setCurrentAppointment({ ...currentAppointment, cost: value });
+            const totalPaid = paymentDraft.reduce((acc, p) => acc + p.value, 0);
+            const newRemaining = value - totalPaid;
+            setCurrentValue(newRemaining > 0 ? newRemaining.toFixed(2).replace('.', ',') : '');
+        }
+    };
+
     const saveNewCost = () => {
         if (!currentAppointment) return;
         const newCost = parseCurrency(costInputValue);
@@ -472,7 +495,18 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             notify.warning('O nome do procedimento não pode estar vazio.');
             return;
         }
-        setCurrentAppointment({ ...currentAppointment, procedure: procedureInputValue });
+        const selectedProc = procedures.find(
+            (proc) => proc.name === procedureInputValue && proc.type === procedureTypeInputValue
+        );
+        const updatedCost = selectedProc?.cash_price ?? currentAppointment.cost;
+
+        setCurrentAppointment({
+            ...currentAppointment,
+            procedure: procedureInputValue,
+            type: procedureTypeInputValue.toUpperCase(),
+            cost: updatedCost
+        });
+        applyProcedurePrice(updatedCost);
         setIsEditingProcedure(false);
         notify.success('Procedimento atualizado!');
     };
@@ -552,6 +586,19 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         proceedWithFinish(totalPaid >= currentAppointment.cost - 0.01, statusToApply);
     };
 
+    const getAuditFieldLabel = (field: string) => {
+        const normalized = field.toLowerCase();
+        if (normalized === 'time') return 'Horário';
+        if (normalized === 'status') return 'Status';
+        if (normalized === 'payment_status') return 'Status do pagamento';
+        if (normalized === 'total_cost') return 'Valor total';
+        if (normalized === 'procedure') return 'Procedimento';
+        if (normalized === 'provider') return 'Profissional';
+        if (normalized === 'date') return 'Data';
+        const cleaned = field.replace(/_/g, ' ');
+        return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    };
+
     const proceedWithFinish = async (isFullyPaid: boolean, targetStatus: string) => {
         if (!currentAppointment) return;
 
@@ -562,6 +609,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 status: targetStatus,
                 payment_status: targetStatus === 'Falhou' ? 'Não realizado' : (isFullyPaid ? 'Pago' : 'Pendente'),
                 total_cost: currentAppointment.cost,
+                type: currentAppointment.type,
                 procedure: currentAppointment.procedure,
                 notes: notesInputValue,
                 date: currentAppointment.date,
@@ -1482,20 +1530,45 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     <div className="md:col-span-8 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative group">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Procedimento</p>
                                         {isEditingProcedure ? (
-                                            <div className="flex items-center gap-2">
-                                                <select
-                                                    value={procedureInputValue}
-                                                    onChange={(e) => setProcedureInputValue(e.target.value)}
-                                                    autoFocus
-                                                    className="flex-1 h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 focus:outline-none"
-                                                >
-                                                    <option value="">Selecione um procedimento</option>
-                                                    {visibleProcedures.map((proc) => (
-                                                        <option key={proc.id} value={proc.name}>{proc.name}</option>
-                                                    ))}
-                                                </select>
-                                                <button onClick={saveNewProcedure} className="p-1.5 bg-green-500 text-white rounded-lg"><span className="material-symbols-outlined text-[18px]">check</span></button>
-                                                <button onClick={() => setIsEditingProcedure(false)} className="p-1.5 bg-red-100 text-red-500 rounded-lg"><span className="material-symbols-outlined text-[18px]">close</span></button>
+                                            <div className="flex items-start gap-2">
+                                                <div className="flex flex-col gap-2 flex-1">
+                                                    <select
+                                                        value={procedureTypeInputValue}
+                                                        onChange={(e) => {
+                                                            setProcedureTypeInputValue(e.target.value);
+                                                            setProcedureInputValue('');
+                                                        }}
+                                                        className="h-9 px-2 rounded-lg border border-primary text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 focus:outline-none"
+                                                    >
+                                                        <option value="Consulta">Consulta</option>
+                                                        <option value="Exame">Exame</option>
+                                                        <option value="Cirurgia">Cirurgia</option>
+                                                    </select>
+                                                    <select
+                                                        value={procedureInputValue}
+                                                        onChange={(e) => {
+                                                            const nextValue = e.target.value;
+                                                            setProcedureInputValue(nextValue);
+                                                            const selectedProc = procedures.find(
+                                                                (proc) => proc.name === nextValue && proc.type === procedureTypeInputValue
+                                                            );
+                                                            if (selectedProc) {
+                                                                applyProcedurePrice(selectedProc.cash_price);
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                        className="h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 focus:outline-none"
+                                                    >
+                                                        <option value="">Selecione um procedimento</option>
+                                                        {visibleProcedures.map((proc) => (
+                                                            <option key={proc.id} value={proc.name}>{proc.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="flex items-center gap-2 pt-1">
+                                                    <button onClick={saveNewProcedure} className="p-1.5 bg-green-500 text-white rounded-lg"><span className="material-symbols-outlined text-[18px]">check</span></button>
+                                                    <button onClick={() => setIsEditingProcedure(false)} className="p-1.5 bg-red-100 text-red-500 rounded-lg"><span className="material-symbols-outlined text-[18px]">close</span></button>
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="flex justify-between items-center">
@@ -1900,14 +1973,19 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                             <div className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-2">
                                                 <span>{new Date(log.changed_at).toLocaleString('pt-BR', { timeZone: APP_TIME_ZONE })}</span>
                                                 <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                                {/* Display user name if available, otherwise fallback to email or 'Usuário' */}
-                                                <span>{log.user?.name || log.user?.email || 'Usuário'}</span>
+                                                <span>
+                                                    {(() => {
+                                                        const user = Array.isArray(log.user) ? log.user[0] : log.user;
+                                                        const label = user?.name || user?.email || 'Usuário';
+                                                        return user?.email && user?.name ? `${label} (${user.email})` : label;
+                                                    })()}
+                                                </span>
                                             </div>
 
                                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-800 space-y-3">
                                                 {Object.entries(log.changes || {}).map(([field, change]: [string, any]) => (
                                                     <div key={field} className="text-sm">
-                                                        <span className="font-bold text-slate-700 dark:text-slate-300 capitalize">{field.replace(/_/g, ' ')}:</span>
+                                                        <span className="font-bold text-slate-700 dark:text-slate-300">{getAuditFieldLabel(field)}:</span>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded text-xs line-through opacity-70">
                                                                 {String(change.from !== null && change.from !== undefined ? change.from : 'Vazio')}
