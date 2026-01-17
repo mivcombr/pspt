@@ -7,6 +7,7 @@ import { APP_TIME_ZONE, formatCurrency, formatDate, parseCurrency } from '../uti
 import { Badge } from '../components/ui/Badge';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 import { useNotification } from '../hooks/useNotification';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -51,6 +52,26 @@ const Financials: React.FC = () => {
         payment_status: '',
         repasse_status: '',
         financial_additional: ''
+    });
+
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'warning' | 'info';
+        confirmText?: string;
+        cancelText?: string;
+        hideCancel?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        variant: 'info',
+        confirmText: 'Confirmar',
+        cancelText: 'Cancelar',
+        hideCancel: false,
     });
 
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -460,7 +481,15 @@ const Financials: React.FC = () => {
             setHistory(data);
         } catch (err) {
             console.error('Error fetching history:', err);
-            alert('Erro ao carregar histórico.');
+            setConfirmModal({
+                isOpen: true,
+                title: 'Erro ao Carregar',
+                message: 'Não foi possível carregar o histórico de atendimentos deste paciente.',
+                variant: 'danger',
+                confirmText: 'Entendi',
+                hideCancel: true,
+                onConfirm: () => setConfirmModal(prev => ({ ...prev, isOpen: false }))
+            });
         } finally {
             setIsFetchingHistory(false);
         }
@@ -546,7 +575,15 @@ const Financials: React.FC = () => {
             fetchData();
         } catch (e) {
             console.error(e);
-            alert('Erro ao salvar edições.');
+            setConfirmModal({
+                isOpen: true,
+                title: 'Erro ao Salvar',
+                message: 'Ocorreu um erro ao tentar salvar as edições financeiras.',
+                variant: 'danger',
+                confirmText: 'Entendi',
+                hideCancel: true,
+                onConfirm: () => setConfirmModal(prev => ({ ...prev, isOpen: false }))
+            });
         }
     };
 
@@ -1444,7 +1481,7 @@ const Financials: React.FC = () => {
                                 {isAdmin && (
                                     <>
                                         <div>
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Adicional Financeiro (Taxas)</label>
+                                            <label className="text-[10px) font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Adicional Financeiro (Taxas)</label>
                                             <div className="relative">
                                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                                 <input
@@ -1491,7 +1528,18 @@ const Financials: React.FC = () => {
                     </div>
                 </div>
             )}
-        </div >
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                variant={confirmModal.variant}
+                confirmText={confirmModal.confirmText}
+                cancelText={confirmModal.cancelText}
+                hideCancel={confirmModal.hideCancel}
+                onConfirm={confirmModal.onConfirm}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+            />
+        </div>
     );
 };
 

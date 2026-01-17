@@ -65,12 +65,18 @@ const Expenses: React.FC = () => {
       message: string;
       onConfirm: () => void;
       variant?: 'danger' | 'warning' | 'info';
+      confirmText?: string;
+      cancelText?: string;
+      hideCancel?: boolean;
    }>({
       isOpen: false,
       title: '',
       message: '',
       onConfirm: () => { },
       variant: 'info',
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+      hideCancel: false,
    });
 
    // Form State
@@ -330,7 +336,15 @@ const Expenses: React.FC = () => {
 
    const handleSaveExpense = async () => {
       if (!formData.description || !formData.category_id || !formData.value) {
-         alert('Preencha os campos obrigatórios.');
+         setConfirmModal({
+            isOpen: true,
+            title: 'Campos Obrigatórios',
+            message: 'Por favor, preencha todos os campos obrigatórios para salvar a despesa.',
+            variant: 'warning',
+            confirmText: 'Entendi',
+            hideCancel: true,
+            onConfirm: () => { }
+         });
          return;
       }
 
@@ -365,7 +379,15 @@ const Expenses: React.FC = () => {
 
    const handleSaveWithdrawal = async () => {
       if (!withdrawalForm.partner_name || !withdrawalForm.value || !withdrawalForm.date) {
-         alert('Preencha os campos obrigatórios.');
+         setConfirmModal({
+            isOpen: true,
+            title: 'Campos Obrigatórios',
+            message: 'Por favor, preencha todos os campos obrigatórios para registrar o rateio.',
+            variant: 'warning',
+            confirmText: 'Entendi',
+            hideCancel: true,
+            onConfirm: () => { }
+         });
          return;
       }
 
@@ -391,7 +413,15 @@ const Expenses: React.FC = () => {
 
    const handleSaveCategory = async () => {
       if (!categoryForm.name) {
-         alert('Informe o nome da categoria.');
+         setConfirmModal({
+            isOpen: true,
+            title: 'Nome da Categoria',
+            message: 'Por favor, informe o nome da categoria.',
+            variant: 'warning',
+            confirmText: 'Entendi',
+            hideCancel: true,
+            onConfirm: () => { }
+         });
          return;
       }
 
@@ -419,31 +449,62 @@ const Expenses: React.FC = () => {
    };
 
    const handleDeleteCategory = async (id: string, name: string) => {
-      if (!window.confirm(`Tem certeza que deseja excluir a categoria "${name}"? Esta ação só será permitida se não houver despesas vinculadas a ela.`)) return;
-
-      try {
-         await expenseService.deleteCategory(id);
-         const updatedCategories = await expenseService.getCategories();
-         setCategories(updatedCategories);
-         alert('Categoria excluída com sucesso!');
-      } catch (err: any) {
-         console.error('Error deleting category:', err);
-         if (err.message?.includes('violates foreign key constraint')) {
-            alert('Não é possível excluir esta categoria pois existem despesas vinculadas a ela. Realoque as despesas antes de excluir.');
-         } else {
-            alert('Erro ao excluir categoria.');
-         }
-      }
+      setConfirmModal({
+         isOpen: true,
+         title: 'Excluir Categoria',
+         message: `Tem certeza que deseja excluir a categoria "${name}"? Esta ação só será permitida se não houver despesas vinculadas a ela.`,
+         variant: 'danger',
+         confirmText: 'Excluir',
+         onConfirm: async () => {
+            try {
+               await expenseService.deleteCategory(id);
+               const updatedCategories = await expenseService.getCategories();
+               setCategories(updatedCategories);
+               setConfirmModal({
+                  isOpen: true,
+                  title: 'Sucesso',
+                  message: 'Categoria excluída com sucesso!',
+                  variant: 'info',
+                  confirmText: 'OK',
+                  hideCancel: true,
+                  onConfirm: () => { }
+               });
+            } catch (err: any) {
+               console.error('Error deleting category:', err);
+               let errMsg = 'Erro ao excluir categoria.';
+               if (err.message?.includes('violates foreign key constraint')) {
+                  errMsg = 'Não é possível excluir esta categoria pois existem despesas vinculadas a ela. Realoque as despesas antes de excluir.';
+               }
+               setConfirmModal({
+                  isOpen: true,
+                  title: 'Erro de Exclusão',
+                  message: errMsg,
+                  variant: 'danger',
+                  confirmText: 'Entendi',
+                  hideCancel: true,
+                  onConfirm: () => { }
+               });
+            }
+         },
+      });
    };
 
    const handleDeleteExpense = async (id: string) => {
-      if (!window.confirm('Excluir esta despesa?')) return;
-      try {
-         await expenseService.delete(id);
-         fetchData();
-      } catch (err) {
-         console.error('Error deleting expense:', err);
-      }
+      setConfirmModal({
+         isOpen: true,
+         title: 'Excluir Despesa',
+         message: 'Tem certeza que deseja remover esta despesa operacional? Esta ação não pode ser desfeita.',
+         variant: 'danger',
+         confirmText: 'Excluir',
+         onConfirm: async () => {
+            try {
+               await expenseService.delete(id);
+               fetchData();
+            } catch (err) {
+               console.error('Error deleting expense:', err);
+            }
+         },
+      });
    };
 
    const handleDeleteWithdrawal = async (id: string) => {
@@ -459,8 +520,9 @@ const Expenses: React.FC = () => {
       setConfirmModal({
          isOpen: true,
          title: 'Excluir Rateio',
-         message: 'Tem certeza que deseja remover este rateio?',
+         message: 'Tem certeza que deseja remover este rateio/distribuição? Esta ação não pode ser desfeita.',
          variant: 'danger',
+         confirmText: 'Excluir',
          onConfirm: async () => {
             await handleDeleteWithdrawal(id);
          },
@@ -504,570 +566,570 @@ const Expenses: React.FC = () => {
    return (
       <>
          <div className="max-w-[1600px] mx-auto space-y-5 sm:space-y-6 pb-12 relative font-sans">
-         {/* --- HEADER --- */}
-         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6 pb-4">
-            <div>
-               <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Saídas & Rateios</h1>
-               <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Gestão de despesas operacionais e distribuição de lucros.</p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-wrap xl:justify-end w-full xl:w-auto">
-               {isLoading && <LoadingIndicator />}
-               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
-                  {['Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
-                     <button
-                        key={preset}
-                        onClick={() => applyPreset(preset)}
-                        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === preset
-                           ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
-                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-                     >
-                        {preset}
-                     </button>
-                  ))}
-
-                  <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0"></div>
-
-                  <button
-                     onClick={() => setIsCalendarOpen(true)}
-                     className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === 'Personalizado'
-                        ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-                  >
-                     <span className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-                        {activeDateFilter === 'Personalizado' ? formatRangeLabel() : 'Personalizado'}
-                     </span>
-                  </button>
+            {/* --- HEADER --- */}
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6 pb-4">
+               <div>
+                  <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Saídas & Rateios</h1>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Gestão de despesas operacionais e distribuição de lucros.</p>
                </div>
 
-               <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
-
-               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-                  <button
-                     onClick={() => { handleOpenNewCategory(); setIsConfigOpen(true); }}
-                     className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-primary transition-all shadow-sm hover:shadow-md self-start sm:self-auto"
-                     title="Configurar Categorias"
-                  >
-                     <span className="material-symbols-outlined text-[20px]">settings</span>
-                  </button>
-
-                  <button
-                     onClick={handleOpenNewWithdrawal}
-                     className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-purple-600/20 flex items-center gap-2 transition-all active:scale-95 border border-purple-500 w-full sm:w-auto justify-center"
-                  >
-                     <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                     Novo Rateio
-                  </button>
-
-                  <button
-                     onClick={handleOpenNew}
-                     className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-red-600/20 flex items-center gap-2 transition-all active:scale-95 border border-red-500 w-full sm:w-auto justify-center"
-                  >
-                     <span className="material-symbols-outlined text-[18px]">remove_circle</span>
-                     Nova Despesa
-                  </button>
-               </div>
-            </div>
-         </div>
-
-         {/* --- KPIs --- */}
-         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-            {isLoading ? (
-               Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-[6.5rem] sm:h-28 rounded-3xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
-               ))
-            ) : (
-               <>
-                  <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
-                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[20px] sm:text-[24px]">trending_down</span>
-                     </div>
-                     <div className="flex-1">
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saída Total</p>
-                        <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOutflow)}</h3>
-                     </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
-                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[20px] sm:text-[24px]">receipt_long</span>
-                     </div>
-                     <div className="flex-1">
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operacionais</p>
-                        <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOperatingExpenses)}</h3>
-                     </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
-                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[20px] sm:text-[24px]">pie_chart</span>
-                     </div>
-                     <div className="flex-1">
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rateios</p>
-                        <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalWithdrawals)}</h3>
-                     </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
-                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-amber-500">
-                        <span className="material-symbols-outlined text-[20px] sm:text-[24px]">schedule</span>
-                     </div>
-                     <div className="flex-1">
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pagamentos Pendentes</p>
-                        <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{pendingCount}</h3>
-                     </div>
-                  </div>
-               </>
-            )}
-         </div>
-
-         {/* --- ANNUAL EVOLUTION CHART --- */}
-         {isLoading ? (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-8 animate-pulse">
-               <div className="flex justify-between items-center mb-8">
-                  <div className="h-5 w-48 bg-slate-100 dark:bg-slate-800 rounded" />
-                  <div className="h-10 w-24 bg-slate-100 dark:bg-slate-800 rounded-xl" />
-               </div>
-               <div className="h-[350px] w-full bg-slate-100 dark:bg-slate-800 rounded-2xl" />
-            </div>
-         ) : (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-4 sm:p-8">
-               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Evolução Anual de Despesas</h3>
-                  <div className="flex items-center gap-4">
-                     <div className="relative">
-                        <select
-                           value={chartYear}
-                           onChange={(e) => setChartYear(e.target.value)}
-                           className="w-full sm:w-auto appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-white py-2 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary cursor-pointer"
-                        >
-                           {[...Array(5)].map((_, i) => (
-                              <option key={i} value={(new Date().getFullYear() - 2 + i).toString()}>
-                                 {(new Date().getFullYear() - 2 + i)}
-                              </option>
-                           ))}
-                        </select>
-                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
-                     </div>
-                  </div>
-               </div>
-
-               <div className="h-[260px] sm:h-[350px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                     <LineChart data={currentChartData} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} dy={15} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} tickFormatter={(value) => value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} />
-                        <RechartsTooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '12px 16px' }} />
-                        <Line type="monotone" dataKey="operational" stroke="#ef4444" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: '#ef4444' }} name="Despesas">
-                           <LabelList content={renderCustomLabel} />
-                        </Line>
-                        <Line type="monotone" dataKey="withdrawal" stroke="#a855f7" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: '#a855f7' }} name="Rateio">
-                           <LabelList content={renderCustomLabel} />
-                        </Line>
-                     </LineChart>
-                  </ResponsiveContainer>
-               </div>
-            </div>
-         )}
-
-         {/* --- TABLE & SIDEBAR --- */}
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden">
-               <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Despesas Operacionais</h3>
-               </div>
-               <div className="overflow-x-auto p-2">
-                  <table className="w-full text-left text-sm border-collapse">
-                     <thead className="bg-slate-50 dark:bg-slate-800 text-slate-400 font-bold uppercase text-[10px]">
-                        <tr>
-                           <th className="px-6 py-3 rounded-l-xl">Descrição</th>
-                           <th className="px-6 py-3">Vencimento</th>
-                           <th className="px-6 py-3">Categoria</th>
-                           <th className="px-6 py-3 text-right">Valor</th>
-                           <th className="px-6 py-3 text-center">Status</th>
-                           <th className="px-6 py-3 text-right rounded-r-xl">Ações</th>
-                        </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {isLoading ? (
-                           Array.from({ length: 6 }).map((_, i) => (
-                              <tr key={i} className="animate-pulse">
-                                 <td className="px-6 py-4"><div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded" /></td>
-                                 <td className="px-6 py-4"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>
-                                 <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded" /></td>
-                                 <td className="px-6 py-4 text-right"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded ml-auto" /></td>
-                                 <td className="px-6 py-4 text-center"><div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded mx-auto" /></td>
-                                 <td className="px-6 py-4 text-right"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded ml-auto" /></td>
-                              </tr>
-                           ))
-                        ) : expenses.length > 0 ? (
-                           expenses.map((expense) => (
-                              <tr key={expense.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                 <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{expense.description}</td>
-                                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{formatDate(expense.due_date)}</td>
-                                 <td className="px-6 py-4">
-                                    <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 uppercase">
-                                       {expense.category?.name || 'S/ Cat'}
-                                    </span>
-                                 </td>
-                                 <td className="px-6 py-4 font-black text-slate-900 dark:text-white text-right">{formatCurrency(expense.value)}</td>
-                                 <td className="px-6 py-4 text-center">
-                                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${expense.status === 'Pago' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
-                                       {expense.status}
-                                    </span>
-                                 </td>
-                                 <td className="px-6 py-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                       {expense.status === 'Pendente' && (
-                                          <button onClick={() => handleMarkAsPaid(expense)} className="text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 p-1.5 rounded-lg"><span className="material-symbols-outlined text-[18px]">check_circle</span></button>
-                                       )}
-                                       <button onClick={() => handleOpenEdit(expense)} className="text-slate-400 hover:text-primary p-1.5 rounded-lg"><span className="material-symbols-outlined text-[18px]">edit</span></button>
-                                       <button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg"><span className="material-symbols-outlined text-[18px]">delete</span></button>
-                                    </div>
-                                 </td>
-                              </tr>
-                           ))
-                        ) : (
-                           <tr><td colSpan={6} className="py-20 text-center text-slate-400 dark:text-slate-500 font-medium">Nenhuma despesa encontrada.</td></tr>
-                        )}
-                     </tbody>
-                  </table>
-               </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden flex flex-col">
-               <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-purple-50 dark:bg-purple-900/20 flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Rateios & Retiradas</h3>
-                  <button
-                     onClick={handleOpenNewWithdrawal}
-                     className="px-3 py-2 rounded-xl text-xs font-bold bg-white/80 dark:bg-slate-900 text-purple-600 hover:bg-white transition-colors flex items-center gap-1"
-                  >
-                     <span className="material-symbols-outlined text-[16px]">add</span>
-                     Adicionar
-                  </button>
-               </div>
-               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {isLoading ? (
-                     Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="h-20 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/60 animate-pulse" />
-                     ))
-                  ) : withdrawals.length > 0 ? (
-                     withdrawals.map((item) => (
-                        <div key={item.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md transition-all group">
-                           <div className="flex justify-between items-start mb-1">
-                              <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.partner_name}</span>
-                              <div className="flex items-center gap-2">
-                                 <span className="font-black text-purple-600 dark:text-purple-400 text-sm">{formatCurrency(item.value)}</span>
-                                 <button
-                                    onClick={() => requestDeleteWithdrawal(item.id)}
-                                    className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors p-1.5 rounded-lg"
-                                    title="Excluir Rateio"
-                                 >
-                                    <span className="material-symbols-outlined text-[16px]">delete</span>
-                                 </button>
-                              </div>
-                           </div>
-                           <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider">{formatDate(item.date)} • {item.description}</p>
-                        </div>
-                     ))
-                  ) : (
-                     <div className="py-10 text-center text-slate-400 text-sm">Nenhum rateio encontrado.</div>
-                  )}
-               </div>
-               <div className="p-5 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
-                  <div className="flex justify-between items-center">
-                     <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Total Distribuído</span>
-                     {isLoading ? (
-                        <div className="h-5 w-24 bg-slate-100 dark:bg-slate-700 rounded animate-pulse" />
-                     ) : (
-                        <span className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(totalWithdrawals)}</span>
-                     )}
-                  </div>
-               </div>
-            </div>
-         </div>
-
-         {/* --- CUSTOM CALENDAR MODAL --- */}
-         {isCalendarOpen && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-               <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex border border-slate-200 dark:border-slate-700 h-[600px]">
-
-                  {/* Left Sidebar: Presets */}
-                  <div className="w-64 bg-slate-50/80 dark:bg-slate-800/30 border-r border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-2 overflow-y-auto">
-                     {['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias', 'Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
+               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-wrap xl:justify-end w-full xl:w-auto">
+                  {isLoading && <LoadingIndicator />}
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
+                     {['Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
                         <button
                            key={preset}
                            onClick={() => applyPreset(preset)}
-                           className={`text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeDateFilter === preset ? 'bg-primary text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700'}`}
+                           className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === preset
+                              ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                         >
                            {preset}
                         </button>
                      ))}
+
+                     <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0"></div>
+
+                     <button
+                        onClick={() => setIsCalendarOpen(true)}
+                        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === 'Personalizado'
+                           ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                           : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                     >
+                        <span className="flex items-center gap-2">
+                           <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                           {activeDateFilter === 'Personalizado' ? formatRangeLabel() : 'Personalizado'}
+                        </span>
+                     </button>
                   </div>
 
-                  {/* Right Side: Calendar & Actions */}
-                  <div className="flex-1 flex flex-col bg-white dark:bg-slate-900">
-                     <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                           <button onClick={() => handleCalendarNav(-1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500"><span className="material-symbols-outlined">chevron_left</span></button>
-                           <span className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-wide">
-                              {viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}
-                           </span>
-                           <button onClick={() => handleCalendarNav(1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500"><span className="material-symbols-outlined">chevron_right</span></button>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Intervalo Selecionado</p>
-                           <p className="text-sm font-bold text-primary dark:text-primary-hover">{formatRangeLabel()}</p>
-                        </div>
-                        <button onClick={() => setIsCalendarOpen(false)} className="text-slate-400 hover:text-slate-600 ml-4"><span className="material-symbols-outlined">close</span></button>
-                     </div>
+                  <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
 
-                     <div className="flex-1 p-8 overflow-y-auto">
-                        <div className="grid grid-cols-7 mb-4">
-                           {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((d, i) => (
-                              <div key={i} className={`text-center text-xs font-bold uppercase tracking-widest ${i === 0 || i === 6 ? 'text-primary opacity-60' : 'text-slate-400'}`}>{d}</div>
-                           ))}
-                        </div>
-                        <div className="grid grid-cols-7 gap-y-2">
-                           {Array.from({ length: getFirstDayOfMonth(viewDate.getFullYear(), viewDate.getMonth()) }).map((_, i) => (
-                              <div key={`empty-${i}`} />
-                           ))}
-                           {Array.from({ length: getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth()) }).map((_, i) => {
-                              const day = i + 1;
-                              const isStart = isRangeStart(day);
-                              const isEnd = isRangeEnd(day);
-                              const isMiddle = isRangeMiddle(day);
-                              const selected = isSelected(day);
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                     <button
+                        onClick={() => { handleOpenNewCategory(); setIsConfigOpen(true); }}
+                        className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-primary transition-all shadow-sm hover:shadow-md self-start sm:self-auto"
+                        title="Configurar Categorias"
+                     >
+                        <span className="material-symbols-outlined text-[20px]">settings</span>
+                     </button>
 
-                              return (
-                                 <div key={day} className="relative h-10 flex items-center justify-center">
-                                    {(isMiddle || (isStart && tempEndDate) || (isEnd && tempStartDate)) && (
-                                       <div className={`absolute inset-y-1 bg-red-50 dark:bg-primary/10 ${isStart ? 'left-1/2 right-0 rounded-l-md' : isEnd ? 'left-0 right-1/2 rounded-r-md' : 'inset-x-0'}`}></div>
-                                    )}
-                                    <button
-                                       onClick={() => handleDayClick(day)}
-                                       className={`relative z-10 w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all ${selected && !isMiddle ? 'bg-primary text-white shadow-lg scale-105' : !selected && !isMiddle ? 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' : 'text-primary dark:text-primary-hover'}`}
-                                    >
-                                       {day}
-                                    </button>
-                                 </div>
-                              );
-                           })}
-                        </div>
-                     </div>
+                     <button
+                        onClick={handleOpenNewWithdrawal}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-purple-600/20 flex items-center gap-2 transition-all active:scale-95 border border-purple-500 w-full sm:w-auto justify-center"
+                     >
+                        <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                        Novo Rateio
+                     </button>
 
-                     <div className="px-8 py-5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end">
-                        <button onClick={() => setIsCalendarOpen(false)} className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-200 transition-colors uppercase">Cancelar</button>
-                        <button onClick={() => { setActiveDateFilter('Personalizado'); setIsCalendarOpen(false); }} className="px-8 py-2.5 rounded-xl text-sm font-bold bg-green-600 text-white shadow-lg shadow-green-600/20 ml-3 uppercase">Aplicar</button>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {/* EXPENSE MODAL */}
-         {isExpenseModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-               <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="p-6 border-b border-red-100 dark:border-red-900/20 bg-red-50 dark:bg-red-900/20 flex justify-between items-center">
-                     <div>
-                        <h3 className="text-xl font-black text-red-700 dark:text-red-400">{editingExpense ? 'Editar Despesa' : 'Nova Despesa'}</h3>
-                        <p className="text-xs text-red-600/70 dark:text-red-400/70 font-bold mt-0.5">Preencha os dados da saída financeira.</p>
-                     </div>
-                     <button onClick={() => setIsExpenseModalOpen(false)} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-100/50 rounded-xl transition-colors"><span className="material-symbols-outlined">close</span></button>
-                  </div>
-                  <div className="p-8 space-y-5 overflow-y-auto max-h-[70vh]">
-                     <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Descrição / Fornecedor</label>
-                        <input type="text" name="description" value={formData.description} onChange={handleInputChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500 transition-all" />
-                     </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Categoria</label>
-                           <select name="category_id" value={formData.category_id} onChange={handleInputChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500 appearance-none">
-                              <option value="">Selecione</option>
-                              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                           </select>
-                        </div>
-                        <div>
-                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Valor (R$)</label>
-                           <input type="text" name="value" value={formData.value} onChange={handleValueChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500" placeholder="0,00" />
-                        </div>
-                     </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Vencimento</label>
-                           <input type="date" name="due_date" value={formData.due_date} onChange={handleInputChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500" />
-                        </div>
-                        <div>
-                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Data Pagamento (Opç)</label>
-                           <input type="date" name="paid_date" value={formData.paid_date} onChange={handleInputChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500" />
-                        </div>
-                     </div>
-                     <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Status</label>
-                        <div className="flex gap-2">
-                           {['Pendente', 'Pago'].map(status => (
-                              <button
-                                 key={status}
-                                 onClick={() => setFormData(prev => ({ ...prev, status: status as 'Pago' | 'Pendente' }))}
-                                 className={`flex-1 h-12 rounded-xl text-xs font-bold transition-all border ${formData.status === status ? (status === 'Pago' ? 'bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/20' : 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20') : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:bg-slate-100'}`}
-                              >
-                                 {status}
-                              </button>
-                           ))}
-                        </div>
-                     </div>
-                  </div>
-                  <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-                     <button onClick={() => setIsExpenseModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase text-xs">Cancelar</button>
-                     <button onClick={handleSaveExpense} disabled={isSaving} className="px-8 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30 transition-all flex items-center gap-2 uppercase text-xs active:scale-95 disabled:opacity-50">
-                        {isSaving ? 'Salvando...' : (<><span className="material-symbols-outlined text-[18px]">save</span> Salvar Despesa</>)}
+                     <button
+                        onClick={handleOpenNew}
+                        className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-red-600/20 flex items-center gap-2 transition-all active:scale-95 border border-red-500 w-full sm:w-auto justify-center"
+                     >
+                        <span className="material-symbols-outlined text-[18px]">remove_circle</span>
+                        Nova Despesa
                      </button>
                   </div>
                </div>
             </div>
-         )}
 
-         {/* CONFIG CATEGORIES MODAL (Simplified) */}
-         {isConfigOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-               <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[80vh]">
-                  <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
-                     <div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><span className="material-symbols-outlined text-slate-400">tune</span> Categorias</h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Crie e edite categorias de despesas.</p>
+            {/* --- KPIs --- */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+               {isLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                     <div key={i} className="h-[6.5rem] sm:h-28 rounded-3xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
+                  ))
+               ) : (
+                  <>
+                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                           <span className="material-symbols-outlined text-[20px] sm:text-[24px]">trending_down</span>
+                        </div>
+                        <div className="flex-1">
+                           <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saída Total</p>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOutflow)}</h3>
+                        </div>
                      </div>
-                     <button onClick={() => setIsConfigOpen(false)} className="text-slate-400 hover:text-slate-600 p-2"><span className="material-symbols-outlined">close</span></button>
+
+                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                           <span className="material-symbols-outlined text-[20px] sm:text-[24px]">receipt_long</span>
+                        </div>
+                        <div className="flex-1">
+                           <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operacionais</p>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOperatingExpenses)}</h3>
+                        </div>
+                     </div>
+
+                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                           <span className="material-symbols-outlined text-[20px] sm:text-[24px]">pie_chart</span>
+                        </div>
+                        <div className="flex-1">
+                           <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rateios</p>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalWithdrawals)}</h3>
+                        </div>
+                     </div>
+
+                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-amber-500">
+                           <span className="material-symbols-outlined text-[20px] sm:text-[24px]">schedule</span>
+                        </div>
+                        <div className="flex-1">
+                           <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pagamentos Pendentes</p>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{pendingCount}</h3>
+                        </div>
+                     </div>
+                  </>
+               )}
+            </div>
+
+            {/* --- ANNUAL EVOLUTION CHART --- */}
+            {isLoading ? (
+               <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-8 animate-pulse">
+                  <div className="flex justify-between items-center mb-8">
+                     <div className="h-5 w-48 bg-slate-100 dark:bg-slate-800 rounded" />
+                     <div className="h-10 w-24 bg-slate-100 dark:bg-slate-800 rounded-xl" />
                   </div>
-                  <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <input
-                           type="text"
-                           value={categoryForm.name}
-                           onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
-                           className="sm:col-span-2 h-11 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-primary"
-                           placeholder="Nome da categoria"
-                        />
-                        <select
-                           value={categoryForm.type}
-                           onChange={(e) => setCategoryForm(prev => ({ ...prev, type: e.target.value as 'Fixa' | 'Variável' }))}
-                           className="h-11 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-primary"
-                        >
-                           <option value="Fixa">Fixa</option>
-                           <option value="Variável">Variável</option>
-                        </select>
-                     </div>
-                     <div className="flex items-center justify-between mt-4">
-                        <button
-                           onClick={handleOpenNewCategory}
-                           className="text-xs font-bold text-slate-500 hover:text-slate-700"
-                        >
-                           {editingCategory ? 'Cancelar edição' : 'Limpar'}
-                        </button>
-                        <button
-                           onClick={handleSaveCategory}
-                           disabled={isSavingCategory}
-                           className="px-5 py-2.5 rounded-xl text-xs font-bold bg-green-600 text-white shadow-lg shadow-green-600/20 disabled:opacity-50"
-                        >
-                           {isSavingCategory ? 'Salvando...' : editingCategory ? 'Salvar edição' : 'Adicionar categoria'}
-                        </button>
+                  <div className="h-[350px] w-full bg-slate-100 dark:bg-slate-800 rounded-2xl" />
+               </div>
+            ) : (
+               <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow p-4 sm:p-8">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+                     <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Evolução Anual de Despesas</h3>
+                     <div className="flex items-center gap-4">
+                        <div className="relative">
+                           <select
+                              value={chartYear}
+                              onChange={(e) => setChartYear(e.target.value)}
+                              className="w-full sm:w-auto appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-white py-2 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary cursor-pointer"
+                           >
+                              {[...Array(5)].map((_, i) => (
+                                 <option key={i} value={(new Date().getFullYear() - 2 + i).toString()}>
+                                    {(new Date().getFullYear() - 2 + i)}
+                                 </option>
+                              ))}
+                           </select>
+                           <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+                        </div>
                      </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto">
-                     <table className="w-full text-left text-sm">
-                        <thead className="bg-white dark:bg-slate-900 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">
-                           <tr className="px-6 py-4">
-                              <th className="px-6 py-4">Nome</th>
-                              <th className="px-6 py-4">Tipo</th>
-                              <th className="px-6 py-4 text-right">Ação</th>
+
+                  <div className="h-[260px] sm:h-[350px] w-full">
+                     <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={currentChartData} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
+                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} dy={15} />
+                           <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} tickFormatter={(value) => value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} />
+                           <RechartsTooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '12px 16px' }} />
+                           <Line type="monotone" dataKey="operational" stroke="#ef4444" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: '#ef4444' }} name="Despesas">
+                              <LabelList content={renderCustomLabel} />
+                           </Line>
+                           <Line type="monotone" dataKey="withdrawal" stroke="#a855f7" strokeWidth={4} dot={false} activeDot={{ r: 8, fill: '#a855f7' }} name="Rateio">
+                              <LabelList content={renderCustomLabel} />
+                           </Line>
+                        </LineChart>
+                     </ResponsiveContainer>
+                  </div>
+               </div>
+            )}
+
+            {/* --- TABLE & SIDEBAR --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+               <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden">
+                  <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Despesas Operacionais</h3>
+                  </div>
+                  <div className="overflow-x-auto p-2">
+                     <table className="w-full text-left text-sm border-collapse">
+                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-400 font-bold uppercase text-[10px]">
+                           <tr>
+                              <th className="px-6 py-3 rounded-l-xl">Descrição</th>
+                              <th className="px-6 py-3">Vencimento</th>
+                              <th className="px-6 py-3">Categoria</th>
+                              <th className="px-6 py-3 text-right">Valor</th>
+                              <th className="px-6 py-3 text-center">Status</th>
+                              <th className="px-6 py-3 text-right rounded-r-xl">Ações</th>
                            </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                           {categories.map(cat => (
-                              <tr key={cat.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 px-6 py-3">
-                                 <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200">{cat.name}</td>
-                                 <td className="px-6 py-4">
-                                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${cat.type === 'Fixa' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>{cat.type}</span>
-                                 </td>
-                                 <td className="px-6 py-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                       <button onClick={() => handleEditCategory(cat)} className="text-slate-400 hover:text-primary p-1.5 rounded-lg transition-colors"><span className="material-symbols-outlined text-[18px]">edit</span></button>
-                                       <button onClick={() => handleDeleteCategory(cat.id, cat.name)} className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg transition-colors"><span className="material-symbols-outlined text-[18px]">delete</span></button>
-                                    </div>
-                                 </td>
-                              </tr>
-                           ))}
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                           {isLoading ? (
+                              Array.from({ length: 6 }).map((_, i) => (
+                                 <tr key={i} className="animate-pulse">
+                                    <td className="px-6 py-4"><div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                    <td className="px-6 py-4 text-right"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded ml-auto" /></td>
+                                    <td className="px-6 py-4 text-center"><div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded mx-auto" /></td>
+                                    <td className="px-6 py-4 text-right"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded ml-auto" /></td>
+                                 </tr>
+                              ))
+                           ) : expenses.length > 0 ? (
+                              expenses.map((expense) => (
+                                 <tr key={expense.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{expense.description}</td>
+                                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{formatDate(expense.due_date)}</td>
+                                    <td className="px-6 py-4">
+                                       <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 uppercase">
+                                          {expense.category?.name || 'S/ Cat'}
+                                       </span>
+                                    </td>
+                                    <td className="px-6 py-4 font-black text-slate-900 dark:text-white text-right">{formatCurrency(expense.value)}</td>
+                                    <td className="px-6 py-4 text-center">
+                                       <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${expense.status === 'Pago' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                                          {expense.status}
+                                       </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                       <div className="flex items-center justify-end gap-2">
+                                          {expense.status === 'Pendente' && (
+                                             <button onClick={() => handleMarkAsPaid(expense)} className="text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 p-1.5 rounded-lg"><span className="material-symbols-outlined text-[18px]">check_circle</span></button>
+                                          )}
+                                          <button onClick={() => handleOpenEdit(expense)} className="text-slate-400 hover:text-primary p-1.5 rounded-lg"><span className="material-symbols-outlined text-[18px]">edit</span></button>
+                                          <button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                                       </div>
+                                    </td>
+                                 </tr>
+                              ))
+                           ) : (
+                              <tr><td colSpan={6} className="py-20 text-center text-slate-400 dark:text-slate-500 font-medium">Nenhuma despesa encontrada.</td></tr>
+                           )}
                         </tbody>
                      </table>
                   </div>
                </div>
-            </div>
-         )}
 
-         {/* WITHDRAWAL MODAL */}
-         {isWithdrawalModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-               <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="p-6 border-b border-purple-100 dark:border-purple-900/20 bg-purple-50 dark:bg-purple-900/20 flex justify-between items-center">
-                     <div>
-                        <h3 className="text-xl font-black text-purple-700 dark:text-purple-300">Novo Rateio</h3>
-                        <p className="text-xs text-purple-600/70 dark:text-purple-300/70 font-bold mt-0.5">Registre a distribuição para parceiros.</p>
-                     </div>
-                     <button onClick={() => setIsWithdrawalModalOpen(false)} className="text-purple-400 hover:text-purple-600 p-2 hover:bg-purple-100/50 rounded-xl transition-colors"><span className="material-symbols-outlined">close</span></button>
-                  </div>
-                  <div className="p-8 space-y-5 overflow-y-auto max-h-[70vh]">
-                     <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Parceiro</label>
-                        <input
-                           type="text"
-                           value={withdrawalForm.partner_name}
-                           onChange={(e) => setWithdrawalForm(prev => ({ ...prev, partner_name: e.target.value }))}
-                           className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-purple-500 transition-all"
-                        />
-                     </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Data</label>
-                           <input
-                              type="date"
-                              value={withdrawalForm.date}
-                              onChange={(e) => setWithdrawalForm(prev => ({ ...prev, date: e.target.value }))}
-                              className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-purple-500"
-                           />
-                        </div>
-                        <div>
-                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Valor (R$)</label>
-                           <input
-                              type="text"
-                              value={withdrawalForm.value}
-                              onChange={handleWithdrawalValueChange}
-                              className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-purple-500"
-                              placeholder="0,00"
-                           />
-                        </div>
-                     </div>
-                     <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Descrição (opcional)</label>
-                        <input
-                           type="text"
-                           value={withdrawalForm.description}
-                           onChange={(e) => setWithdrawalForm(prev => ({ ...prev, description: e.target.value }))}
-                           className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-purple-500"
-                        />
-                     </div>
-                  </div>
-                  <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-                     <button onClick={() => setIsWithdrawalModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase text-xs">Cancelar</button>
-                     <button onClick={handleSaveWithdrawal} disabled={isSavingWithdrawal} className="px-8 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30 transition-all flex items-center gap-2 uppercase text-xs active:scale-95 disabled:opacity-50">
-                        {isSavingWithdrawal ? 'Salvando...' : (<><span className="material-symbols-outlined text-[18px]">save</span> Salvar Rateio</>)}
+               <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden flex flex-col">
+                  <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-purple-50 dark:bg-purple-900/20 flex items-center justify-between">
+                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Rateios & Retiradas</h3>
+                     <button
+                        onClick={handleOpenNewWithdrawal}
+                        className="px-3 py-2 rounded-xl text-xs font-bold bg-white/80 dark:bg-slate-900 text-purple-600 hover:bg-white transition-colors flex items-center gap-1"
+                     >
+                        <span className="material-symbols-outlined text-[16px]">add</span>
+                        Adicionar
                      </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                     {isLoading ? (
+                        Array.from({ length: 4 }).map((_, i) => (
+                           <div key={i} className="h-20 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/60 animate-pulse" />
+                        ))
+                     ) : withdrawals.length > 0 ? (
+                        withdrawals.map((item) => (
+                           <div key={item.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md transition-all group">
+                              <div className="flex justify-between items-start mb-1">
+                                 <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.partner_name}</span>
+                                 <div className="flex items-center gap-2">
+                                    <span className="font-black text-purple-600 dark:text-purple-400 text-sm">{formatCurrency(item.value)}</span>
+                                    <button
+                                       onClick={() => requestDeleteWithdrawal(item.id)}
+                                       className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors p-1.5 rounded-lg"
+                                       title="Excluir Rateio"
+                                    >
+                                       <span className="material-symbols-outlined text-[16px]">delete</span>
+                                    </button>
+                                 </div>
+                              </div>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider">{formatDate(item.date)} • {item.description}</p>
+                           </div>
+                        ))
+                     ) : (
+                        <div className="py-10 text-center text-slate-400 text-sm">Nenhum rateio encontrado.</div>
+                     )}
+                  </div>
+                  <div className="p-5 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                     <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Total Distribuído</span>
+                        {isLoading ? (
+                           <div className="h-5 w-24 bg-slate-100 dark:bg-slate-700 rounded animate-pulse" />
+                        ) : (
+                           <span className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(totalWithdrawals)}</span>
+                        )}
+                     </div>
                   </div>
                </div>
             </div>
-         )}
+
+            {/* --- CUSTOM CALENDAR MODAL --- */}
+            {isCalendarOpen && (
+               <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex border border-slate-200 dark:border-slate-700 h-[600px]">
+
+                     {/* Left Sidebar: Presets */}
+                     <div className="w-64 bg-slate-50/80 dark:bg-slate-800/30 border-r border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-2 overflow-y-auto">
+                        {['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias', 'Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
+                           <button
+                              key={preset}
+                              onClick={() => applyPreset(preset)}
+                              className={`text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeDateFilter === preset ? 'bg-primary text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700'}`}
+                           >
+                              {preset}
+                           </button>
+                        ))}
+                     </div>
+
+                     {/* Right Side: Calendar & Actions */}
+                     <div className="flex-1 flex flex-col bg-white dark:bg-slate-900">
+                        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <button onClick={() => handleCalendarNav(-1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500"><span className="material-symbols-outlined">chevron_left</span></button>
+                              <span className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-wide">
+                                 {viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}
+                              </span>
+                              <button onClick={() => handleCalendarNav(1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500"><span className="material-symbols-outlined">chevron_right</span></button>
+                           </div>
+                           <div className="text-right">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Intervalo Selecionado</p>
+                              <p className="text-sm font-bold text-primary dark:text-primary-hover">{formatRangeLabel()}</p>
+                           </div>
+                           <button onClick={() => setIsCalendarOpen(false)} className="text-slate-400 hover:text-slate-600 ml-4"><span className="material-symbols-outlined">close</span></button>
+                        </div>
+
+                        <div className="flex-1 p-8 overflow-y-auto">
+                           <div className="grid grid-cols-7 mb-4">
+                              {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((d, i) => (
+                                 <div key={i} className={`text-center text-xs font-bold uppercase tracking-widest ${i === 0 || i === 6 ? 'text-primary opacity-60' : 'text-slate-400'}`}>{d}</div>
+                              ))}
+                           </div>
+                           <div className="grid grid-cols-7 gap-y-2">
+                              {Array.from({ length: getFirstDayOfMonth(viewDate.getFullYear(), viewDate.getMonth()) }).map((_, i) => (
+                                 <div key={`empty-${i}`} />
+                              ))}
+                              {Array.from({ length: getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth()) }).map((_, i) => {
+                                 const day = i + 1;
+                                 const isStart = isRangeStart(day);
+                                 const isEnd = isRangeEnd(day);
+                                 const isMiddle = isRangeMiddle(day);
+                                 const selected = isSelected(day);
+
+                                 return (
+                                    <div key={day} className="relative h-10 flex items-center justify-center">
+                                       {(isMiddle || (isStart && tempEndDate) || (isEnd && tempStartDate)) && (
+                                          <div className={`absolute inset-y-1 bg-red-50 dark:bg-primary/10 ${isStart ? 'left-1/2 right-0 rounded-l-md' : isEnd ? 'left-0 right-1/2 rounded-r-md' : 'inset-x-0'}`}></div>
+                                       )}
+                                       <button
+                                          onClick={() => handleDayClick(day)}
+                                          className={`relative z-10 w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all ${selected && !isMiddle ? 'bg-primary text-white shadow-lg scale-105' : !selected && !isMiddle ? 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' : 'text-primary dark:text-primary-hover'}`}
+                                       >
+                                          {day}
+                                       </button>
+                                    </div>
+                                 );
+                              })}
+                           </div>
+                        </div>
+
+                        <div className="px-8 py-5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end">
+                           <button onClick={() => setIsCalendarOpen(false)} className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-200 transition-colors uppercase">Cancelar</button>
+                           <button onClick={() => { setActiveDateFilter('Personalizado'); setIsCalendarOpen(false); }} className="px-8 py-2.5 rounded-xl text-sm font-bold bg-green-600 text-white shadow-lg shadow-green-600/20 ml-3 uppercase">Aplicar</button>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {/* EXPENSE MODAL */}
+            {isExpenseModalOpen && (
+               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                     <div className="p-6 border-b border-red-100 dark:border-red-900/20 bg-red-50 dark:bg-red-900/20 flex justify-between items-center">
+                        <div>
+                           <h3 className="text-xl font-black text-red-700 dark:text-red-400">{editingExpense ? 'Editar Despesa' : 'Nova Despesa'}</h3>
+                           <p className="text-xs text-red-600/70 dark:text-red-400/70 font-bold mt-0.5">Preencha os dados da saída financeira.</p>
+                        </div>
+                        <button onClick={() => setIsExpenseModalOpen(false)} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-100/50 rounded-xl transition-colors"><span className="material-symbols-outlined">close</span></button>
+                     </div>
+                     <div className="p-8 space-y-5 overflow-y-auto max-h-[70vh]">
+                        <div>
+                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Descrição / Fornecedor</label>
+                           <input type="text" name="description" value={formData.description} onChange={handleInputChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500 transition-all" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Categoria</label>
+                              <select name="category_id" value={formData.category_id} onChange={handleInputChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500 appearance-none">
+                                 <option value="">Selecione</option>
+                                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              </select>
+                           </div>
+                           <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Valor (R$)</label>
+                              <input type="text" name="value" value={formData.value} onChange={handleValueChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500" placeholder="0,00" />
+                           </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Vencimento</label>
+                              <input type="date" name="due_date" value={formData.due_date} onChange={handleInputChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500" />
+                           </div>
+                           <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Data Pagamento (Opç)</label>
+                              <input type="date" name="paid_date" value={formData.paid_date} onChange={handleInputChange} className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-red-500" />
+                           </div>
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Status</label>
+                           <div className="flex gap-2">
+                              {['Pendente', 'Pago'].map(status => (
+                                 <button
+                                    key={status}
+                                    onClick={() => setFormData(prev => ({ ...prev, status: status as 'Pago' | 'Pendente' }))}
+                                    className={`flex-1 h-12 rounded-xl text-xs font-bold transition-all border ${formData.status === status ? (status === 'Pago' ? 'bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/20' : 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20') : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:bg-slate-100'}`}
+                                 >
+                                    {status}
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+                     </div>
+                     <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                        <button onClick={() => setIsExpenseModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase text-xs">Cancelar</button>
+                        <button onClick={handleSaveExpense} disabled={isSaving} className="px-8 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30 transition-all flex items-center gap-2 uppercase text-xs active:scale-95 disabled:opacity-50">
+                           {isSaving ? 'Salvando...' : (<><span className="material-symbols-outlined text-[18px]">save</span> Salvar Despesa</>)}
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {/* CONFIG CATEGORIES MODAL (Simplified) */}
+            {isConfigOpen && (
+               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[80vh]">
+                     <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+                        <div>
+                           <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><span className="material-symbols-outlined text-slate-400">tune</span> Categorias</h3>
+                           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Crie e edite categorias de despesas.</p>
+                        </div>
+                        <button onClick={() => setIsConfigOpen(false)} className="text-slate-400 hover:text-slate-600 p-2"><span className="material-symbols-outlined">close</span></button>
+                     </div>
+                     <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                           <input
+                              type="text"
+                              value={categoryForm.name}
+                              onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
+                              className="sm:col-span-2 h-11 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-primary"
+                              placeholder="Nome da categoria"
+                           />
+                           <select
+                              value={categoryForm.type}
+                              onChange={(e) => setCategoryForm(prev => ({ ...prev, type: e.target.value as 'Fixa' | 'Variável' }))}
+                              className="h-11 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-primary"
+                           >
+                              <option value="Fixa">Fixa</option>
+                              <option value="Variável">Variável</option>
+                           </select>
+                        </div>
+                        <div className="flex items-center justify-between mt-4">
+                           <button
+                              onClick={handleOpenNewCategory}
+                              className="text-xs font-bold text-slate-500 hover:text-slate-700"
+                           >
+                              {editingCategory ? 'Cancelar edição' : 'Limpar'}
+                           </button>
+                           <button
+                              onClick={handleSaveCategory}
+                              disabled={isSavingCategory}
+                              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-green-600 text-white shadow-lg shadow-green-600/20 disabled:opacity-50"
+                           >
+                              {isSavingCategory ? 'Salvando...' : editingCategory ? 'Salvar edição' : 'Adicionar categoria'}
+                           </button>
+                        </div>
+                     </div>
+                     <div className="flex-1 overflow-y-auto">
+                        <table className="w-full text-left text-sm">
+                           <thead className="bg-white dark:bg-slate-900 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">
+                              <tr className="px-6 py-4">
+                                 <th className="px-6 py-4">Nome</th>
+                                 <th className="px-6 py-4">Tipo</th>
+                                 <th className="px-6 py-4 text-right">Ação</th>
+                              </tr>
+                           </thead>
+                           <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                              {categories.map(cat => (
+                                 <tr key={cat.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 px-6 py-3">
+                                    <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200">{cat.name}</td>
+                                    <td className="px-6 py-4">
+                                       <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${cat.type === 'Fixa' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>{cat.type}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                       <div className="flex items-center justify-end gap-2">
+                                          <button onClick={() => handleEditCategory(cat)} className="text-slate-400 hover:text-primary p-1.5 rounded-lg transition-colors"><span className="material-symbols-outlined text-[18px]">edit</span></button>
+                                          <button onClick={() => handleDeleteCategory(cat.id, cat.name)} className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg transition-colors"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                                       </div>
+                                    </td>
+                                 </tr>
+                              ))}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {/* WITHDRAWAL MODAL */}
+            {isWithdrawalModalOpen && (
+               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                     <div className="p-6 border-b border-purple-100 dark:border-purple-900/20 bg-purple-50 dark:bg-purple-900/20 flex justify-between items-center">
+                        <div>
+                           <h3 className="text-xl font-black text-purple-700 dark:text-purple-300">Novo Rateio</h3>
+                           <p className="text-xs text-purple-600/70 dark:text-purple-300/70 font-bold mt-0.5">Registre a distribuição para parceiros.</p>
+                        </div>
+                        <button onClick={() => setIsWithdrawalModalOpen(false)} className="text-purple-400 hover:text-purple-600 p-2 hover:bg-purple-100/50 rounded-xl transition-colors"><span className="material-symbols-outlined">close</span></button>
+                     </div>
+                     <div className="p-8 space-y-5 overflow-y-auto max-h-[70vh]">
+                        <div>
+                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Parceiro</label>
+                           <input
+                              type="text"
+                              value={withdrawalForm.partner_name}
+                              onChange={(e) => setWithdrawalForm(prev => ({ ...prev, partner_name: e.target.value }))}
+                              className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-purple-500 transition-all"
+                           />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Data</label>
+                              <input
+                                 type="date"
+                                 value={withdrawalForm.date}
+                                 onChange={(e) => setWithdrawalForm(prev => ({ ...prev, date: e.target.value }))}
+                                 className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-purple-500"
+                              />
+                           </div>
+                           <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Valor (R$)</label>
+                              <input
+                                 type="text"
+                                 value={withdrawalForm.value}
+                                 onChange={handleWithdrawalValueChange}
+                                 className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-purple-500"
+                                 placeholder="0,00"
+                              />
+                           </div>
+                        </div>
+                        <div>
+                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Descrição (opcional)</label>
+                           <input
+                              type="text"
+                              value={withdrawalForm.description}
+                              onChange={(e) => setWithdrawalForm(prev => ({ ...prev, description: e.target.value }))}
+                              className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold focus:ring-2 focus:ring-purple-500"
+                           />
+                        </div>
+                     </div>
+                     <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                        <button onClick={() => setIsWithdrawalModalOpen(false)} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase text-xs">Cancelar</button>
+                        <button onClick={handleSaveWithdrawal} disabled={isSavingWithdrawal} className="px-8 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30 transition-all flex items-center gap-2 uppercase text-xs active:scale-95 disabled:opacity-50">
+                           {isSavingWithdrawal ? 'Salvando...' : (<><span className="material-symbols-outlined text-[18px]">save</span> Salvar Rateio</>)}
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            )}
          </div>
 
          <ConfirmModal
@@ -1075,6 +1137,9 @@ const Expenses: React.FC = () => {
             title={confirmModal.title}
             message={confirmModal.message}
             variant={confirmModal.variant}
+            confirmText={confirmModal.confirmText}
+            cancelText={confirmModal.cancelText}
+            hideCancel={confirmModal.hideCancel}
             onConfirm={confirmModal.onConfirm}
             onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
          />
