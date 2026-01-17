@@ -388,9 +388,23 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     // --- Actions ---
 
-    const openPaymentModal = (apt: Appointment) => {
+    const openPaymentModal = async (apt: Appointment) => {
         setCurrentAppointment(apt);
         setPaymentDraft(apt.payments);
+
+        // Fetch payment methods specifically for this appointment's hospital
+        // to avoid issues when viewing multiple hospitals as Admin
+        let currentMethods = hospitalPaymentMethods;
+        if (apt.hospitalId) {
+            try {
+                const fetchedMethods = await paymentMethodService.getAll(apt.hospitalId);
+                setHospitalPaymentMethods(fetchedMethods);
+                currentMethods = fetchedMethods;
+            } catch (err) {
+                console.error('Error fetching methods for appointment:', err);
+            }
+        }
+
         setNotesInputValue(apt.notes || '');
 
         // Reset Cost Edit State
@@ -413,7 +427,14 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         const alreadyPaid = apt.payments.reduce((acc, p) => acc + p.value, 0);
         const remaining = apt.cost - alreadyPaid;
         setCurrentValue(remaining > 0 ? remaining.toFixed(2).replace('.', ',') : '');
-        setCurrentMethod('Pix');
+
+        // Set default method: first from hospital methods, or 'Pix' if none
+        if (currentMethods.length > 0) {
+            setCurrentMethod(currentMethods[0].name);
+        } else {
+            setCurrentMethod('Pix');
+        }
+
         setCurrentInstallments(1);
         setStatusInputValue(apt.status);
         setIsModalOpen(true);
@@ -541,11 +562,13 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             return;
         }
 
+        const isCreditCard = currentMethod.toLowerCase().includes('cartão') && currentMethod.toLowerCase().includes('crédito');
+
         const newPart: PaymentPart = {
             id: Math.random().toString(36).substr(2, 9),
             method: currentMethod,
             value: val,
-            installments: currentMethod === 'Cartão de Crédito' ? currentInstallments : undefined
+            installments: isCreditCard ? currentInstallments : undefined
         };
 
         const updatedDraft = [...paymentDraft, newPart];
@@ -1022,7 +1045,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                         <span className="material-symbols-outlined text-[20px]">chevron_left</span>
                                                     </button>
                                                     <span className="font-bold text-slate-900 dark:text-white capitalize text-lg">
-                                        {pickerMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}
+                                                        {pickerMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: APP_TIME_ZONE })}
                                                     </span>
                                                     <button onClick={() => changePickerMonth(1)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full text-slate-500">
                                                         <span className="material-symbols-outlined text-[20px]">chevron_right</span>
@@ -1103,11 +1126,11 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     </div>
                                 ) : (
                                     !isEmbedded && (
-                                    <span className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 dark:text-slate-500 px-3 py-1 rounded-full uppercase tracking-widest w-full sm:w-auto text-center">
-                                        {user?.hospitalName || 'Todos os Parceiros'}
-                                    </span>
-                                )
-                            )}
+                                        <span className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 dark:text-slate-500 px-3 py-1 rounded-full uppercase tracking-widest w-full sm:w-auto text-center">
+                                            {user?.hospitalName || 'Todos os Parceiros'}
+                                        </span>
+                                    )
+                                )}
 
                                 {user?.role === UserRole.ADMIN && selectedHospitalId && (
                                     <button
@@ -1652,7 +1675,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                 min="1"
                                                 value={currentInstallments}
                                                 onChange={(e) => setCurrentInstallments(Math.max(1, parseInt(e.target.value) || 1))}
-                                                disabled={currentMethod !== 'Cartão de Crédito'}
+                                                disabled={!currentMethod.toLowerCase().includes('cartão') || !currentMethod.toLowerCase().includes('crédito')}
                                                 className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold focus:ring-2 focus:ring-primary/20 shadow-sm disabled:opacity-50"
                                             />
                                         </div>
@@ -1695,16 +1718,20 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                             {paymentDraft.map((pay) => (
                                                 <div key={pay.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                                                     <div className="flex items-center gap-4">
-                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${pay.method === 'Pix' ? 'bg-green-50 text-green-500' : 'bg-blue-50 text-blue-500'
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${pay.method.toLowerCase().includes('pix') ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                                            pay.method.toLowerCase().includes('dinheiro') ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+                                                                'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
                                                             }`}>
                                                             <span className="material-symbols-outlined text-[20px]">
-                                                                {pay.method === 'Pix' ? 'qr_code_2' :
-                                                                    pay.method === 'Dinheiro' ? 'attach_money' : 'credit_card'}
+                                                                {pay.method.toLowerCase().includes('pix') ? 'qr_code_2' :
+                                                                    pay.method.toLowerCase().includes('dinheiro') ? 'attach_money' : 'credit_card'}
                                                             </span>
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-black text-slate-700 dark:text-slate-200">{pay.method}</p>
-                                                            <p className="text-[10px] font-bold text-slate-400">02/01/2026 às 14:30</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">
+                                                                {currentAppointment.date.split('-').reverse().join('/')} às {currentAppointment.time}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-5">
