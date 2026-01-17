@@ -144,8 +144,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                             {(isOpen || isMobileOpen) && (
                                 <div className="overflow-hidden min-w-0 flex-1">
                                     <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user?.name}</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate capitalize">
-                                        {user?.role === UserRole.ADMIN ? 'Admin' : user?.role.toLowerCase()}
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                        {user?.role === UserRole.ADMIN ? 'Administrador' :
+                                            user?.role === UserRole.RECEPTION ? 'Recepção' :
+                                                user?.role === UserRole.FINANCIAL ? 'Financeiro' :
+                                                    user?.role?.toLowerCase()}
                                     </p>
                                 </div>
                             )}

@@ -13,6 +13,12 @@ import { useNotification } from '../hooks/useNotification';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 
+const roleLabels: Record<string, string> = {
+    'ADMIN': 'Administrador',
+    'RECEPTION': 'Recepção',
+    'FINANCIAL': 'Financeiro',
+};
+
 const Hospitals: React.FC = () => {
     const { user } = useAuth();
     const notify = useNotification();
@@ -436,581 +442,581 @@ const Hospitals: React.FC = () => {
             <div className="rounded-3xl min-w-0 w-full">
                 {selectedHospital ? (
                     <div className="space-y-6">
-                            {/* Hospital Header Card-Details Mode */}
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
-                                <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-                                    <div>
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">{selectedHospital.name}</h2>
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${selectedHospital.status === 'Ativo'
-                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800'
-                                                : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                        {/* Hospital Header Card-Details Mode */}
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
+                            <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">{selectedHospital.name}</h2>
+                                        <span className={`text-xs font-bold px-3 py-1 rounded-full border ${selectedHospital.status === 'Ativo'
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800'
+                                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                            } `}>
+                                            {selectedHospital.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Detalhes e configurações do parceiro.</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleDeleteHospital}
+                                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 text-sm font-bold transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">delete</span> Excluir
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setHospitalForm({
+                                                id: selectedHospital.id,
+                                                name: selectedHospital.name,
+                                                code: selectedHospital.code,
+                                                location: selectedHospital.location || '',
+                                                status: selectedHospital.status
+                                            });
+                                            setIsEditingHospital(true);
+                                            setIsHospitalModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 text-sm font-bold transition-colors shadow-lg shadow-green-600/30"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">edit</span> Editar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-4">Informações Gerais</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Código</label>
+                                        <p className="font-bold text-slate-900 dark:text-white text-lg">{selectedHospital.code}</p>
+                                    </div>
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Localização</label>
+                                        <p className="font-bold text-slate-900 dark:text-white text-lg">{selectedHospital.location || 'Não informado'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Hospital Users Section */}
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Usuários do Hospital</h3>
+                                <button
+                                    onClick={() => setIsUserFormOpen((prev) => !prev)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 text-xs font-bold transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">{isUserFormOpen ? 'close' : 'person_add'}</span>
+                                    {isUserFormOpen ? 'Fechar' : 'Criar Usuário'}
+                                </button>
+                            </div>
+
+                            {hospitalUsers.length > 0 ? (
+                                hospitalUsers.map((u) => (
+                                    <div key={u.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between mb-3 border border-slate-200 dark:border-slate-700">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border ${u.role === 'FINANCIAL'
+                                                ? 'bg-emerald-100 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30'
+                                                : 'bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30'
                                                 } `}>
-                                                {selectedHospital.status}
-                                            </span>
+                                                <span className="material-symbols-outlined">{u.role === 'FINANCIAL' ? 'attach_money' : 'badge'}</span>
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-bold text-slate-900 dark:text-white">{u.name}</p>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase border ${u.role === 'FINANCIAL'
+                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                        : 'bg-purple-50 text-purple-600 border-purple-100'
+                                                        } `}>
+                                                        {roleLabels[u.role] || u.role}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 font-medium">{u.email || 'Email não disponível'}</p>
+                                            </div>
                                         </div>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Detalhes e configurações do parceiro.</p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={handleDeleteHospital}
-                                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 text-sm font-bold transition-colors"
-                                        >
-                                            <span className="material-symbols-outlined text-[18px]">delete</span> Excluir
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setHospitalForm({
-                                                    id: selectedHospital.id,
-                                                    name: selectedHospital.name,
-                                                    code: selectedHospital.code,
-                                                    location: selectedHospital.location || '',
-                                                    status: selectedHospital.status
-                                                });
-                                                setIsEditingHospital(true);
-                                                setIsHospitalModalOpen(true);
-                                            }}
-                                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 text-sm font-bold transition-colors shadow-lg shadow-green-600/30"
-                                        >
-                                            <span className="material-symbols-outlined text-[18px]">edit</span> Editar
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
-                                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wide mb-4">Informações Gerais</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Código</label>
-                                            <p className="font-bold text-slate-900 dark:text-white text-lg">{selectedHospital.code}</p>
-                                        </div>
-                                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Localização</label>
-                                            <p className="font-bold text-slate-900 dark:text-white text-lg">{selectedHospital.location || 'Não informado'}</p>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => {
+                                                    setEditingUserId(u.id);
+                                                    setIsEditingUser(true);
+                                                    setIsUserFormOpen(true);
+                                                    setUserForm({
+                                                        name: u.name,
+                                                        email: u.email || '',
+                                                        password: '',
+                                                        role: u.role as any
+                                                    });
+                                                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                                                }}
+                                                className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                                            >
+                                                Editar
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteUser(u.id, u.name)}
+                                                className="px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                                            >
+                                                Excluir
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
+                                ))
+                            ) : (
+                                <p className="text-slate-500 text-center py-4">Nenhum usuário vinculado a este hospital.</p>
+                            )}
 
-                            {/* Hospital Users Section */}
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Usuários do Hospital</h3>
-                                    <button
-                                        onClick={() => setIsUserFormOpen((prev) => !prev)}
-                                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 text-xs font-bold transition-colors"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">{isUserFormOpen ? 'close' : 'person_add'}</span>
-                                        {isUserFormOpen ? 'Fechar' : 'Criar Usuário'}
-                                    </button>
-                                </div>
-
-                                {hospitalUsers.length > 0 ? (
-                                    hospitalUsers.map((u) => (
-                                        <div key={u.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between mb-3 border border-slate-200 dark:border-slate-700">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border ${u.role === 'FINANCIAL'
-                                                    ? 'bg-emerald-100 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30'
-                                                    : 'bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30'
-                                                    } `}>
-                                                    <span className="material-symbols-outlined">{u.role === 'FINANCIAL' ? 'attach_money' : 'badge'}</span>
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="font-bold text-slate-900 dark:text-white">{u.name}</p>
-                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase border ${u.role === 'FINANCIAL'
-                                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                            : 'bg-purple-50 text-purple-600 border-purple-100'
-                                                            } `}>
-                                                            {u.role}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-slate-500 font-medium">{u.email || 'Email não disponível'}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingUserId(u.id);
-                                                        setIsEditingUser(true);
-                                                        setIsUserFormOpen(true);
-                                                        setUserForm({
-                                                            name: u.name,
-                                                            email: u.email || '',
-                                                            password: '',
-                                                            role: u.role as any
-                                                        });
-                                                        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                                                    }}
-                                                    className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                                                >
-                                                    Editar
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteUser(u.id, u.name)}
-                                                    className="px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-                                                >
-                                                    Excluir
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-slate-500 text-center py-4">Nenhum usuário vinculado a este hospital.</p>
-                                )}
-
-                                {/* Create User Form */}
-                                {(isUserFormOpen || isEditingUser) && (
-                                    <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h4 className="text-primary font-bold flex items-center gap-2 text-sm">
-                                                <span className="material-symbols-outlined text-[20px]">{isEditingUser ? 'edit' : 'person_add'}</span>
-                                                {isEditingUser ? 'Editar Usuário' : 'Criar Novo Usuário'}
-                                            </h4>
-                                            {isEditingUser && (
-                                                <button
-                                                    onClick={() => {
-                                                        setIsEditingUser(false);
-                                                        setEditingUserId(null);
-                                                        setIsUserFormOpen(false);
-                                                        setUserForm({ name: '', email: '', password: '', role: 'RECEPTION' });
-                                                    }}
-                                                    className="text-xs font-bold text-slate-500 hover:text-slate-700 underline"
-                                                >
-                                                    Cancelar Edição
-                                                </button>
-                                            )}
-                                        </div>
-                                        <div className="space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nome Completo</label>
-                                                    <input
-                                                        type="text"
-                                                        value={userForm.name}
-                                                        onChange={e => setUserForm({ ...userForm, name: e.target.value })}
-                                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                        placeholder="Ex: Maria Souza"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">E-mail</label>
-                                                    <input
-                                                        type="email"
-                                                        value={userForm.email}
-                                                        disabled={isEditingUser}
-                                                        onChange={e => setUserForm({ ...userForm, email: e.target.value })}
-                                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm disabled:opacity-50"
-                                                        placeholder="exemplo@email.com"
-                                                    />
-                                                </div>
-                                                {!isEditingUser && (
-                                                    <div>
-                                                        <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Senha</label>
-                                                        <input
-                                                            type="password"
-                                                            value={userForm.password}
-                                                            onChange={e => setUserForm({ ...userForm, password: e.target.value })}
-                                                            className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                            placeholder="••••••••"
-                                                        />
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nível de Acesso</label>
-                                                    <div className="relative">
-                                                        <select
-                                                            value={userForm.role}
-                                                            onChange={e => setUserForm({ ...userForm, role: e.target.value as 'RECEPTION' | 'FINANCIAL' })}
-                                                            className="w-full h-11 pl-4 pr-10 appearance-none rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm text-slate-700 dark:text-white"
-                                                        >
-                                                            <option value="RECEPTION">Recepção</option>
-                                                            <option value="FINANCIAL">Financeiro</option>
-                                                        </select>
-                                                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex justify-end pt-2">
-                                                <button
-                                                    onClick={handleSaveUser}
-                                                    disabled={isSaving}
-                                                    className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {isSaving ? 'Salvando...' : (isEditingUser ? 'Atualizar Usuário' : 'Salvar Usuário')}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Hospital Doctors Section */}
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700 mt-6">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Médicos do Hospital</h3>
-                                    <button
-                                        onClick={() => setIsDoctorFormOpen((prev) => !prev)}
-                                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 text-xs font-bold transition-colors"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">{isDoctorFormOpen ? 'close' : 'person_add'}</span>
-                                        {isDoctorFormOpen ? 'Fechar' : 'Cadastrar Médico'}
-                                    </button>
-                                </div>
-
-                                {hospitalDoctors.length > 0 ? (
-                                    hospitalDoctors.map((d) => (
-                                        <div key={d.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between mb-3 border border-slate-200 dark:border-slate-700">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30">
-                                                    <span className="material-symbols-outlined">stethoscope</span>
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="font-bold text-slate-900 dark:text-white">{d.name}</p>
-                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md uppercase border bg-blue-50 text-blue-600 border-blue-100">
-                                                            {d.specialty || 'Clínico Geral'}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-slate-500 font-medium">CRM: {d.crm || 'N/A'}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    onClick={() => handleDeleteDoctor(d.id)}
-                                                    className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-bold"
-                                                >
-                                                    Excluir
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-slate-500 text-center py-4">Nenhum médico vinculado a este hospital.</p>
-                                )}
-
-                                {/* Create Doctor Form */}
-                                {isDoctorFormOpen && (
-                                    <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
-                                        <h4 className="text-primary font-bold flex items-center gap-2 mb-4 text-sm">
-                                            <span className="material-symbols-outlined text-[20px]">person_add</span> Cadastrar Novo Médico
+                            {/* Create User Form */}
+                            {(isUserFormOpen || isEditingUser) && (
+                                <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h4 className="text-primary font-bold flex items-center gap-2 text-sm">
+                                            <span className="material-symbols-outlined text-[20px]">{isEditingUser ? 'edit' : 'person_add'}</span>
+                                            {isEditingUser ? 'Editar Usuário' : 'Criar Novo Usuário'}
                                         </h4>
-                                        <div className="space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        {isEditingUser && (
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditingUser(false);
+                                                    setEditingUserId(null);
+                                                    setIsUserFormOpen(false);
+                                                    setUserForm({ name: '', email: '', password: '', role: 'RECEPTION' });
+                                                }}
+                                                className="text-xs font-bold text-slate-500 hover:text-slate-700 underline"
+                                            >
+                                                Cancelar Edição
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nome Completo</label>
+                                                <input
+                                                    type="text"
+                                                    value={userForm.name}
+                                                    onChange={e => setUserForm({ ...userForm, name: e.target.value })}
+                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                                    placeholder="Ex: Maria Souza"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">E-mail</label>
+                                                <input
+                                                    type="email"
+                                                    value={userForm.email}
+                                                    disabled={isEditingUser}
+                                                    onChange={e => setUserForm({ ...userForm, email: e.target.value })}
+                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm disabled:opacity-50"
+                                                    placeholder="exemplo@email.com"
+                                                />
+                                            </div>
+                                            {!isEditingUser && (
                                                 <div>
-                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nome Completo</label>
+                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Senha</label>
                                                     <input
-                                                        type="text"
-                                                        value={doctorForm.name}
-                                                        onChange={e => setDoctorForm({ ...doctorForm, name: e.target.value })}
+                                                        type="password"
+                                                        value={userForm.password}
+                                                        onChange={e => setUserForm({ ...userForm, password: e.target.value })}
                                                         className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                        placeholder="Dr. Nome Exemplo"
+                                                        placeholder="••••••••"
                                                     />
                                                 </div>
-                                                <div>
-                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Especialidade</label>
-                                                    <input
-                                                        type="text"
-                                                        value={doctorForm.specialty}
-                                                        onChange={e => setDoctorForm({ ...doctorForm, specialty: e.target.value })}
-                                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                        placeholder="Ex: Cardiologia"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">CRM</label>
-                                                    <input
-                                                        type="text"
-                                                        value={doctorForm.crm}
-                                                        onChange={e => setDoctorForm({ ...doctorForm, crm: e.target.value })}
-                                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                                        placeholder="00000-UF"
-                                                    />
+                                            )}
+                                            <div>
+                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nível de Acesso</label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={userForm.role}
+                                                        onChange={e => setUserForm({ ...userForm, role: e.target.value as 'RECEPTION' | 'FINANCIAL' })}
+                                                        className="w-full h-11 pl-4 pr-10 appearance-none rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm text-slate-700 dark:text-white"
+                                                    >
+                                                        <option value="RECEPTION">Recepção</option>
+                                                        <option value="FINANCIAL">Financeiro</option>
+                                                    </select>
+                                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                                                 </div>
                                             </div>
-                                            <div className="flex justify-end pt-2">
-                                                <button
-                                                    onClick={handleCreateDoctor}
-                                                    disabled={isSaving}
-                                                    className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md"
+                                        </div>
+                                        <div className="flex justify-end pt-2">
+                                            <button
+                                                onClick={handleSaveUser}
+                                                disabled={isSaving}
+                                                className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {isSaving ? 'Salvando...' : (isEditingUser ? 'Atualizar Usuário' : 'Salvar Usuário')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Hospital Doctors Section */}
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700 mt-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Médicos do Hospital</h3>
+                                <button
+                                    onClick={() => setIsDoctorFormOpen((prev) => !prev)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 text-xs font-bold transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">{isDoctorFormOpen ? 'close' : 'person_add'}</span>
+                                    {isDoctorFormOpen ? 'Fechar' : 'Cadastrar Médico'}
+                                </button>
+                            </div>
+
+                            {hospitalDoctors.length > 0 ? (
+                                hospitalDoctors.map((d) => (
+                                    <div key={d.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between mb-3 border border-slate-200 dark:border-slate-700">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30">
+                                                <span className="material-symbols-outlined">stethoscope</span>
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-bold text-slate-900 dark:text-white">{d.name}</p>
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md uppercase border bg-blue-50 text-blue-600 border-blue-100">
+                                                        {d.specialty || 'Clínico Geral'}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 font-medium">CRM: {d.crm || 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => handleDeleteDoctor(d.id)}
+                                                className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-bold"
+                                            >
+                                                Excluir
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-slate-500 text-center py-4">Nenhum médico vinculado a este hospital.</p>
+                            )}
+
+                            {/* Create Doctor Form */}
+                            {isDoctorFormOpen && (
+                                <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                                    <h4 className="text-primary font-bold flex items-center gap-2 mb-4 text-sm">
+                                        <span className="material-symbols-outlined text-[20px]">person_add</span> Cadastrar Novo Médico
+                                    </h4>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Nome Completo</label>
+                                                <input
+                                                    type="text"
+                                                    value={doctorForm.name}
+                                                    onChange={e => setDoctorForm({ ...doctorForm, name: e.target.value })}
+                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                                    placeholder="Dr. Nome Exemplo"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">Especialidade</label>
+                                                <input
+                                                    type="text"
+                                                    value={doctorForm.specialty}
+                                                    onChange={e => setDoctorForm({ ...doctorForm, specialty: e.target.value })}
+                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                                    placeholder="Ex: Cardiologia"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-500 font-bold mb-1.5 block ml-1">CRM</label>
+                                                <input
+                                                    type="text"
+                                                    value={doctorForm.crm}
+                                                    onChange={e => setDoctorForm({ ...doctorForm, crm: e.target.value })}
+                                                    className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                                    placeholder="00000-UF"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end pt-2">
+                                            <button
+                                                onClick={handleCreateDoctor}
+                                                disabled={isSaving}
+                                                className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-green-700 transition-colors shadow-md"
+                                            >
+                                                {isSaving ? 'Salvando...' : 'Salvar Médico'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Hospital Documents Section */}
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700 mt-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Documentos do Hospital</h3>
+                                <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold cursor-pointer hover:opacity-90 transition-all">
+                                    <span className="material-symbols-outlined text-[20px]">upload_file</span>
+                                    {isUploading ? 'Enviando...' : 'Adicionar Documento'}
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file || !selectedHospital) return;
+                                            setIsUploading(true);
+                                            try {
+                                                await hospitalDocumentService.upload(selectedHospital.id, file);
+                                                notify.success('Documento enviado com sucesso!');
+                                                fetchHospitalDetails(selectedHospital.id);
+                                            } catch (err) {
+                                                console.error('Error uploading document:', err);
+                                                notify.error('Erro ao enviar documento');
+                                            } finally {
+                                                setIsUploading(false);
+                                            }
+                                        }}
+                                        disabled={isUploading}
+                                    />
+                                </label>
+                            </div>
+
+                            {hospitalDocuments.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {hospitalDocuments.map((doc) => (
+                                        <div key={doc.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between border border-slate-200 dark:border-slate-700 group hover:border-primary/30 transition-all">
+                                            <div className="flex items-center gap-4 min-w-0">
+                                                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-500">
+                                                    <span className="material-symbols-outlined capitalize">
+                                                        {doc.file_type?.includes('pdf') ? 'picture_as_pdf' :
+                                                            doc.file_type?.includes('image') ? 'image' : 'description'}
+                                                    </span>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-slate-900 dark:text-white text-sm truncate pr-2" title={doc.name}>{doc.name}</p>
+                                                    <p className="text-[10px] text-slate-500 font-medium">
+                                                        {new Date(doc.created_at).toLocaleDateString()} • {(doc.file_size / 1024).toFixed(1)} KB
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <a
+                                                    href={hospitalDocumentService.getPublicUrl(doc.file_path)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-all"
+                                                    title="Visualizar"
                                                 >
-                                                    {isSaving ? 'Salvando...' : 'Salvar Médico'}
+                                                    <span className="material-symbols-outlined text-[20px]">visibility</span>
+                                                </a>
+                                                <button
+                                                    onClick={() => {
+                                                        setConfirmModal({
+                                                            isOpen: true,
+                                                            title: 'Excluir Documento',
+                                                            message: `Tem certeza que deseja excluir o documento ${doc.name}?`,
+                                                            variant: 'danger',
+                                                            onConfirm: async () => {
+                                                                try {
+                                                                    await hospitalDocumentService.delete(doc.id, doc.file_path);
+                                                                    notify.success('Documento excluído!');
+                                                                    fetchHospitalDetails(selectedHospital.id);
+                                                                } catch (err) {
+                                                                    console.error('Error deleting document:', err);
+                                                                    notify.error('Erro ao excluir documento');
+                                                                }
+                                                            }
+                                                        });
+                                                    }}
+                                                    className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                                    title="Excluir"
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">delete</span>
                                                 </button>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                                    <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">folder_open</span>
+                                    <p className="text-slate-500 text-sm font-medium">Nenhum documento anexado.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* BLOCK 0: STATUS */}
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-colors ${selectedHospital.status === 'Ativo' ? 'bg-green-50 text-green-600 border-green-100 dark:bg-green-900/20 dark:border-green-900/50' : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:border-slate-700'} `}>
+                                    <span className="material-symbols-outlined text-[24px]">power_settings_new</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Status da Operação</h2>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                                        {selectedHospital.status === 'Ativo' ? 'O hospital está ativo e recebendo agendamentos.' : 'O hospital está inativo e bloqueado para novos agendamentos.'}
+                                    </p>
+                                </div>
                             </div>
 
-                            {/* Hospital Documents Section */}
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700 mt-6">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Documentos do Hospital</h3>
-                                    <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold cursor-pointer hover:opacity-90 transition-all">
-                                        <span className="material-symbols-outlined text-[20px]">upload_file</span>
-                                        {isUploading ? 'Enviando...' : 'Adicionar Documento'}
-                                        <input
-                                            type="file"
-                                            className="hidden"
-                                            onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                if (!file || !selectedHospital) return;
-                                                setIsUploading(true);
-                                                try {
-                                                    await hospitalDocumentService.upload(selectedHospital.id, file);
-                                                    notify.success('Documento enviado com sucesso!');
-                                                    fetchHospitalDetails(selectedHospital.id);
-                                                } catch (err) {
-                                                    console.error('Error uploading document:', err);
-                                                    notify.error('Erro ao enviar documento');
-                                                } finally {
-                                                    setIsUploading(false);
-                                                }
-                                            }}
-                                            disabled={isUploading}
-                                        />
-                                    </label>
-                                </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={selectedHospital.status === 'Ativo'}
+                                    onChange={handleToggleStatus}
+                                />
+                                <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/30 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-green-500"></div>
+                                <span className="ml-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                                    {selectedHospital.status === 'Ativo' ? 'Ativado' : 'Desativado'}
+                                </span>
+                            </label>
+                        </div>
 
-                                {hospitalDocuments.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {hospitalDocuments.map((doc) => (
-                                            <div key={doc.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between border border-slate-200 dark:border-slate-700 group hover:border-primary/30 transition-all">
-                                                <div className="flex items-center gap-4 min-w-0">
-                                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-500">
-                                                        <span className="material-symbols-outlined capitalize">
-                                                            {doc.file_type?.includes('pdf') ? 'picture_as_pdf' :
-                                                                doc.file_type?.includes('image') ? 'image' : 'description'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="font-bold text-slate-900 dark:text-white text-sm truncate pr-2" title={doc.name}>{doc.name}</p>
-                                                        <p className="text-[10px] text-slate-500 font-medium">
-                                                            {new Date(doc.created_at).toLocaleDateString()} • {(doc.file_size / 1024).toFixed(1)} KB
-                                                        </p>
-                                                    </div>
+                        {/* BLOCK 1: CONFIGURAÇÃO DE VALORES */}
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
+                            <div className="mb-8 flex items-center gap-4">
+                                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/50">
+                                    <span className="material-symbols-outlined text-[24px]">payments</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Tabela de Preços do Hospital</h2>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Os preços são definidos especificamente para este parceiro.</p>
+                                </div>
+                            </div>
+
+                            {/* Tabs Pill Style */}
+                            <div className="flex gap-2 mb-6 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl w-fit border border-slate-200 dark:border-slate-700">
+                                {['Consulta', 'Exame', 'Cirurgia'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab as any)}
+                                        className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all capitalize ${activeTab === tab ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'} `}
+                                    >
+                                        {tab}s
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* List for Values */}
+                            <div className="space-y-3">
+                                {filteredProcedures.length > 0 ? (
+                                    filteredProcedures.map((p) => (
+                                        <div key={p.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
+                                            <div className="mb-3 md:mb-0">
+                                                <p className="font-bold text-slate-900 dark:text-white">{p.name}</p>
+                                                <p className="text-xs text-slate-500">{p.type}</p>
+                                            </div>
+                                            <div className="flex items-center gap-6">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Preço parcelado</p>
+                                                    <p className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(p.standard_price)}</p>
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    <a
-                                                        href={hospitalDocumentService.getPublicUrl(doc.file_path)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-all"
-                                                        title="Visualizar"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[20px]">visibility</span>
-                                                    </a>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Preço à Vista</p>
+                                                    <p className="font-black text-primary text-lg">{formatCurrency(p.cash_price)}</p>
+                                                </div>
+                                                <div className="flex gap-2">
                                                     <button
                                                         onClick={() => {
-                                                            setConfirmModal({
-                                                                isOpen: true,
-                                                                title: 'Excluir Documento',
-                                                                message: `Tem certeza que deseja excluir o documento ${doc.name}?`,
-                                                                variant: 'danger',
-                                                                onConfirm: async () => {
-                                                                    try {
-                                                                        await hospitalDocumentService.delete(doc.id, doc.file_path);
-                                                                        notify.success('Documento excluído!');
-                                                                        fetchHospitalDetails(selectedHospital.id);
-                                                                    } catch (err) {
-                                                                        console.error('Error deleting document:', err);
-                                                                        notify.error('Erro ao excluir documento');
-                                                                    }
-                                                                }
+                                                            setProcedureForm({
+                                                                id: p.id,
+                                                                name: p.name,
+                                                                type: p.type,
+                                                                standard_price: p.standard_price.toString(),
+                                                                cash_price: p.cash_price.toString(),
+                                                                repasse_value: (p.repasse_value || 0).toString()
                                                             });
+                                                            setIsEditingProcedure(true);
+                                                            setIsProcedureModalOpen(true);
                                                         }}
-                                                        className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                                                        title="Excluir"
+                                                        className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-primary"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[20px]">edit</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteProcedure(p.id)}
+                                                        className="p-2 rounded-xl bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"
                                                     >
                                                         <span className="material-symbols-outlined text-[20px]">delete</span>
                                                     </button>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))
                                 ) : (
-                                    <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
-                                        <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">folder_open</span>
-                                        <p className="text-slate-500 text-sm font-medium">Nenhum documento anexado.</p>
-                                    </div>
+                                    <p className="text-center py-8 text-slate-500">Nenhum procedimento encontrado nesta categoria.</p>
                                 )}
                             </div>
 
-                            {/* BLOCK 0: STATUS */}
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                            <button
+                                onClick={() => {
+                                    setProcedureForm({ id: '', name: '', type: activeTab, standard_price: '', cash_price: '', repasse_value: '' });
+                                    setIsEditingProcedure(false);
+                                    setIsProcedureModalOpen(true);
+                                }}
+                                className="w-full mt-4 py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 font-bold text-sm hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-all flex items-center justify-center gap-2"
+                            >
+                                <span className="material-symbols-outlined">add</span> Adicionar Novo Procedimento
+                            </button>
+                        </div>
+
+                        {/* BLOCK 2: FORMAS DE PAGAMENTO */}
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
+                            <div className="mb-8 flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-colors ${selectedHospital.status === 'Ativo' ? 'bg-green-50 text-green-600 border-green-100 dark:bg-green-900/20 dark:border-green-900/50' : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:border-slate-700'} `}>
-                                        <span className="material-symbols-outlined text-[24px]">power_settings_new</span>
+                                    <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
+                                        <span className="material-symbols-outlined text-[24px]">account_balance_wallet</span>
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-black text-slate-900 dark:text-white">Status da Operação</h2>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
-                                            {selectedHospital.status === 'Ativo' ? 'O hospital está ativo e recebendo agendamentos.' : 'O hospital está inativo e bloqueado para novos agendamentos.'}
-                                        </p>
+                                        <h2 className="text-xl font-black text-slate-900 dark:text-white">Formas de Pagamento</h2>
+                                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Configure as opções de pagamento aceitas por este parceiro.</p>
                                     </div>
                                 </div>
-
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={selectedHospital.status === 'Ativo'}
-                                        onChange={handleToggleStatus}
-                                    />
-                                    <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/30 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-green-500"></div>
-                                    <span className="ml-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-                                        {selectedHospital.status === 'Ativo' ? 'Ativado' : 'Desativado'}
-                                    </span>
-                                </label>
-                            </div>
-
-                            {/* BLOCK 1: CONFIGURAÇÃO DE VALORES */}
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
-                                <div className="mb-8 flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/50">
-                                        <span className="material-symbols-outlined text-[24px]">payments</span>
-                                    </div>
-                                    <div>
-                                        <h2 className="text-xl font-black text-slate-900 dark:text-white">Tabela de Preços do Hospital</h2>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Os preços são definidos especificamente para este parceiro.</p>
-                                    </div>
-                                </div>
-
-                                {/* Tabs Pill Style */}
-                                <div className="flex gap-2 mb-6 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl w-fit border border-slate-200 dark:border-slate-700">
-                                    {['Consulta', 'Exame', 'Cirurgia'].map(tab => (
-                                        <button
-                                            key={tab}
-                                            onClick={() => setActiveTab(tab as any)}
-                                            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all capitalize ${activeTab === tab ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'} `}
-                                        >
-                                            {tab}s
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* List for Values */}
-                                <div className="space-y-3">
-                                    {filteredProcedures.length > 0 ? (
-                                        filteredProcedures.map((p) => (
-                                            <div key={p.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
-                                                <div className="mb-3 md:mb-0">
-                                                    <p className="font-bold text-slate-900 dark:text-white">{p.name}</p>
-                                                    <p className="text-xs text-slate-500">{p.type}</p>
-                                                </div>
-                                                <div className="flex items-center gap-6">
-                                                    <div>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço parcelado</p>
-                                                        <p className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(p.standard_price)}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço à Vista</p>
-                                                        <p className="font-black text-primary text-lg">{formatCurrency(p.cash_price)}</p>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                setProcedureForm({
-                                                                    id: p.id,
-                                                                    name: p.name,
-                                                                    type: p.type,
-                                                                    standard_price: p.standard_price.toString(),
-                                                                    cash_price: p.cash_price.toString(),
-                                                                    repasse_value: (p.repasse_value || 0).toString()
-                                                                });
-                                                                setIsEditingProcedure(true);
-                                                                setIsProcedureModalOpen(true);
-                                                            }}
-                                                            className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-primary"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[20px]">edit</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteProcedure(p.id)}
-                                                            className="p-2 rounded-xl bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[20px]">delete</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-center py-8 text-slate-500">Nenhum procedimento encontrado nesta categoria.</p>
-                                    )}
-                                </div>
-
                                 <button
                                     onClick={() => {
-                                        setProcedureForm({ id: '', name: '', type: activeTab, standard_price: '', cash_price: '', repasse_value: '' });
-                                        setIsEditingProcedure(false);
-                                        setIsProcedureModalOpen(true);
+                                        setPaymentMethodForm({ name: '' });
+                                        setIsEditingPaymentMethod(false);
+                                        setIsPaymentMethodModalOpen(true);
                                     }}
-                                    className="w-full mt-4 py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 font-bold text-sm hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-all flex items-center justify-center gap-2"
+                                    className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-blue-600/20"
                                 >
-                                    <span className="material-symbols-outlined">add</span> Adicionar Novo Procedimento
+                                    <span className="material-symbols-outlined text-[18px]">add</span> Adicionar
                                 </button>
                             </div>
 
-                            {/* BLOCK 2: FORMAS DE PAGAMENTO */}
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm card-shadow p-8 border border-slate-200 dark:border-slate-700">
-                                <div className="mb-8 flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
-                                            <span className="material-symbols-outlined text-[24px]">account_balance_wallet</span>
-                                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {hospitalPaymentMethods.map((method) => (
+                                    <div key={method.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between group hover:border-blue-500/50 transition-all">
                                         <div>
-                                            <h2 className="text-xl font-black text-slate-900 dark:text-white">Formas de Pagamento</h2>
-                                            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Configure as opções de pagamento aceitas por este parceiro.</p>
+                                            <p className="font-bold text-slate-900 dark:text-white">{method.name}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => {
+                                                    setPaymentMethodForm(method);
+                                                    setIsEditingPaymentMethod(true);
+                                                    setIsPaymentMethodModalOpen(true);
+                                                }}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">edit</span>
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeletePaymentMethod(method.id)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                            </button>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => {
-                                            setPaymentMethodForm({ name: '' });
-                                            setIsEditingPaymentMethod(false);
-                                            setIsPaymentMethodModalOpen(true);
-                                        }}
-                                        className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-blue-600/20"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">add</span> Adicionar
-                                    </button>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {hospitalPaymentMethods.map((method) => (
-                                        <div key={method.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between group hover:border-blue-500/50 transition-all">
-                                            <div>
-                                                <p className="font-bold text-slate-900 dark:text-white">{method.name}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => {
-                                                        setPaymentMethodForm(method);
-                                                        setIsEditingPaymentMethod(true);
-                                                        setIsPaymentMethodModalOpen(true);
-                                                    }}
-                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                                                >
-                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeletePaymentMethod(method.id)}
-                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                                                >
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {hospitalPaymentMethods.length === 0 && (
-                                        <div className="md:col-span-2 lg:col-span-3 py-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
-                                            <span className="material-symbols-outlined text-4xl text-slate-200 mb-2">payments</span>
-                                            <p className="text-slate-400 font-bold text-sm">Nenhuma forma de pagamento configurada.</p>
-                                        </div>
-                                    )}
-                                </div>
+                                ))}
+                                {hospitalPaymentMethods.length === 0 && (
+                                    <div className="md:col-span-2 lg:col-span-3 py-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
+                                        <span className="material-symbols-outlined text-4xl text-slate-200 mb-2">payments</span>
+                                        <p className="text-slate-400 font-bold text-sm">Nenhuma forma de pagamento configurada.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
+                    </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full text-slate-500 py-20">
                         <span className="material-symbols-outlined text-6xl mb-4">domain_disabled</span>

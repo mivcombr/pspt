@@ -6,6 +6,31 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const findUserByEmail = async (supabaseAdmin: ReturnType<typeof createClient>, email: string) => {
+    const normalizedEmail = email.trim().toLowerCase()
+    const perPage = 1000
+    let page = 1
+
+    while (true) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
+        if (error) {
+            return { user: null, error }
+        }
+
+        const match = data.users.find((user) => user.email?.toLowerCase() === normalizedEmail)
+        if (match) {
+            return { user: match, error: null }
+        }
+
+        if (data.users.length < perPage) {
+            break
+        }
+        page += 1
+    }
+
+    return { user: null, error: null }
+}
+
 serve(async (req) => {
     // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
@@ -98,33 +123,20 @@ serve(async (req) => {
             }
         )
 
-        const { data: existingUser, error: existingError } = await supabaseAdmin.auth.admin.getUserByEmail(email)
+        const { user: existingUser, error: existingError } = await findUserByEmail(supabaseAdmin, email)
         if (existingError) {
             console.error('Error checking existing user:', existingError)
         }
 
-        let resolvedUser = existingUser?.user
+        let resolvedUser = existingUser
 
         if (resolvedUser) {
-            const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
-                .from('profiles')
-                .select('id')
-                .eq('id', resolvedUser.id)
-                .maybeSingle()
+            // If user exists in Auth, we will update it.
+            // We don't return 409 anymore, instead we "adopt" the existing user.
+            // This handles cases where a user was deleted but Auth remained, 
+            // or if the admin just wants to re-register/update the user.
 
-            if (existingProfileError) {
-                console.error('Error checking existing profile:', existingProfileError)
-            }
-
-            if (existingProfile?.id) {
-                return new Response(
-                    JSON.stringify({ error: 'E-mail já cadastrado para outro usuário.' }),
-                    {
-                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                        status: 409,
-                    }
-                )
-            }
+            console.log('User already exists in Auth, updating:', resolvedUser.id)
 
             const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(resolvedUser.id, {
                 password,
@@ -149,10 +161,11 @@ serve(async (req) => {
 
             resolvedUser = updatedUser.user
         } else {
+            // Create new user
             const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
                 email,
                 password,
-                email_confirm: true, // Auto-confirm email
+                email_confirm: true,
                 user_metadata: {
                     name,
                     role,
@@ -174,14 +187,13 @@ serve(async (req) => {
             resolvedUser = newUser.user
         }
 
-        // The profile should be created automatically by the trigger
-        // Ensure profile exists and is linked to the hospital
+        // Ensure profile exists and is updated
         const profilePayload = {
             id: resolvedUser.id,
             name,
             role,
             hospital_id,
-            email, // Added email to profile
+            email,
         }
 
         const { data: newProfile, error: profileError } = await supabaseAdmin
@@ -192,6 +204,7 @@ serve(async (req) => {
 
         if (profileError) {
             console.error('Error upserting profile:', profileError)
+            // We still return success if Auth was created/updated, but log the profile error
         }
 
         return new Response(
@@ -214,11 +227,24 @@ serve(async (req) => {
 
     } catch (error) {
         console.error('Error in create-user function:', error)
+        const rawMessage = String((error as any)?.message || '')
+        const normalized = rawMessage.toLowerCase()
+        const isDuplicateEmail =
+            normalized.includes('already registered')
+            || normalized.includes('already exists')
+            || normalized.includes('email already')
+            || normalized.includes('user already')
+
+        const status = isDuplicateEmail ? 409 : 500
+        const message = isDuplicateEmail
+            ? 'E-mail já cadastrado. Use outro e-mail ou recupere o acesso.'
+            : (rawMessage || 'Erro ao criar usuário.')
+
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: message }),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 500,
+                status,
             }
         )
     }

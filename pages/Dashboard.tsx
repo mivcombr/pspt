@@ -332,7 +332,7 @@ const Dashboard: React.FC = () => {
                                     <span className="hidden sm:inline">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</span>
                                 </p>
                                 <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
-                                    {formatCurrencyNoDecimals(dashboardData.totals.revenue)}
+                                    {formatCurrency(dashboardData.totals.revenue)}
                                 </h3>
                             </div>
                         </Card>
@@ -347,7 +347,7 @@ const Dashboard: React.FC = () => {
                                     <span className="hidden sm:inline">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</span>
                                 </p>
                                 <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
-                                    {formatCurrencyNoDecimals(dashboardData.totals.repasse)}
+                                    {formatCurrency(dashboardData.totals.repasse)}
                                 </h3>
                             </div>
                         </Card>
