@@ -58,9 +58,13 @@ serve(async (req) => {
         } = await supabaseClient.auth.getUser()
 
         if (userError || !user) {
-            console.error('User auth error:', userError)
+            console.error('User auth error:', userError?.message || 'No user found in session');
             return new Response(
-                JSON.stringify({ error: 'Unauthorized', details: userError?.message }),
+                JSON.stringify({
+                    error: 'Unauthorized',
+                    details: userError?.message || 'Sessão inválida ou expirada. Por favor, faça login novamente.',
+                    stack: userError?.stack
+                }),
                 {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                     status: 401,

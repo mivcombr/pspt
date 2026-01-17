@@ -153,11 +153,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                                 </div>
                             )}
 
-                            {(isOpen || isMobileOpen) && (
-                                <button onClick={signOut} className="text-slate-400 hover:text-red-500 transition-colors">
-                                    <span className="material-symbols-outlined text-[20px]">logout</span>
-                                </button>
-                            )}
+                            <button
+                                onClick={signOut}
+                                className={`text-slate-400 hover:text-red-500 transition-colors ${!isOpen && !isMobileOpen ? 'absolute -right-1 -top-1 bg-white dark:bg-slate-700 rounded-full p-1 shadow-sm border border-slate-100 dark:border-slate-600 scale-75' : ''}`}
+                                title="Sair"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">logout</span>
+                            </button>
                         </div>
                     </div>
                 </div>
