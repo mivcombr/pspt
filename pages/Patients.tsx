@@ -10,6 +10,7 @@ import { useNotification } from '../hooks/useNotification';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 
 interface PatientRecord {
+    id?: string;
     name: string;
     phone: string;
     birthDate: string;
@@ -76,7 +77,7 @@ const Patients: React.FC = () => {
         setIsHistoryOpen(true);
         setIsFetchingHistory(true);
         try {
-            const data = await appointmentService.getPatientHistory(patient.name, patient.birthDate);
+            const data = await appointmentService.getPatientHistory(patient.name, patient.birthDate, patient.id);
             setHistory(data);
         } catch (err) {
             console.error('Error fetching history:', err);

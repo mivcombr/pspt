@@ -454,7 +454,7 @@ export const appointmentService = {
             const key = `${p.patient_name}-${p.patient_birth_date}`;
             if (!uniquePatients.has(key)) {
                 uniquePatients.set(key, {
-                    id: p.id,
+                    id: p.patient_id || p.id,
                     name: p.patient_name,
                     phone: p.patient_phone,
                     birthDate: p.patient_birth_date,
@@ -468,6 +468,53 @@ export const appointmentService = {
     },
 
     async getPatientRecords(filters?: { hospitalId?: string; searchTerm?: string }) {
+        // Try to fetch from the new patients table first
+        let patientQuery = supabase
+            .from('patients')
+            .select('id, name, phone, birth_date, hospital_id, hospital:hospitals(name)');
+
+        if (filters?.hospitalId && filters.hospitalId !== 'Todos os Hospitais') {
+            patientQuery = patientQuery.eq('hospital_id', filters.hospitalId);
+        }
+
+        if (filters?.searchTerm) {
+            patientQuery = patientQuery.ilike('name', `%${filters.searchTerm}%`);
+        }
+
+        const { data: patientsData, error: patientError } = await patientQuery.order('name', { ascending: true });
+
+        if (!patientError && patientsData && patientsData.length > 0) {
+            // Get history for these patients
+            const patientIds = patientsData.map(p => p.id);
+            const { data: historyData } = await supabase
+                .from('appointments')
+                .select('patient_id, type, status, procedure')
+                .in('patient_id', patientIds)
+                .eq('status', 'Atendido');
+
+            return patientsData.map(p => {
+                const history = (historyData || [])
+                    .filter(h => h.patient_id === p.id)
+                    .map(h => {
+                        let label = h.type || 'ATENDIMENTO';
+                        if (label === 'EXAME') label = 'EXAMES';
+                        if (h.procedure?.toUpperCase().includes('RETORNO')) label = `${label} RETORNO`;
+                        return label;
+                    });
+
+                return {
+                    id: p.id,
+                    name: p.name,
+                    phone: p.phone,
+                    birthDate: p.birth_date,
+                    hospital_id: p.hospital_id,
+                    hospital_name: Array.isArray(p.hospital) ? p.hospital[0]?.name : (p.hospital as any)?.name,
+                    history: [...new Set(history)]
+                };
+            });
+        }
+
+        // Fallback to legacy appointment scanning
         let query = supabase
             .from('appointments')
             .select('patient_name, patient_phone, patient_birth_date, hospital_id, type, procedure, status, date, time, hospital:hospitals(name)');
@@ -486,7 +533,6 @@ export const appointmentService = {
             throw error;
         }
 
-        // De-duplicate in memory and aggregate history
         const uniquePatients = new Map();
         data.forEach(p => {
             const key = `${p.patient_name}-${p.patient_birth_date}`;
@@ -502,15 +548,10 @@ export const appointmentService = {
             }
 
             const patient = uniquePatients.get(key);
-            // Only show history for completed (Atendido) appointments
             if (p.type && p.status === 'Atendido') {
                 let label = p.type;
-                // Standardize EXAME to EXAMES for tags
                 if (label === 'EXAME') label = 'EXAMES';
-
-                if (p.procedure?.toUpperCase().includes('RETORNO')) {
-                    label = `${label} RETORNO`;
-                }
+                if (p.procedure?.toUpperCase().includes('RETORNO')) label = `${label} RETORNO`;
                 patient.history.push(label);
             }
         });
@@ -518,19 +559,23 @@ export const appointmentService = {
         return Array.from(uniquePatients.values()).sort((a, b) => a.name.localeCompare(b.name));
     },
 
-    async getPatientHistory(name: string, birthDate: string | null | undefined) {
+    async getPatientHistory(name: string, birthDate: string | null | undefined, patientId?: string) {
         let query = supabase
             .from('appointments')
             .select(`
                 *,
                 hospital:hospitals(name)
-            `)
-            .eq('patient_name', name);
+            `);
 
-        if (birthDate && birthDate.trim() !== '') {
-            query = query.eq('patient_birth_date', birthDate);
+        if (patientId) {
+            query = query.eq('patient_id', patientId);
         } else {
-            query = query.is('patient_birth_date', null);
+            query = query.eq('patient_name', name);
+            if (birthDate && birthDate.trim() !== '') {
+                query = query.eq('patient_birth_date', birthDate);
+            } else {
+                query = query.is('patient_birth_date', null);
+            }
         }
 
         const { data, error } = await query
