@@ -1,0 +1,50 @@
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-10-28', '08:00:00', 'Maria da Guia Silva', '8695380707', '1961-10-29', 
+        'CATARATA IMPORTADA 1', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 3000, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'd7fa34ef-11e6-4cc2-b47b-e895edff0b15'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-10-27', '08:00:00', 'Edilene Maria Marques Lima', '86 99580 3124', '1967-06-06', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '8b2c949e-385b-41b4-9199-80230c869e42'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-10-27', '08:00:00', 'Maria Alice Mendes Ribeiro', '(86) 99458-5563', '1950-07-10', 
+        'CONSULTA AVALIAÇÃO', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '63739de2-7a8e-4696-b3e0-031bd1e7d56c'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-10-27', '08:00:00', 'Maria Alice Mendes Ribeiro', '(86) 99458-5563', '1950-07-10', 
+        'YAG LASER 2', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 480, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '63739de2-7a8e-4696-b3e0-031bd1e7d56c'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-10-22', '08:00:00', 'Maria do Carmo Silva de Cerqueira', '(86) 995391221', '1941-09-26', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '0c4d5043-427a-432f-8e36-1b7526744be4'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 

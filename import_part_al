@@ -1,0 +1,50 @@
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-20', '08:00:00', 'Antonio Gomes Correia', '(86) 988456262', '1961-02-12', 
+        'CATARATA NACIONAL', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 1500, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'b0e7f709-ed3a-44d2-95bb-8741356e0ef8'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-20', '08:00:00', 'Isabel de Sousa Araújo', '(81) 982316307', '1960-07-09', 
+        'CATARATA NACIONAL', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 1500, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '4917344f-69fd-4d27-b5fd-c0df66df823b'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-19', '08:00:00', 'Luis Rodrigues da Silva', '86988005798', '1954-01-08', 
+        'CONSULTA AVALIAÇÃO', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '6a97f5ce-20e0-486b-b487-bc40495d8c06'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-19', '08:00:00', 'Luis Rodrigues da Silva', '86988005798', '1954-01-08', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '6a97f5ce-20e0-486b-b487-bc40495d8c06'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-19', '08:00:00', 'Luis Rodrigues da Silva', '86988005798', '1954-01-08', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '6a97f5ce-20e0-486b-b487-bc40495d8c06'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 

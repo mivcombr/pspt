@@ -1547,10 +1547,10 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
                             <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-6">
 
-                                {/* Top Grid: Procedure and Total Cost */}
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                {/* Top Grid: Procedure, Status and Total Cost */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Procedure Name */}
-                                    <div className="md:col-span-8 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative group">
+                                    <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative group">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Procedimento</p>
                                         {isEditingProcedure ? (
                                             <div className="flex items-start gap-2">
@@ -1606,7 +1606,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     </div>
 
                                     {/* Total Value */}
-                                    <div className="md:col-span-4 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative">
+                                    <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor Total</p>
                                         {isEditingCost ? (
                                             <div className="flex items-center gap-2">
@@ -1630,6 +1630,22 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                 </button>
                                             </div>
                                         )}
+                                    </div>
+
+                                    {/* Status Selector - Full width on mobile, spans both columns */}
+                                    <div className="md:col-span-2 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status do Atendimento</p>
+                                        <div className="flex items-center">
+                                            <select
+                                                value={statusInputValue}
+                                                onChange={(e) => setStatusInputValue(e.target.value)}
+                                                className="w-full bg-transparent font-bold text-slate-900 dark:text-white border-none focus:ring-0 p-0 cursor-pointer text-base"
+                                            >
+                                                <option value="Agendado">Agendado</option>
+                                                <option value="Atendido">Atendido</option>
+                                                <option value="Falhou">Falhou</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1791,7 +1807,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     Cancelar
                                 </button>
 
-                                {currentAppointment.status === 'Agendado' ? (
+                                {statusInputValue === 'Agendado' ? (
                                     <>
                                         <button
                                             onClick={() => confirmFinishAppointment('Falhou')}

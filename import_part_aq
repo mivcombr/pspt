@@ -1,0 +1,50 @@
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-13', '08:00:00', 'Maria do Rosário Marques dos Santos', '(86) 994548512', '1967-12-10', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'dbb874df-b2cc-45a1-afd1-6ca342440284'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-13', '08:00:00', 'Maria do Rosário Marques dos Santos', '(86) 994548512', '1967-12-10', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'dbb874df-b2cc-45a1-afd1-6ca342440284'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-12', '08:00:00', 'Luiz Messias Soares de Sousa', '(99) 984810297', '1947-08-23', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'ec29ccd3-9736-4e3f-9df4-69020c15b3c6'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-12', '08:00:00', 'Antonio Gomes Correia', '(86) 988456262', '1961-02-12', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'b0e7f709-ed3a-44d2-95bb-8741356e0ef8'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-12', '08:00:00', 'José Alceu Carvalho de Campelo', '(86) 988174764', '1975-03-19', 
+        'CATARATA IMPORTADA 1', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 3000, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'eeb6abe9-906e-43ef-bc31-d058bd8e7276'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 

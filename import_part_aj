@@ -1,0 +1,50 @@
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-21', '08:00:00', 'Urania Maria de Sousa', '(89) 981398759', '1959-09-29', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'e8cfd823-8b19-4cbe-af31-e0e06b9cbb19'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-21', '08:00:00', 'Urania Maria de Sousa', '(89) 981398759', '1959-09-29', 
+        'CATARATA IMPORTADA 1', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 3000, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'e8cfd823-8b19-4cbe-af31-e0e06b9cbb19'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-21', '08:00:00', 'Antônio Alves Ricardo', '(83) 993951563', '1955-09-22', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'a5f418f8-87f9-4da6-b917-2ec18cbb71b5'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-21', '08:00:00', 'Josaete Barros de Oliveira', '16 99746 3847', '1980-01-12', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '976bbfc2-9aec-4f0f-97cb-7f758ea334e7'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-21', '08:00:00', 'Joana Dalia Ferreira da Silva', '86988369429', '1960-06-24', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '5ea7d814-aff2-421a-96d9-e1636f1af2bf'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 

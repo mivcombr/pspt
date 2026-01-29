@@ -1,0 +1,50 @@
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-12', '08:00:00', 'José Peres Campelo', '(86) 999920343', '1963-07-09', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '67144bbb-59a3-4907-9f07-8d84ed252130'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-12', '08:00:00', 'Maria do Rosário Marques dos Santos', '(86) 994548512', '1967-12-10', 
+        'CONSULTA AVALIAÇÃO', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'dbb874df-b2cc-45a1-afd1-6ca342440284'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-12', '08:00:00', 'Maria do Rosário Marques dos Santos', '(86) 994548512', '1967-12-10', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'dbb874df-b2cc-45a1-afd1-6ca342440284'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-12', '08:00:00', 'Maria do Rosário Marques dos Santos', '(86) 994548512', '1967-12-10', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'dbb874df-b2cc-45a1-afd1-6ca342440284'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2026-01-12', '08:00:00', 'Elenice Matos de Carvalho', '(86) 994198464', '1958-05-19', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'b18e19a0-3860-491e-8f9c-251ceb7ac3f3'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 

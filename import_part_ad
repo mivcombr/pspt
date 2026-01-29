@@ -1,0 +1,50 @@
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('711ed906-f6fe-47a0-8227-e8ec56d883ad', 'Leonilia da Silva Gomes', '(86) 988890398', '1950-06-02', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('4917344f-69fd-4d27-b5fd-c0df66df823b', 'Isabel de Sousa Araújo', '(81) 982316307', '1960-07-09', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('be70b32c-07a5-457d-990b-2336025ec4da', 'Raimunda Nonata Costa dos Santos', '(86) 999028188', '1960-01-07', NULL, NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('57d34a2d-899f-4a81-aa1d-66533a0b3ce0', 'Hosana Carvalho de Sousa', '86994374546', '1966-10-05', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('1c717c79-41b4-4f8f-b979-fe248c51f6c1', 'Marcos Antônio Lacerda Vilela', '86 99468 4684', '1970-12-11', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('20109b3d-f3a0-4db3-a369-88fdda7cb203', 'Kassandra da Silva Rodrigues', '(86) 994381960', '1977-06-26', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('a644baf3-e5b8-4f88-965e-f2869198a5a9', 'Luzimar Pereira da Silva', '(86) 994077533', '1946-12-08', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('4c30fd2e-daa5-47d7-a84d-69d83442c378', 'Aluísio Torres Junior', '(86) 995852930', '1974-12-17', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('7a6a03c1-8f45-43d5-8fc4-e454d9b92545', 'Francisca Miranda Lopes', '86 995381099', '1957-03-08', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('fd4320ba-adc2-4db7-adb5-25ae101d5251', 'Antonio Lopes da Silva', '99 991157808', '1960-06-14', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('c869fa3b-474c-4fd2-9a3d-bbbaabff1cb0', 'Willy Holanda Pedrosa', '99981956153', '1972-02-17', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('fb66b681-5c6c-4434-b408-8e84c6288846', 'Marcos Rogério Silvino da Silva', '86 981014718', '1976-10-10', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('9378636c-b78f-45ab-92f9-8ad00bce6f00', 'Jose Galileu Feitosa', '(86) 981719117', '1945-01-31', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('eeb6abe9-906e-43ef-bc31-d058bd8e7276', 'José Alceu Carvalho de Campelo', '(86) 988174764', '1975-03-19', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('215c329b-69c1-4e96-a7a4-0b132c92b1f2', 'Ana Célia da Conceição', '86 98180 8658', '1974-12-11', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('83b473f6-4e03-45fc-a202-5a7d5accdfbe', 'José da Silva Coutinho', '(86) 994420149', '1954-06-05', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('779106dc-3756-4956-9e05-452b03cbe91d', 'Eleoterio Assunção Pereira dos Passos', '(86) 988883239', '1952-05-22', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');

@@ -1,0 +1,50 @@
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-11-25', '08:00:00', 'Nilton Carlos Soares', '86988216950', '1957-02-22', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '7684afd4-7fc6-44a9-9386-a45e127fc8e2'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-11-25', '08:00:00', 'Ítalo Ribeiro Filho', '(86) 994231335', '1965-11-21', 
+        'CATARATA IMPORTADA 1', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 3000, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'd4a34a5f-3c4c-4bba-8637-7ae3b95620cd'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-11-24', '08:00:00', 'Manoel Messias da Silva Altino', '(86) 995201993', '1974-08-18', 
+        'CONSULTA AVALIAÇÃO', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'cbe57532-571c-42ec-8ef6-20e75b878411'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-11-24', '08:00:00', 'Manoel Messias da Silva Altino', '(86) 995201993', '1974-08-18', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'cbe57532-571c-42ec-8ef6-20e75b878411'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-11-24', '08:00:00', 'Manoel Messias da Silva Altino', '(86) 995201993', '1974-08-18', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'cbe57532-571c-42ec-8ef6-20e75b878411'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 

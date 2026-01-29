@@ -1,0 +1,50 @@
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-11-03', '08:00:00', 'Maria de Nazaré Costa', '86981881437', '1944-04-23', 
+        'YAG LASER - LIMPEZA DE LENTE', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 240, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '9f67e3cb-c181-48ba-a54e-7278b52a8f75'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-11-03', '08:00:00', 'Ítalo Ribeiro Filho', '(86) 994231335', '1965-11-21', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'd4a34a5f-3c4c-4bba-8637-7ae3b95620cd'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-10-30', '08:00:00', 'Maria das Graças do Nascimento', '85999569472', '1951-07-30', 
+        'CONSULTA CIRÚRGICA', 'homc_fortaleza@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', 'ca7587cf-7e6d-41ca-bd61-2df5a975598b'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-10-29', '08:00:00', 'João Eduardo Silva e Lima', '(86) 994590055', '1975-03-30', 
+        'CONSULTA CIRÚRGICA', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 150, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '7190f271-cfca-4a45-9dae-90fc363f611d'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 
+        user_id, patient_id
+    ) VALUES (
+        '410e3fd3-bd58-400f-a902-baa90473b311', '2025-10-28', '08:00:00', 'Francinete Pinheiro do Nascimento', '86994947651', '1959-01-22', 
+        'YAG LASER 2', 'hospi_teresina@programasaudeparatodos.org', 'Atendido', 'Pago', 480, 'Money', 
+        'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4', '59523b86-7ffc-4776-98e3-0bada2edb6e7'
+    );
+    
+    INSERT INTO public.appointments (
+        hospital_id, date, time, patient_name, patient_phone, patient_birth_date, 
+        procedure, provider, status, payment_status, total_cost, payment_method, 

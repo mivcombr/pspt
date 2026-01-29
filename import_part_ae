@@ -1,0 +1,50 @@
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('871d0d2c-3ffb-4e15-bd27-49eae23ccc19', 'Ione de Araújo Alves Sousa', '(89) 994238879', '1966-07-23', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('2da0f6d0-a766-4916-9e1a-090e7fcec3e1', 'Francisco Carlos Rodrigues', '86995338956', '1961-05-06', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('594cff43-907a-4f7a-9c9d-b5c8555bf6b7', 'Remir Rocha e Silva', '(99)98126-3740', '1957-02-01', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('b0e7f709-ed3a-44d2-95bb-8741356e0ef8', 'Antonio Gomes Correia', '(86) 988456262', '1961-02-12', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('ac199b9b-94a6-46af-9985-3afe202202ca', 'Norma Suely Alves Costa da Silva', '(86) 998089412', '1975-06-18', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('2365844f-e3d2-49d8-a7a5-f04a47a09abe', 'Carlos Augusto Araújo de Souza', '(86) 94513747', '1962-04-04', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('9253b556-8cd3-4183-8f9d-57d27e204b8e', 'Francisco Ferreira', '(99) 981309380', '1954-07-11', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('a27c2213-5911-4d07-aceb-ed5a068d39d4', 'Edilson Barros de Oliveira', '(99) 984729036', '1974-07-11', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('663ab2b8-ebb7-4e90-87e8-b5e76fe908ef', 'Adriana Maria de Araújo Silva', '(86) 999432998', '1971-11-18', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('a616c402-dcfe-4b6d-8e68-3ae38fc508d0', 'Arnaldo Pereira de Castro', '(08) 699484828', '1970-09-22', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('10606cd3-c11d-4e1c-bbe1-ad66691009a3', 'Gervasio de Deus Lopes', '(86) 994768014', '1957-06-19', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('83832dc9-a85b-4722-9f25-26dad75ceb29', 'Gema Oliveira Dias', '(86) 999460044', '1951-05-14', 'F', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('8d40989f-f5e4-4a47-899c-a81392c1ee8a', 'Luiz Gonzaga de Castro', '86994442963', '1941-09-22', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('ec29ccd3-9736-4e3f-9df4-69020c15b3c6', 'Luiz Messias Soares de Sousa', '(99) 984810297', '1947-08-23', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('f69f2c82-cf0d-4956-bb08-ee38c901fde2', 'Salvino Tomaz  de Oliveira Lima', '(86) 995769683', '1961-12-17', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
+    VALUES ('d90e6a8c-7e9c-4bcb-aa52-b3cc695d4aa1', 'Raimundo Nonato Soares de Sousa', '(99)98481-0297', '1947-08-23', 'M', NULL, NULL, NULL, NULL, NULL, '410e3fd3-bd58-400f-a902-baa90473b311', 'de6e7f78-8960-4f8c-b5b6-2754adfa2ad4');
+    
+    INSERT INTO public.patients (id, name, phone, birth_date, sex, email, insurance, address, city, state, hospital_id, user_id)
