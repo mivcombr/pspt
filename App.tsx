@@ -36,16 +36,42 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 };
 
 const AppRoutes = () => {
-  const { user, isLoading, authStatus } = useAuth();
+  const { user, isLoading, authStatus, error, retryFetchProfile, signOut } = useAuth();
 
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background-light dark:bg-background-dark">
-        <div className="flex flex-col items-center gap-6 max-w-xs text-center px-6">
+        <div className="flex flex-col items-center gap-6 max-w-sm text-center px-6">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-lg"></div>
-          <div className="space-y-2">
-            <p className="text-slate-900 dark:text-white font-black text-xl animate-pulse">Carregando dados</p>
-            <p className="text-slate-500 dark:text-slate-400 font-bold text-sm tracking-tight">{authStatus || 'Carregando...'}</p>
+          <div className="space-y-4">
+            <p className="text-slate-900 dark:text-white font-black text-xl animate-pulse">
+              {error ? 'Erro de Autenticação' : 'Carregando dados'}
+            </p>
+            {error ? (
+              <div className="space-y-4">
+                <p className="text-red-500 font-bold text-sm bg-red-50 dark:bg-red-900/20 p-4 rounded-2xl border border-red-100 dark:border-red-800/50">
+                  {error}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={retryFetchProfile}
+                    className="w-full py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:opacity-90 transition-opacity"
+                  >
+                    Tentar Novamente
+                  </button>
+                  <button
+                    onClick={signOut}
+                    className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200"
+                  >
+                    Sair e Logar Novamente
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-500 dark:text-slate-400 font-bold text-sm tracking-tight">
+                {authStatus || 'Carregando...'}
+              </p>
+            )}
           </div>
         </div>
       </div>

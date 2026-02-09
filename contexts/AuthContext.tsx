@@ -8,7 +8,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
   authStatus?: string;
+  error: string | null;
   setLoadingState: (loading: boolean) => void;
+  retryFetchProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,64 +18,42 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState('Verificando sessão...');
 
   const fetchProfile = async (userId: string, authUserEmail?: string) => {
     // Timeout of 5 seconds to prevent infinite hang
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+      setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
     );
 
     try {
       setAuthStatus('Carregando seu perfil...');
 
+      // ... existing fetchPromise logic ...
       const fetchPromise = (async () => {
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*, hospitals:hospital_id(name)')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
-        if (error || !profile) {
-          console.warn('Profile not found or error, attempting minimal profile or creation:', error);
+        if (error) {
+          console.error('Database error fetching profile:', error);
+          throw error; // Rethrow to be caught by the outer try-catch (local fallback)
+        }
 
-          // Try to create/upsert but with a short timeout as well
-          const { data: newProfile, error: upsertError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: userId,
-              name: authUserEmail?.split('@')[0] || 'Usuário',
-              role: 'RECEPTION',
-              hospital_id: null
-            }, { onConflict: 'id' })
-            .select('*, hospitals:hospital_id(name)')
-            .single();
-
-          if (!upsertError && newProfile) {
-            return {
-              id: newProfile.id,
-              name: newProfile.name,
-              role: newProfile.role as UserRole,
-              email: authUserEmail || '',
-              avatar: newProfile.avatar_url || 'https://www.gravatar.com/avatar/?d=mp',
-              hospitalId: newProfile.hospital_id,
-              hospitalName: (newProfile.hospitals as any)?.name
-            };
-          }
-
-          return {
-            id: userId,
-            name: authUserEmail?.split('@')[0] || 'Usuário',
-            role: UserRole.RECEPTION,
-            email: authUserEmail || '',
-            avatar: 'https://www.gravatar.com/avatar/?d=mp'
-          };
+        if (!profile) {
+          console.warn('Profile not found in database for user:', userId);
+          // Instead of silent fallback, we set an error because an authenticated user MUST have a profile
+          // This prevents the "downgrade" effect.
+          throw new Error('Seu perfil não foi encontrado. Por favor, entre em contato com o administrador.');
         }
 
         return {
           id: profile.id,
           name: profile.name,
-          role: profile.role as UserRole,
+          role: (profile.role as string)?.toUpperCase() as UserRole,
           email: authUserEmail || '',
           avatar: profile.avatar_url || 'https://www.gravatar.com/avatar/?d=mp',
           hospitalId: profile.hospital_id,
@@ -82,16 +62,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })();
 
       const result = await Promise.race([fetchPromise, timeoutPromise]) as User;
+      console.log('Final user role applied:', result.role);
       setUser(result);
-    } catch (err) {
-      console.error('Error or timeout in fetchProfile:', err);
-      setUser({
-        id: userId,
-        name: authUserEmail?.split('@')[0] || 'Usuário',
-        role: UserRole.RECEPTION,
-        email: authUserEmail || '',
-        avatar: 'https://www.gravatar.com/avatar/?d=mp'
-      });
+      setError(null);
+    } catch (err: any) {
+      console.error('Critical error in fetchProfile:', err);
+      setError(err.message || 'Erro ao carger perfil. Verifique sua conexão.');
+      setUser(null);
+    }
+  };
+
+  const retryFetchProfile = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setIsLoading(true);
+      setError(null);
+      await fetchProfile(session.user.id, session.user.email);
+      setIsLoading(false);
     }
   };
 
@@ -173,7 +160,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signOut, isAuthenticated: !!user, authStatus, setLoadingState: setIsLoading }}>
+    <AuthContext.Provider value={{ user, isLoading, signOut, isAuthenticated: !!user, authStatus, error, setLoadingState: setIsLoading, retryFetchProfile }}>
       {children}
     </AuthContext.Provider>
   );

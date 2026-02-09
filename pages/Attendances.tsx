@@ -58,6 +58,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentAppointment, setCurrentAppointment] = useState<Appointment | null>(null);
+    const [deletedPaymentIds, setDeletedPaymentIds] = useState<string[]>([]);
 
     // Cost Editing State
     const [isEditingCost, setIsEditingCost] = useState(false);
@@ -391,6 +392,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const openPaymentModal = async (apt: Appointment) => {
         setCurrentAppointment(apt);
         setPaymentDraft(apt.payments);
+        setDeletedPaymentIds([]); // Reset deletions when opening modal
 
         // Fetch payment methods specifically for this appointment's hospital
         // to avoid issues when viewing multiple hospitals as Admin
@@ -581,6 +583,10 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     };
 
     const removePaymentPart = (id: string) => {
+        // If ID is not a temporary one (from Math.random), track it for deletion in DB
+        if (!id.includes('.') && id.length >= 20) {
+            setDeletedPaymentIds(prev => [...prev, id]);
+        }
         setPaymentDraft(prev => prev.filter(p => p.id !== id));
     };
 
@@ -638,6 +644,11 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 date: currentAppointment.date,
                 time: currentAppointment.time
             });
+
+            // Delete payments that were removed in the UI
+            if (deletedPaymentIds.length > 0) {
+                await Promise.all(deletedPaymentIds.map(id => appointmentService.deletePayment(id)));
+            }
 
             // Add new payments (those with mock IDs)
             for (const payment of paymentDraft) {

@@ -52,8 +52,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
         );
     };
 
-    const isReceptionOrFinancial = user?.role === UserRole.RECEPTION || user?.role === UserRole.FINANCIAL;
-
     return (
         <>
             {/* Backdrop for Mobile */}
@@ -108,29 +106,33 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
 
                     {/* Nav */}
                     <nav className="flex-1 overflow-y-auto py-4 px-4 flex flex-col gap-1 overflow-x-hidden min-h-0">
-                        {user?.role === UserRole.ADMIN && (
+                        {/* Geral for Admin */}
+                        {user?.role?.toUpperCase() === UserRole.ADMIN && (
                             <>
                                 <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2 px-4 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Geral</p>
                                 <NavItem to="/" icon="dashboard" label="Dashboard" />
                             </>
                         )}
 
+                        {/* Operational Section - Visible to All */}
                         <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-4 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Operacional</p>
                         <NavItem to="/attendances" icon="event_list" label="Atendimentos" />
                         <NavItem to="/new-appointment" icon="add_circle" label="Novo Agendamento" />
                         <NavItem to="/patients" icon="groups" label="Pacientes" />
 
-                        {user?.role === UserRole.ADMIN && (
+                        {/* Management Section - Visible to Admin & Financial */}
+                        {(user?.role?.toUpperCase() === UserRole.ADMIN || user?.role?.toUpperCase() === UserRole.FINANCIAL) && (
                             <>
                                 <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-4 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Gestão</p>
                                 <NavItem to="/financials" icon="account_balance_wallet" label="Financeiro" />
-                                <NavItem to="/expenses" icon="pie_chart" label="Despesas" />
-                                <NavItem to="/hospitals" icon="domain" label="Hospitais" />
-                            </>
-                        )}
 
-                        {user?.role === UserRole.FINANCIAL && (
-                            <NavItem to="/financials" icon="account_balance_wallet" label="Financeiro" />
+                                {user?.role?.toUpperCase() === UserRole.ADMIN && (
+                                    <>
+                                        <NavItem to="/expenses" icon="pie_chart" label="Despesas" />
+                                        <NavItem to="/hospitals" icon="domain" label="Hospitais" />
+                                    </>
+                                )}
+                            </>
                         )}
                     </nav>
 
