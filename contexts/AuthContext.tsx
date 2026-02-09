@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .upsert({
               id: userId,
               name: authUserEmail?.split('@')[0] || 'Usuário',
-              role: 'ADMIN',
+              role: 'RECEPTION',
               hospital_id: null
             }, { onConflict: 'id' })
             .select('*, hospitals:hospital_id(name)')
@@ -61,11 +61,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             };
           }
 
-          // Minimal fallback
           return {
             id: userId,
             name: authUserEmail?.split('@')[0] || 'Usuário',
-            role: UserRole.ADMIN,
+            role: UserRole.RECEPTION,
             email: authUserEmail || '',
             avatar: 'https://www.gravatar.com/avatar/?d=mp'
           };
@@ -86,11 +85,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(result);
     } catch (err) {
       console.error('Error or timeout in fetchProfile:', err);
-      // Ensure we have at least a basic user if we have a session
       setUser({
         id: userId,
         name: authUserEmail?.split('@')[0] || 'Usuário',
-        role: UserRole.ADMIN,
+        role: UserRole.RECEPTION,
         email: authUserEmail || '',
         avatar: 'https://www.gravatar.com/avatar/?d=mp'
       });
