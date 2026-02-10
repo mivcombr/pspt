@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { User, UserRole } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -21,10 +21,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState('Verificando sessão...');
 
-  const fetchProfile = async (userId: string, authUserEmail?: string) => {
-    // Timeout of 10 seconds to prevent infinite hang
+  // useRef to always have the latest user value — avoids stale closure bugs
+  // where callbacks captured an old (null) user and incorrectly cleared state.
+  const userRef = useRef<User | null>(null);
+  const isFetchingRef = useRef(false);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const fetchProfile = useCallback(async (userId: string, authUserEmail?: string) => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      console.log('[Auth] fetchProfile skipped — already fetching.');
+      return;
+    }
+
+    // If we already have a user loaded, skip re-fetching on auth events
+    if (userRef.current) {
+      console.log('[Auth] fetchProfile skipped — user already loaded:', userRef.current.role);
+      return;
+    }
+
+    isFetchingRef.current = true;
+
+    // Timeout of 20 seconds (increased from 10s to handle slow connections)
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout ao carregar perfil. Verifique sua conexão.')), 10000)
+      setTimeout(() => reject(new Error('Timeout ao carregar perfil. Verifique sua conexão.')), 20000)
     );
 
     try {
@@ -39,7 +63,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (dbError) {
           console.error('Database error fetching profile:', dbError);
-          // Special case: if it's a transient DB error, we might want to keep the current user if exists
           throw dbError;
         }
 
@@ -60,49 +83,52 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })();
 
       const result = await Promise.race([fetchPromise, timeoutPromise]) as User;
-      console.log('Final user role applied:', result.role);
+      console.log('[Auth] Profile loaded, role:', result.role);
       setUser(result);
       setError(null);
     } catch (err: any) {
-      console.error('Critical error in fetchProfile:', err);
+      console.error('[Auth] Error in fetchProfile:', err);
 
-      // IMPORTANT: Only clear user if we don't already have one or if it's a specific auth error
-      // If we have a user and it's a DB error, we keep the user but show an error notification
-      if (!user) {
+      // CRITICAL FIX: Use userRef.current (latest value) instead of stale `user` closure.
+      // This prevents clearing a valid user on transient errors (e.g. timeout during token refresh).
+      if (!userRef.current) {
         setError(err.message || 'Erro ao carregar perfil. Verifique sua conexão.');
-        setUser(null);
+        // Do NOT call setUser(null) here — it's already null, and setting it again
+        // can trigger unnecessary re-renders.
       } else {
-        // Just log the error, don't kick the user out if they were already logged in
-        console.warn('Failed to refresh profile, keeping existing user state:', err.message);
+        // User is already logged in — a transient fetch failure should NOT log them out.
+        console.warn('[Auth] Transient error, keeping existing user session:', err.message);
       }
+    } finally {
+      isFetchingRef.current = false;
     }
-  };
+  }, []);
 
-  const retryFetchProfile = async () => {
+  const retryFetchProfile = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       setIsLoading(true);
       setError(null);
+      // Force re-fetch even if user exists
+      userRef.current = null;
+      setUser(null);
       await fetchProfile(session.user.id, session.user.email);
       setIsLoading(false);
     }
-  };
+  }, [fetchProfile]);
 
   useEffect(() => {
     let active = true;
-    let isFetching = false;
 
     const initialize = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session && active && !user) {
-          isFetching = true;
+        if (session && active) {
           await fetchProfile(session.user.id, session.user.email);
         }
       } catch (err) {
-        console.error('Init error:', err);
+        console.error('[Auth] Init error:', err);
       } finally {
-        isFetching = false;
         if (active) setIsLoading(false);
       }
     };
@@ -110,66 +136,65 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initialize();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, !!session);
+      console.log('[Auth] State change:', event, !!session);
 
       try {
-        if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED')) {
-          if (!isFetching) {
-            isFetching = true;
-            await fetchProfile(session.user.id, session.user.email);
-          }
-        } else if (event === 'TOKEN_REFRESHED') {
-          // Token was successfully refreshed — session is still valid.
-          // If we already have a user, no action needed. If not, fetch profile.
-          console.log('[Auth] Token refreshed successfully.');
-          if (!user && session && !isFetching) {
-            isFetching = true;
-            await fetchProfile(session.user.id, session.user.email);
-          }
-        } else if (event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_OUT') {
+          userRef.current = null;
           setUser(null);
+          return;
+        }
+
+        if (event === 'TOKEN_REFRESHED') {
+          // Token refreshed successfully — session is still valid, no action needed.
+          console.log('[Auth] Token refreshed. User present:', !!userRef.current);
+          return;
+        }
+
+        // For SIGNED_IN, INITIAL_SESSION, USER_UPDATED — only fetch profile if we don't have one
+        if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED')) {
+          if (!userRef.current) {
+            await fetchProfile(session.user.id, session.user.email);
+          }
         }
       } catch (err) {
-        console.error('Error in onAuthStateChange handler:', err);
+        console.error('[Auth] Error in onAuthStateChange handler:', err);
       } finally {
-        isFetching = false;
         setIsLoading(false);
       }
     });
 
     // Periodic keep-alive: check session health every 4 minutes.
-    // Browsers throttle setInterval in background tabs, so this is a safety net
-    // for when the Supabase auto-refresh timer gets delayed.
+    // Browsers throttle timers in background tabs, so this is a safety net.
     const keepAliveInterval = setInterval(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           const now = Math.floor(Date.now() / 1000);
           const expiresAt = session.expires_at ?? 0;
-          // If token expires in less than 5 minutes, force refresh
           if (expiresAt - now < 300) {
             console.log('[Auth] Keep-alive: session near expiry, refreshing...');
             const { data: { session: newSession }, error } = await supabase.auth.refreshSession();
             if (error) {
               console.warn('[Auth] Keep-alive refresh failed:', error.message);
             } else if (newSession) {
-              console.log('[Auth] Keep-alive: session refreshed, new expiry:', new Date((newSession.expires_at ?? 0) * 1000).toLocaleString());
+              console.log('[Auth] Keep-alive: refreshed, expires:', new Date((newSession.expires_at ?? 0) * 1000).toLocaleString());
             }
           }
         }
       } catch (err) {
         console.warn('[Auth] Keep-alive error:', err);
       }
-    }, 4 * 60 * 1000); // Every 4 minutes
+    }, 4 * 60 * 1000);
 
     return () => {
       active = false;
       subscription.unsubscribe();
       clearInterval(keepAliveInterval);
     };
-  }, []);
+  }, [fetchProfile]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       setIsLoading(true);
 
@@ -185,6 +210,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       // 3. Clear user state
+      userRef.current = null;
       setUser(null);
 
       // 4. Redirect and reload to ensure a fresh state
@@ -192,13 +218,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       window.location.reload();
     } catch (err) {
       console.error('Logout error:', err);
+      userRef.current = null;
       setUser(null);
       window.location.hash = '#/login';
       window.location.reload();
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, isLoading, signOut, isAuthenticated: !!user, authStatus, error, setLoadingState: setIsLoading, retryFetchProfile }}>
