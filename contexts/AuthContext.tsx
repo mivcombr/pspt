@@ -22,31 +22,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [authStatus, setAuthStatus] = useState('Verificando sessão...');
 
   const fetchProfile = async (userId: string, authUserEmail?: string) => {
-    // Timeout of 5 seconds to prevent infinite hang
+    // Timeout of 10 seconds to prevent infinite hang
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+      setTimeout(() => reject(new Error('Timeout ao carregar perfil. Verifique sua conexão.')), 10000)
     );
 
     try {
       setAuthStatus('Carregando seu perfil...');
 
-      // ... existing fetchPromise logic ...
       const fetchPromise = (async () => {
-        const { data: profile, error } = await supabase
+        const { data: profile, error: dbError } = await supabase
           .from('profiles')
           .select('*, hospitals:hospital_id(name)')
           .eq('id', userId)
           .maybeSingle();
 
-        if (error) {
-          console.error('Database error fetching profile:', error);
-          throw error; // Rethrow to be caught by the outer try-catch (local fallback)
+        if (dbError) {
+          console.error('Database error fetching profile:', dbError);
+          // Special case: if it's a transient DB error, we might want to keep the current user if exists
+          throw dbError;
         }
 
         if (!profile) {
           console.warn('Profile not found in database for user:', userId);
-          // Instead of silent fallback, we set an error because an authenticated user MUST have a profile
-          // This prevents the "downgrade" effect.
           throw new Error('Seu perfil não foi encontrado. Por favor, entre em contato com o administrador.');
         }
 
@@ -58,7 +56,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           avatar: profile.avatar_url || 'https://www.gravatar.com/avatar/?d=mp',
           hospitalId: profile.hospital_id,
           hospitalName: (profile.hospitals as any)?.name
-        };
+        } as User;
       })();
 
       const result = await Promise.race([fetchPromise, timeoutPromise]) as User;
@@ -67,8 +65,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(null);
     } catch (err: any) {
       console.error('Critical error in fetchProfile:', err);
-      setError(err.message || 'Erro ao carger perfil. Verifique sua conexão.');
-      setUser(null);
+
+      // IMPORTANT: Only clear user if we don't already have one or if it's a specific auth error
+      // If we have a user and it's a DB error, we keep the user but show an error notification
+      if (!user) {
+        setError(err.message || 'Erro ao carregar perfil. Verifique sua conexão.');
+        setUser(null);
+      } else {
+        // Just log the error, don't kick the user out if they were already logged in
+        console.warn('Failed to refresh profile, keeping existing user state:', err.message);
+      }
     }
   };
 
