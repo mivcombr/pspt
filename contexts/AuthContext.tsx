@@ -118,6 +118,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isFetching = true;
             await fetchProfile(session.user.id, session.user.email);
           }
+        } else if (event === 'TOKEN_REFRESHED') {
+          // Token was successfully refreshed — session is still valid.
+          // If we already have a user, no action needed. If not, fetch profile.
+          console.log('[Auth] Token refreshed successfully.');
+          if (!user && session && !isFetching) {
+            isFetching = true;
+            await fetchProfile(session.user.id, session.user.email);
+          }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -129,9 +137,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
 
+    // Periodic keep-alive: check session health every 4 minutes.
+    // Browsers throttle setInterval in background tabs, so this is a safety net
+    // for when the Supabase auto-refresh timer gets delayed.
+    const keepAliveInterval = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const now = Math.floor(Date.now() / 1000);
+          const expiresAt = session.expires_at ?? 0;
+          // If token expires in less than 5 minutes, force refresh
+          if (expiresAt - now < 300) {
+            console.log('[Auth] Keep-alive: session near expiry, refreshing...');
+            const { data: { session: newSession }, error } = await supabase.auth.refreshSession();
+            if (error) {
+              console.warn('[Auth] Keep-alive refresh failed:', error.message);
+            } else if (newSession) {
+              console.log('[Auth] Keep-alive: session refreshed, new expiry:', new Date((newSession.expires_at ?? 0) * 1000).toLocaleString());
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Auth] Keep-alive error:', err);
+      }
+    }, 4 * 60 * 1000); // Every 4 minutes
+
     return () => {
       active = false;
       subscription.unsubscribe();
+      clearInterval(keepAliveInterval);
     };
   }, []);
 
@@ -143,6 +177,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await supabase.auth.signOut();
 
       // 2. Clear local storage explicitly (redundant but safe)
+      localStorage.removeItem('pspt-auth-session');
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('sb-')) {
           localStorage.removeItem(key);
