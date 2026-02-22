@@ -27,7 +27,10 @@ const Patients: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedHospital, setSelectedHospital] = useState('Todos os Hospitais');
     const [hospitals, setHospitals] = useState<any[]>([]);
-    const [viewMode, setViewMode] = useState<'grid' | 'rows'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'rows'>('rows');
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+    const AVAILABLE_TAGS = ['CONSULTA', 'CIRURGIA', 'EXAMES', 'RETORNO', 'AGENDADO', 'FALHOU'];
 
     // History Modal State
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -67,6 +70,24 @@ const Patients: React.FC = () => {
     useEffect(() => {
         fetchData();
     }, [selectedHospital, searchTerm]);
+
+    const filteredPatients = useMemo(() => {
+        if (selectedTags.length === 0) return patients;
+        return patients.filter(p => {
+            // Check if patient's history has AT LEAST ONE of the selected tags (OR logic)
+            // Or use EVERY (AND logic)? We will use OR logic here so they can see all FALHOU + AGENDADO
+            return p.history && p.history.some(h => {
+                const historyUpper = h.toUpperCase();
+                return selectedTags.some(tag => historyUpper.includes(tag));
+            });
+        });
+    }, [patients, selectedTags]);
+
+    const toggleTag = (tag: string) => {
+        setSelectedTags(prev =>
+            prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+        );
+    };
 
     const handleOpenHistory = async (patient: PatientRecord) => {
         setSelectedPatient(patient);
@@ -171,10 +192,12 @@ const Patients: React.FC = () => {
 
     const getHistoryBadgeClass = (type: string) => {
         const colors: Record<string, string> = {
-            'CONSULTA': 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20',
-            'CIRURGIA': 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-100 dark:border-rose-500/20',
-            'EXAMES': 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-100 dark:border-amber-500/20',
-            'RETORNO': 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20'
+            'CONSULTA': 'bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400 border-teal-100 dark:border-teal-500/20',
+            'CIRURGIA': 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 border-purple-100 dark:border-purple-500/20',
+            'EXAMES': 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 border-orange-100 dark:border-orange-500/20',
+            'RETORNO': 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20',
+            'FALHOU': 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border-red-100 dark:border-red-500/20',
+            'AGENDADO': 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400 border-sky-100 dark:border-sky-500/20'
         };
 
         let baseType = type;
@@ -182,6 +205,8 @@ const Patients: React.FC = () => {
         else if (type.includes('CONSULTA')) baseType = 'CONSULTA';
         else if (type.includes('CIRURGIA')) baseType = 'CIRURGIA';
         else if (type.includes('EXAME')) baseType = 'EXAMES';
+        else if (type.includes('FALHOU')) baseType = 'FALHOU';
+        else if (type.includes('AGENDADO')) baseType = 'AGENDADO';
 
         return colors[baseType] || 'bg-slate-50 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400 border-slate-100 dark:border-slate-500/20';
     };
@@ -250,6 +275,34 @@ const Patients: React.FC = () => {
                 </div>
             </div>
 
+            {/* Tags Filter */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 -mt-4">
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">filter_list</span>
+                    Filtrar por Tags:
+                </span>
+                {AVAILABLE_TAGS.map(tag => {
+                    const isSelected = selectedTags.includes(tag);
+                    return (
+                        <button
+                            key={tag}
+                            onClick={() => toggleTag(tag)}
+                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all duration-300 border ${isSelected ? 'bg-primary text-white border-primary shadow-md shadow-primary/20 scale-105' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-primary/50 hover:text-primary'}`}
+                        >
+                            {tag}
+                        </button>
+                    );
+                })}
+                {selectedTags.length > 0 && (
+                    <button
+                        onClick={() => setSelectedTags([])}
+                        className="px-2 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all duration-300 text-slate-400 hover:text-red-500 flex items-center gap-1 ml-auto"
+                    >
+                        Limpar Filtros
+                    </button>
+                )}
+            </div>
+
             {/* Patients View */}
             {viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -257,8 +310,8 @@ const Patients: React.FC = () => {
                         Array.from({ length: 8 }).map((_, i) => (
                             <div key={i} className="h-64 rounded-[32px] bg-slate-100 dark:bg-slate-800 animate-pulse" />
                         ))
-                    ) : patients.length > 0 ? (
-                        patients.map((patient, idx) => (
+                    ) : filteredPatients.length > 0 ? (
+                        filteredPatients.map((patient, idx) => (
                             <div
                                 key={idx}
                                 onClick={() => handleOpenHistory(patient)}
@@ -334,8 +387,8 @@ const Patients: React.FC = () => {
                         Array.from({ length: 8 }).map((_, i) => (
                             <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
                         ))
-                    ) : patients.length > 0 ? (
-                        patients.map((patient, idx) => {
+                    ) : filteredPatients.length > 0 ? (
+                        filteredPatients.map((patient, idx) => {
                             const historyPreview = patient.history?.slice(0, 3) || [];
                             const extraHistoryCount = (patient.history?.length || 0) - historyPreview.length;
 

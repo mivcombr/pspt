@@ -454,7 +454,7 @@ export const appointmentService = {
             const key = `${p.patient_name}-${p.patient_birth_date}`;
             if (!uniquePatients.has(key)) {
                 uniquePatients.set(key, {
-                    id: p.patient_id || p.id,
+                    id: (p as any).patient_id || p.id,
                     name: p.patient_name,
                     phone: p.patient_phone,
                     birthDate: p.patient_birth_date,
@@ -483,26 +483,39 @@ export const appointmentService = {
 
         const { data: patientsData, error: patientError } = await patientQuery.order('name', { ascending: true });
 
+        const uniquePatients = new Map();
+
         if (!patientError && patientsData && patientsData.length > 0) {
             // Get history for these patients
             const patientIds = patientsData.map(p => p.id);
             const { data: historyData } = await supabase
                 .from('appointments')
                 .select('patient_id, type, status, procedure')
-                .in('patient_id', patientIds)
-                .eq('status', 'Atendido');
+                .in('patient_id', patientIds);
 
-            return patientsData.map(p => {
+            patientsData.forEach(p => {
                 const history = (historyData || [])
                     .filter(h => h.patient_id === p.id)
                     .map(h => {
+                        if (h.status === 'Falhou') return 'FALHOU';
+                        if (h.status === 'Agendado') return 'AGENDADO';
+                        if (h.status === 'Cancelado') return null;
+
                         let label = h.type || 'ATENDIMENTO';
+                        if (label.toUpperCase() === 'ATENDIMENTO' && h.procedure) {
+                            const proc = h.procedure.toUpperCase();
+                            if (proc.includes('CONSULTA')) label = 'CONSULTA';
+                            else if (proc.includes('CIRURGIA')) label = 'CIRURGIA';
+                            else if (proc.includes('EXAME')) label = 'EXAMES';
+                        }
                         if (label === 'EXAME') label = 'EXAMES';
                         if (h.procedure?.toUpperCase().includes('RETORNO')) label = `${label} RETORNO`;
-                        return label;
-                    });
+                        return label.toUpperCase();
+                    })
+                    .filter(Boolean);
 
-                return {
+                const key = `${p.name}-${p.birth_date}`;
+                uniquePatients.set(key, {
                     id: p.id,
                     name: p.name,
                     phone: p.phone,
@@ -510,11 +523,11 @@ export const appointmentService = {
                     hospital_id: p.hospital_id,
                     hospital_name: Array.isArray(p.hospital) ? p.hospital[0]?.name : (p.hospital as any)?.name,
                     history: [...new Set(history)]
-                };
+                });
             });
         }
 
-        // Fallback to legacy appointment scanning
+        // Fallback to legacy appointment scanning (Merge with patients table data)
         let query = supabase
             .from('appointments')
             .select('patient_name, patient_phone, patient_birth_date, hospital_id, type, procedure, status, date, time, hospital:hospitals(name)');
@@ -533,7 +546,6 @@ export const appointmentService = {
             throw error;
         }
 
-        const uniquePatients = new Map();
         data.forEach(p => {
             const key = `${p.patient_name}-${p.patient_birth_date}`;
             if (!uniquePatients.has(key)) {
@@ -548,11 +560,25 @@ export const appointmentService = {
             }
 
             const patient = uniquePatients.get(key);
-            if (p.type && p.status === 'Atendido') {
-                let label = p.type;
+            if (p.status === 'Falhou') {
+                if (!patient.history.includes('FALHOU')) patient.history.push('FALHOU');
+            } else if (p.status === 'Agendado') {
+                if (!patient.history.includes('AGENDADO')) patient.history.push('AGENDADO');
+            } else if (p.status === 'Atendido') {
+                let label = p.type || 'ATENDIMENTO';
+                if (label.toUpperCase() === 'ATENDIMENTO' && p.procedure) {
+                    const proc = p.procedure.toUpperCase();
+                    if (proc.includes('CONSULTA')) label = 'CONSULTA';
+                    else if (proc.includes('CIRURGIA')) label = 'CIRURGIA';
+                    else if (proc.includes('EXAME')) label = 'EXAMES';
+                }
                 if (label === 'EXAME') label = 'EXAMES';
                 if (p.procedure?.toUpperCase().includes('RETORNO')) label = `${label} RETORNO`;
-                patient.history.push(label);
+
+                label = label.toUpperCase();
+                if (!patient.history.includes(label)) {
+                    patient.history.push(label);
+                }
             }
         });
 
