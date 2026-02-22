@@ -46,7 +46,7 @@ const Login: React.FC = () => {
             </h2>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-blue-200 mt-0.5">favorite</span>
+                <span className="material-symbols-outlined text-white mt-0.5">favorite</span>
                 <p className="text-blue-50 text-base">Unimos tecnologia e cuidado humano para transformar a saúde em algo mais próximo, eficiente e acessível.</p>
               </div>
             </div>
