@@ -275,6 +275,11 @@ const Dashboard: React.FC = () => {
         return [...(dashboardData?.partnerBreakdown || [])].sort((a: any, b: any) => b.totalRepasse - a.totalRepasse);
     }, [dashboardData?.partnerBreakdown]);
 
+    const repassePercentage = useMemo(() => {
+        if (!dashboardData.totals.revenue || dashboardData.totals.revenue === 0) return 0;
+        return (dashboardData.totals.repasse / dashboardData.totals.revenue) * 100;
+    }, [dashboardData.totals.revenue, dashboardData.totals.repasse]);
+
     return (
         <div className="max-w-screen-xl w-full mx-auto space-y-5 sm:space-y-6 relative pb-8 px-4 sm:px-6">
 
@@ -383,7 +388,7 @@ const Dashboard: React.FC = () => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
-                                        Repasse aos Parceiros
+                                        Repasse ao programa
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3">
                                         <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -395,9 +400,10 @@ const Dashboard: React.FC = () => {
                                             className="scale-110 shadow-sm"
                                         />
                                     </div>
-                                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1">
-                                        vs. período anterior
-                                    </p>
+                                    <div className="flex items-center justify-between text-[10px] font-bold mt-1">
+                                        <span className="text-slate-400 dark:text-slate-500">vs. período anterior</span>
+                                        <span className="text-primary bg-primary/5 px-1.5 py-0.5 rounded-md">{repassePercentage.toFixed(1)}% do faturamento</span>
+                                    </div>
                                 </div>
                             </div>
                         </Card>
@@ -712,7 +718,7 @@ const Dashboard: React.FC = () => {
                     <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-900">
                         <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
                             <span className="material-symbols-outlined text-slate-400">payments</span>
-                            Repasse por Parceiro
+                            Repasse ao programa por Parceiro
                         </h3>
                     </div>
                     {!isLoading && sortedByRepasse.length > 0 && (
