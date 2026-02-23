@@ -249,6 +249,14 @@ const Dashboard: React.FC = () => {
         setIsCalendarOpen(false);
     };
 
+    const sortedByRevenue = useMemo(() => {
+        return [...(dashboardData?.partnerBreakdown || [])].sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
+    }, [dashboardData?.partnerBreakdown]);
+
+    const sortedByRepasse = useMemo(() => {
+        return [...(dashboardData?.partnerBreakdown || [])].sort((a: any, b: any) => b.totalRepasse - a.totalRepasse);
+    }, [dashboardData?.partnerBreakdown]);
+
     return (
         <div className="max-w-screen-xl w-full mx-auto space-y-5 sm:space-y-6 relative pb-8 px-4 sm:px-6">
 
@@ -607,16 +615,16 @@ const Dashboard: React.FC = () => {
                             Faturamento por Parceiro
                         </h3>
                     </div>
-                    {!isLoading && dashboardData.partnerBreakdown.length > 0 && (
+                    {!isLoading && sortedByRevenue.length > 0 && (
                         <div className="h-64 px-4 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={dashboardData.partnerBreakdown} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                                <BarChart data={sortedByRevenue} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#f1f5f9" />
                                     <XAxis type="number" tickFormatter={(value) => formatCurrencyNoDecimals(value)} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <YAxis dataKey="code" type="category" width={80} tick={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
                                     <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: '#f8fafc' }} />
                                     <Bar dataKey="totalRevenue" radius={[0, 4, 4, 0]} barSize={24}>
-                                        {dashboardData.partnerBreakdown.map((_: any, index: number) => (
+                                        {sortedByRevenue.map((_: any, index: number) => (
                                             <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                                         ))}
                                     </Bar>
@@ -630,7 +638,7 @@ const Dashboard: React.FC = () => {
                                 <div key={i} className="h-16 rounded-2xl bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 animate-pulse" />
                             ))
                         ) : (
-                            dashboardData.partnerBreakdown.map((p, i) => (
+                            sortedByRevenue.map((p: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300`}>
@@ -658,16 +666,16 @@ const Dashboard: React.FC = () => {
                             Repasse por Parceiro
                         </h3>
                     </div>
-                    {!isLoading && dashboardData.partnerBreakdown.length > 0 && (
+                    {!isLoading && sortedByRepasse.length > 0 && (
                         <div className="h-64 px-4 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={dashboardData.partnerBreakdown} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                                <BarChart data={sortedByRepasse} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#f1f5f9" />
                                     <XAxis type="number" tickFormatter={(value) => formatCurrencyNoDecimals(value)} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <YAxis dataKey="code" type="category" width={80} tick={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
                                     <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: '#f8fafc' }} />
                                     <Bar dataKey="totalRepasse" radius={[0, 4, 4, 0]} barSize={24}>
-                                        {dashboardData.partnerBreakdown.map((_: any, index: number) => (
+                                        {sortedByRepasse.map((_: any, index: number) => (
                                             <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                                         ))}
                                     </Bar>
@@ -681,7 +689,7 @@ const Dashboard: React.FC = () => {
                                 <div key={i} className="h-16 rounded-2xl bg-white/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50 animate-pulse" />
                             ))
                         ) : (
-                            dashboardData.partnerBreakdown.map((p, i) => (
+                            sortedByRepasse.map((p: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
                                     <div>
                                         <p className="font-bold text-slate-900 dark:text-white text-sm">{p.name}</p>
