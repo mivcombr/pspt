@@ -57,7 +57,7 @@ const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 
-const PercentageBadge = ({ current, previous }: { current: number, previous: number }) => {
+const PercentageBadge = ({ current, previous, className = "" }: { current: number, previous: number, className?: string }) => {
     if (!previous || previous === 0) return null;
     const change = ((current - previous) / previous) * 100;
     if (Math.abs(change) < 0.1) return null;
@@ -66,9 +66,9 @@ const PercentageBadge = ({ current, previous }: { current: number, previous: num
     const valueStr = Math.abs(change).toFixed(1).replace('.', ',') + '%';
 
     return (
-        <div className={`flex items-center gap-0.5 mt-0.5 text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded-md w-fit ${isPositive ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'}`}>
-            <span className="material-symbols-outlined text-[12px]">{isPositive ? 'trending_up' : 'trending_down'}</span>
-            {valueStr}
+        <div className={`inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-lg shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'} ${className}`}>
+            <span className="material-symbols-outlined text-[12px] sm:text-[14px] leading-none" style={{ fontVariationSettings: "'FILL' 0, 'wght' 700, 'GRAD' 0, 'opsz' 20" }}>{isPositive ? 'trending_up' : 'trending_down'}</span>
+            <span>{valueStr}</span>
         </div>
     );
 };
@@ -338,50 +338,66 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 {isLoading ? (
                     Array.from({ length: 2 }).map((_, i) => (
-                        <Card key={i} className="p-4 sm:p-5 min-h-[100px] sm:min-h-[110px] animate-pulse">
-                            <div className="flex items-start gap-3 sm:gap-4">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-100 dark:bg-slate-800" />
-                                <div className="flex-1 min-w-0">
-                                    <div className="h-3 w-40 bg-slate-100 dark:bg-slate-800 rounded" />
-                                    <div className="h-7 w-28 bg-slate-100 dark:bg-slate-800 rounded mt-3" />
+                        <Card key={i} className="p-6 animate-pulse">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                                <div className="space-y-2">
+                                    <div className="h-3 w-32 bg-slate-100 dark:bg-slate-800 rounded" />
+                                    <div className="h-6 w-48 bg-slate-100 dark:bg-slate-800 rounded" />
                                 </div>
                             </div>
                         </Card>
                     ))
                 ) : (
                     <>
-                        <Card className="flex flex-wrap md:flex-nowrap items-center sm:items-start gap-3 sm:gap-4 p-4 sm:p-5 relative overflow-hidden group min-h-[100px] sm:min-h-[110px]">
-                            <div className="w-12 h-12 sm:w-12 sm:h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                <span className="material-symbols-outlined text-[22px] sm:text-[24px]">attach_money</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                                    <span className="sm:hidden">Faturamento Total</span>
-                                    <span className="hidden sm:inline">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</span>
-                                </p>
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
-                                        {formatCurrency(dashboardData.totals.revenue)}
-                                    </h3>
-                                    {dashboardData?.prevTotals && <PercentageBadge current={dashboardData.totals.revenue} previous={dashboardData.prevTotals.revenue} />}
+                        <Card className="p-5 sm:p-6 group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/20">
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/10 transition-colors group-hover:bg-primary group-hover:text-white group-hover:border-primary">
+                                    <span className="material-symbols-outlined text-[28px]">attach_money</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+                                        Faturamento Total
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                                            {formatCurrency(dashboardData.totals.revenue)}
+                                        </h3>
+                                        <PercentageBadge
+                                            current={dashboardData.totals.revenue}
+                                            previous={dashboardData.prevTotals.revenue}
+                                            className="scale-110 shadow-sm"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1">
+                                        vs. período anterior
+                                    </p>
                                 </div>
                             </div>
                         </Card>
 
-                        <Card className="flex flex-wrap md:flex-nowrap items-center sm:items-start gap-3 sm:gap-4 p-4 sm:p-5 relative overflow-hidden group min-h-[100px] sm:min-h-[110px]">
-                            <div className="w-12 h-12 sm:w-12 sm:h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                <span className="material-symbols-outlined text-[22px] sm:text-[24px]">payments</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                                    <span className="sm:hidden">Valor de Repasse</span>
-                                    <span className="hidden sm:inline">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</span>
-                                </p>
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
-                                        {formatCurrency(dashboardData.totals.repasse)}
-                                    </h3>
-                                    {dashboardData?.prevTotals && <PercentageBadge current={dashboardData.totals.repasse} previous={dashboardData.prevTotals.repasse} />}
+                        <Card className="p-5 sm:p-6 group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/20">
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-blue-500/5 text-blue-500 flex items-center justify-center shrink-0 border border-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white group-hover:border-blue-500">
+                                    <span className="material-symbols-outlined text-[28px]">payments</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+                                        Repasse aos Parceiros
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                                            {formatCurrency(dashboardData.totals.repasse)}
+                                        </h3>
+                                        <PercentageBadge
+                                            current={dashboardData.totals.repasse}
+                                            previous={dashboardData.prevTotals.repasse}
+                                            className="scale-110 shadow-sm"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1">
+                                        vs. período anterior
+                                    </p>
                                 </div>
                             </div>
                         </Card>
@@ -393,7 +409,7 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
                 {isLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-[5.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
+                        <div key={i} className="h-32 rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
                     ))
                 ) : (
                     [
@@ -403,26 +419,30 @@ const Dashboard: React.FC = () => {
                     ].map((item, i) => (
                         <div
                             key={i}
-                            className="bg-white dark:bg-slate-900 rounded-3xl p-3 sm:p-5 card-shadow border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 min-w-0 text-center sm:text-left"
+                            className="bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300"
                         >
-                            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 min-w-0">
-                                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{item.icon}</span>
+                            <div className="flex items-center gap-3 mb-5">
+                                <div className="size-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700/50">
+                                    <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                                 </div>
-                                <div className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-tight whitespace-normal flex flex-col items-center sm:items-start">
-                                    <span className="block sm:hidden">{item.title}</span>
-                                    <div className="flex items-center gap-1.5 font-normal text-slate-600 dark:text-slate-400">
-                                        <span className="hidden sm:inline font-bold uppercase">{item.title}</span>
-                                        <span className="opacity-70">({formatNumber(item.count)} un.)</span>
-                                        {dashboardData?.prevTotals && <PercentageBadge current={item.count} previous={item.countPrev} />}
-                                    </div>
-                                </div>
+                                <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-widest">{item.title}</h4>
                             </div>
-                            <div className="flex flex-col items-center sm:items-end">
-                                <h3 className="text-[clamp(0.9rem,4vw,1.1rem)] sm:text-[clamp(1rem,3vw,1.375rem)] font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in leading-tight whitespace-normal break-words">
-                                    {item.value}
-                                </h3>
-                                {dashboardData?.prevTotals && <PercentageBadge current={item.valueRaw} previous={item.valuePrev} />}
+
+                            <div className="space-y-4">
+                                <div className="flex items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-0.5">Faturamento</p>
+                                        <p className="font-black text-slate-900 dark:text-white text-lg tracking-tight leading-none">{item.value}</p>
+                                    </div>
+                                    <PercentageBadge current={item.valueRaw} previous={item.valuePrev} />
+                                </div>
+                                <div className="flex items-end justify-between pt-1">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-0.5">Atendimentos</p>
+                                        <p className="font-black text-slate-700 dark:text-slate-300 text-sm leading-none">{formatNumber(item.count)} <span className="text-[10px] font-medium opacity-50">un.</span></p>
+                                    </div>
+                                    <PercentageBadge current={item.count} previous={item.countPrev} />
+                                </div>
                             </div>
                         </div>
                     ))
@@ -673,11 +693,13 @@ const Dashboard: React.FC = () => {
                                             <p className="text-xs text-slate-500 font-medium">{p.location}</p>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col items-end">
-                                        <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-xs">
-                                            {formatCurrency(p.totalRevenue)}
-                                        </span>
-                                        <PercentageBadge current={p.totalRevenue} previous={p.totalRevenuePrev} />
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex flex-col items-end">
+                                            <span className="font-bold text-slate-900 dark:text-white text-sm">
+                                                {formatCurrency(p.totalRevenue)}
+                                            </span>
+                                            <PercentageBadge current={p.totalRevenue} previous={p.totalRevenuePrev} className="mt-0.5" />
+                                        </div>
                                     </div>
                                 </div>
                             ))
@@ -723,11 +745,13 @@ const Dashboard: React.FC = () => {
                                             <p className="text-xs text-slate-500 font-medium">{p.location}</p>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col items-end">
-                                        <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-xs">
-                                            {formatCurrency(p.totalRepasse)}
-                                        </span>
-                                        <PercentageBadge current={p.totalRepasse} previous={p.totalRepassePrev} />
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex flex-col items-end">
+                                            <span className="font-bold text-slate-900 dark:text-white text-sm">
+                                                {formatCurrency(p.totalRepasse)}
+                                            </span>
+                                            <PercentageBadge current={p.totalRepasse} previous={p.totalRepassePrev} className="mt-0.5" />
+                                        </div>
                                     </div>
                                 </div>
                             ))
