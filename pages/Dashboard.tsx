@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList, PieChart, Pie, Cell, Legend } from 'recharts';
+import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList, BarChart, Bar, Cell, Legend } from 'recharts';
 import { APP_TIME_ZONE, formatCurrency, formatNumber, formatCurrencyNoDecimals } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
@@ -610,24 +610,17 @@ const Dashboard: React.FC = () => {
                     {!isLoading && dashboardData.partnerBreakdown.length > 0 && (
                         <div className="h-64 px-4 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={dashboardData.partnerBreakdown}
-                                        dataKey="totalRevenue"
-                                        nameKey="name"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        innerRadius={50}
-                                        paddingAngle={2}
-                                        labelLine={false}
-                                    >
+                                <BarChart data={dashboardData.partnerBreakdown} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#f1f5f9" />
+                                    <XAxis type="number" tickFormatter={(value) => formatCurrencyNoDecimals(value)} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <YAxis dataKey="code" type="category" width={80} tick={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                                    <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: '#f8fafc' }} />
+                                    <Bar dataKey="totalRevenue" radius={[0, 4, 4, 0]} barSize={24}>
                                         {dashboardData.partnerBreakdown.map((_: any, index: number) => (
                                             <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                                         ))}
-                                    </Pie>
-                                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                </PieChart>
+                                    </Bar>
+                                </BarChart>
                             </ResponsiveContainer>
                         </div>
                     )}
@@ -668,24 +661,17 @@ const Dashboard: React.FC = () => {
                     {!isLoading && dashboardData.partnerBreakdown.length > 0 && (
                         <div className="h-64 px-4 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={dashboardData.partnerBreakdown}
-                                        dataKey="totalRepasse"
-                                        nameKey="name"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        innerRadius={50}
-                                        paddingAngle={2}
-                                        labelLine={false}
-                                    >
+                                <BarChart data={dashboardData.partnerBreakdown} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#f1f5f9" />
+                                    <XAxis type="number" tickFormatter={(value) => formatCurrencyNoDecimals(value)} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <YAxis dataKey="code" type="category" width={80} tick={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                                    <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: '#f8fafc' }} />
+                                    <Bar dataKey="totalRepasse" radius={[0, 4, 4, 0]} barSize={24}>
                                         {dashboardData.partnerBreakdown.map((_: any, index: number) => (
                                             <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                                         ))}
-                                    </Pie>
-                                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                </PieChart>
+                                    </Bar>
+                                </BarChart>
                             </ResponsiveContainer>
                         </div>
                     )}
