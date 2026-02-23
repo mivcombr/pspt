@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
+import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList, PieChart, Pie, Cell, Legend } from 'recharts';
 import { APP_TIME_ZONE, formatCurrency, formatNumber, formatCurrencyNoDecimals } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
 import { useAuth } from '../contexts/AuthContext';
+
+const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#64748b', '#14b8a6'];
 
 const renderCustomLabel = (props: any) => {
     const { x, y, value, stroke } = props;
@@ -605,6 +607,30 @@ const Dashboard: React.FC = () => {
                             Faturamento por Parceiro
                         </h3>
                     </div>
+                    {!isLoading && dashboardData.partnerBreakdown.length > 0 && (
+                        <div className="h-64 px-4 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={dashboardData.partnerBreakdown}
+                                        dataKey="totalRevenue"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        outerRadius={80}
+                                        innerRadius={50}
+                                        paddingAngle={2}
+                                        labelLine={false}
+                                    >
+                                        {dashboardData.partnerBreakdown.map((_: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
                     <div className="p-4 sm:p-6 space-y-3 bg-slate-50/30 dark:bg-slate-900/50 flex-1">
                         {isLoading ? (
                             Array.from({ length: 4 }).map((_, i) => (
@@ -639,6 +665,30 @@ const Dashboard: React.FC = () => {
                             Repasse por Parceiro
                         </h3>
                     </div>
+                    {!isLoading && dashboardData.partnerBreakdown.length > 0 && (
+                        <div className="h-64 px-4 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={dashboardData.partnerBreakdown}
+                                        dataKey="totalRepasse"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        outerRadius={80}
+                                        innerRadius={50}
+                                        paddingAngle={2}
+                                        labelLine={false}
+                                    >
+                                        {dashboardData.partnerBreakdown.map((_: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
                     <div className="p-4 sm:p-6 space-y-3 bg-slate-50/30 dark:bg-slate-900/50 flex-1">
                         {isLoading ? (
                             Array.from({ length: 4 }).map((_, i) => (
