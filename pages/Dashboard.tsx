@@ -623,11 +623,7 @@ const Dashboard: React.FC = () => {
                                     <XAxis type="number" tickFormatter={(value) => formatCurrencyNoDecimals(value)} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <YAxis dataKey="code" type="category" width={80} tick={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
                                     <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: '#f8fafc' }} />
-                                    <Bar dataKey="totalRevenue" radius={[0, 4, 4, 0]} barSize={24}>
-                                        {sortedByRevenue.map((_: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                        ))}
-                                    </Bar>
+                                    <Bar dataKey="totalRevenue" fill="#B92926" radius={[0, 4, 4, 0]} barSize={24} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -674,11 +670,7 @@ const Dashboard: React.FC = () => {
                                     <XAxis type="number" tickFormatter={(value) => formatCurrencyNoDecimals(value)} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <YAxis dataKey="code" type="category" width={80} tick={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
                                     <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: '#f8fafc' }} />
-                                    <Bar dataKey="totalRepasse" radius={[0, 4, 4, 0]} barSize={24}>
-                                        {sortedByRepasse.map((_: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                        ))}
-                                    </Bar>
+                                    <Bar dataKey="totalRepasse" fill="#B92926" radius={[0, 4, 4, 0]} barSize={24} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
