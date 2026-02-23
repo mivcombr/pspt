@@ -215,6 +215,11 @@ export const appointmentService = {
         const diffMs = end.getTime() - start.getTime();
         const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
+        const prevEnd = new Date(start.getTime() - 1);
+        const prevStart = new Date(prevEnd.getTime() - diffMs);
+        const prevStartDateStr = prevStart.toISOString().split('T')[0];
+        const prevEndDateStr = prevEnd.toISOString().split('T')[0];
+
         let query = supabase
             .from('appointments')
             .select(`
@@ -230,42 +235,65 @@ export const appointmentService = {
             .gte('date', filters.startDate)
             .lte('date', filters.endDate);
 
-        if (filters.hospitalId && filters.hospitalId !== 'Todos os Parceiros' && filters.hospitalId !== 'Todos os Hospitais') {
-            query = query.eq('hospital_id', filters.hospitalId);
-        }
+        let prevQuery = supabase
+            .from('appointments')
+            .select(`total_cost, repasse_value, hospital_value, type, status, date, hospital_id`)
+            .gte('date', prevStartDateStr)
+            .lte('date', prevEndDateStr);
 
-        const { data, error } = await query;
-        if (error) {
-            logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
-            throw error;
-        }
-
-        let expensesData: any[] = [];
-        let expensesError: any = null;
         let expensesQuery = supabase
             .from('expenses')
             .select('id, due_date, value, hospital_id')
             .gte('due_date', filters.startDate)
             .lte('due_date', filters.endDate);
 
+        let prevExpensesQuery = supabase
+            .from('expenses')
+            .select('id, due_date, value, hospital_id')
+            .gte('due_date', prevStartDateStr)
+            .lte('due_date', prevEndDateStr);
+
         if (filters.hospitalId && filters.hospitalId !== 'Todos os Parceiros' && filters.hospitalId !== 'Todos os Hospitais') {
+            query = query.eq('hospital_id', filters.hospitalId);
+            prevQuery = prevQuery.eq('hospital_id', filters.hospitalId);
             expensesQuery = expensesQuery.eq('hospital_id', filters.hospitalId);
+            prevExpensesQuery = prevExpensesQuery.eq('hospital_id', filters.hospitalId);
         }
 
-        const expensesResponse = await expensesQuery;
-        expensesData = expensesResponse.data || [];
-        expensesError = expensesResponse.error;
+        const [currRes, prevRes, expRes, prevExpRes] = await Promise.all([
+            query, prevQuery, expensesQuery, prevExpensesQuery
+        ]);
 
-        if (expensesError && expensesError.message?.includes('column \"hospital_id\" does not exist')) {
+        if (currRes.error) {
+            logger.error({ action: 'read', entity: 'appointments', error: currRes.error }, 'crud');
+            throw currRes.error;
+        }
+
+        const data = currRes.data || [];
+        const prevData = prevRes.data || [];
+        let expensesData = expRes.data || [];
+        let expensesError = expRes.error;
+        let prevExpensesData = prevExpRes.data || [];
+        let prevExpensesError = prevExpRes.error;
+
+        if ((expensesError && expensesError.message?.includes('column "hospital_id" does not exist')) ||
+            (prevExpensesError && prevExpensesError.message?.includes('column "hospital_id" does not exist'))) {
             let fallbackQuery = supabase
                 .from('expenses')
                 .select('id, due_date, value')
                 .gte('due_date', filters.startDate)
                 .lte('due_date', filters.endDate);
 
-            const fallbackResponse = await fallbackQuery;
-            expensesData = fallbackResponse.data || [];
-            expensesError = fallbackResponse.error;
+            let fallbackPrevQuery = supabase
+                .from('expenses')
+                .select('id, due_date, value')
+                .gte('due_date', prevStartDateStr)
+                .lte('due_date', prevEndDateStr);
+
+            const [fallRes, fallPrevRes] = await Promise.all([fallbackQuery, fallbackPrevQuery]);
+            expensesData = (fallRes.data || []) as any[];
+            expensesError = fallRes.error;
+            prevExpensesData = (fallPrevRes.data || []) as any[];
         }
 
         if (expensesError) {
@@ -368,6 +396,7 @@ export const appointmentService = {
             exames_revenue: 0,
             cirurgias_revenue: 0
         };
+        const prevTotals = { ...totals };
         const partnerMap: Record<string, any> = {};
 
         data.forEach(curr => {
@@ -413,9 +442,34 @@ export const appointmentService = {
             totals.expenses += Number.isFinite(expenseValue) ? expenseValue : 0;
         });
 
+        prevData.forEach(curr => {
+            const revenue = Number(curr.total_cost) || 0;
+            const repasse = Number(curr.repasse_value) || 0;
+            const hospitalValue = Number(curr.hospital_value) || 0;
+
+            prevTotals.revenue += revenue;
+            prevTotals.repasse += repasse;
+            prevTotals.hospital += hospitalValue;
+
+            if (curr.type === 'CONSULTA') {
+                prevTotals.consultas++;
+                prevTotals.consultas_revenue += revenue;
+            } else if (curr.type === 'EXAME') {
+                prevTotals.exames++;
+                prevTotals.exames_revenue += revenue;
+            } else if (curr.type === 'CIRURGIA') {
+                prevTotals.cirurgias++;
+                prevTotals.cirurgias_revenue += revenue;
+            }
+        });
+
+        prevExpensesData.forEach(curr => {
+            prevTotals.expenses += Number(curr.value) || 0;
+        });
+
         const partnerBreakdown = Object.values(partnerMap).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-        return { chartData, totals, partnerBreakdown };
+        return { chartData, totals, prevTotals, partnerBreakdown };
     },
 
     async getProviders() {

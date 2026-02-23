@@ -56,6 +56,23 @@ const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+const PercentageBadge = ({ current, previous }: { current: number, previous: number }) => {
+    if (!previous || previous === 0) return null;
+    const change = ((current - previous) / previous) * 100;
+    if (Math.abs(change) < 0.1) return null;
+
+    const isPositive = change > 0;
+    const valueStr = Math.abs(change).toFixed(1).replace('.', ',') + '%';
+
+    return (
+        <div className={`flex items-center gap-0.5 mt-0.5 text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded-md w-fit ${isPositive ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'}`}>
+            <span className="material-symbols-outlined text-[12px]">{isPositive ? 'trending_up' : 'trending_down'}</span>
+            {valueStr}
+        </div>
+    );
+};
+
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
     const [selectedHospitalId, setSelectedHospitalId] = useState<string>(
@@ -69,6 +86,7 @@ const Dashboard: React.FC = () => {
     const [dashboardData, setDashboardData] = useState<any>({
         chartData: [],
         totals: { revenue: 0, repasse: 0, hospital: 0, expenses: 0, consultas: 0, exames: 0, cirurgias: 0 },
+        prevTotals: { revenue: 0, repasse: 0, hospital: 0, expenses: 0, consultas: 0, exames: 0, cirurgias: 0 },
         partnerBreakdown: []
     });
     const [isLoading, setIsLoading] = useState(true);
@@ -341,9 +359,12 @@ const Dashboard: React.FC = () => {
                                     <span className="sm:hidden">Faturamento Total</span>
                                     <span className="hidden sm:inline">Faturamento Total ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</span>
                                 </p>
-                                <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
-                                    {formatCurrency(dashboardData.totals.revenue)}
-                                </h3>
+                                <div className="flex items-center gap-3">
+                                    <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
+                                        {formatCurrency(dashboardData.totals.revenue)}
+                                    </h3>
+                                    {dashboardData?.prevTotals && <PercentageBadge current={dashboardData.totals.revenue} previous={dashboardData.prevTotals.revenue} />}
+                                </div>
                             </div>
                         </Card>
 
@@ -356,9 +377,12 @@ const Dashboard: React.FC = () => {
                                     <span className="sm:hidden">Valor de Repasse</span>
                                     <span className="hidden sm:inline">Valor de Repasse ({activeDateFilter === 'Personalizado' ? formatRangeLabel() : activeDateFilter})</span>
                                 </p>
-                                <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
-                                    {formatCurrency(dashboardData.totals.repasse)}
-                                </h3>
+                                <div className="flex items-center gap-3">
+                                    <h3 className="text-[clamp(1.2rem,5vw,1.6rem)] sm:text-[clamp(1.125rem,3.5vw,1.5rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-1 animate-in fade-in duration-500 leading-tight whitespace-normal break-words">
+                                        {formatCurrency(dashboardData.totals.repasse)}
+                                    </h3>
+                                    {dashboardData?.prevTotals && <PercentageBadge current={dashboardData.totals.repasse} previous={dashboardData.prevTotals.repasse} />}
+                                </div>
                             </div>
                         </Card>
                     </>
@@ -373,9 +397,9 @@ const Dashboard: React.FC = () => {
                     ))
                 ) : (
                     [
-                        { title: 'Consultas', count: dashboardData.totals.consultas, value: formatCurrency(dashboardData.totals.consultas_revenue || 0), icon: 'event_note' },
-                        { title: 'Exames', count: dashboardData.totals.exames, value: formatCurrency(dashboardData.totals.exames_revenue || 0), icon: 'biotech' },
-                        { title: 'Cirurgias', count: dashboardData.totals.cirurgias, value: formatCurrency(dashboardData.totals.cirurgias_revenue || 0), icon: 'medical_services' }
+                        { title: 'Consultas', count: dashboardData.totals.consultas, countPrev: dashboardData.prevTotals?.consultas || 0, value: formatCurrency(dashboardData.totals.consultas_revenue || 0), valueRaw: dashboardData.totals.consultas_revenue || 0, valuePrev: dashboardData.prevTotals?.consultas_revenue || 0, icon: 'event_note' },
+                        { title: 'Exames', count: dashboardData.totals.exames, countPrev: dashboardData.prevTotals?.exames || 0, value: formatCurrency(dashboardData.totals.exames_revenue || 0), valueRaw: dashboardData.totals.exames_revenue || 0, valuePrev: dashboardData.prevTotals?.exames_revenue || 0, icon: 'biotech' },
+                        { title: 'Cirurgias', count: dashboardData.totals.cirurgias, countPrev: dashboardData.prevTotals?.cirurgias || 0, value: formatCurrency(dashboardData.totals.cirurgias_revenue || 0), valueRaw: dashboardData.totals.cirurgias_revenue || 0, valuePrev: dashboardData.prevTotals?.cirurgias_revenue || 0, icon: 'medical_services' }
                     ].map((item, i) => (
                         <div
                             key={i}
@@ -385,17 +409,21 @@ const Dashboard: React.FC = () => {
                                 <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
                                     <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{item.icon}</span>
                                 </div>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-tight whitespace-normal">
+                                <div className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-tight whitespace-normal flex flex-col items-center sm:items-start">
                                     <span className="block sm:hidden">{item.title}</span>
-                                    <span className="block sm:hidden font-normal opacity-70">{formatNumber(item.count)} un.</span>
-                                    <span className="hidden sm:inline">
-                                        {item.title} <span className="font-normal opacity-70">({formatNumber(item.count)})</span>
-                                    </span>
-                                </p>
+                                    <div className="flex items-center gap-1.5 font-normal text-slate-600 dark:text-slate-400">
+                                        <span className="hidden sm:inline font-bold uppercase">{item.title}</span>
+                                        <span className="opacity-70">({formatNumber(item.count)} un.)</span>
+                                        {dashboardData?.prevTotals && <PercentageBadge current={item.count} previous={item.countPrev} />}
+                                    </div>
+                                </div>
                             </div>
-                            <h3 className="text-[clamp(0.9rem,4vw,1.1rem)] sm:text-[clamp(1rem,3vw,1.375rem)] font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in leading-tight whitespace-normal break-words">
-                                {item.value}
-                            </h3>
+                            <div className="flex flex-col items-center sm:items-end">
+                                <h3 className="text-[clamp(0.9rem,4vw,1.1rem)] sm:text-[clamp(1rem,3vw,1.375rem)] font-extrabold text-slate-900 dark:text-white tracking-tight animate-in fade-in leading-tight whitespace-normal break-words">
+                                    {item.value}
+                                </h3>
+                                {dashboardData?.prevTotals && <PercentageBadge current={item.valueRaw} previous={item.valuePrev} />}
+                            </div>
                         </div>
                     ))
                 )}
