@@ -378,7 +378,7 @@ const Dashboard: React.FC = () => {
 
                         <Card className="p-5 sm:p-6 group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/20">
                             <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-blue-500/5 text-blue-500 flex items-center justify-center shrink-0 border border-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white group-hover:border-blue-500">
+                                <div className="w-14 h-14 rounded-2xl bg-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/10 transition-colors group-hover:bg-primary group-hover:text-white group-hover:border-primary">
                                     <span className="material-symbols-outlined text-[28px]">payments</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
