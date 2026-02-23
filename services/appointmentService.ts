@@ -237,7 +237,16 @@ export const appointmentService = {
 
         let prevQuery = supabase
             .from('appointments')
-            .select(`total_cost, repasse_value, hospital_value, type, status, date, hospital_id`)
+            .select(`
+                total_cost, 
+                repasse_value, 
+                hospital_value, 
+                type, 
+                status, 
+                date, 
+                hospital_id,
+                hospital:hospitals(name, code, location)
+            `)
             .gte('date', prevStartDateStr)
             .lte('date', prevEndDateStr);
 
@@ -429,7 +438,9 @@ export const appointmentService = {
                         code: h.code,
                         location: h.location,
                         totalRevenue: 0,
-                        totalRepasse: 0
+                        totalRepasse: 0,
+                        totalRevenuePrev: 0,
+                        totalRepassePrev: 0
                     };
                 }
                 partnerMap[h.name].totalRevenue += revenue;
@@ -460,6 +471,23 @@ export const appointmentService = {
             } else if (curr.type === 'CIRURGIA') {
                 prevTotals.cirurgias++;
                 prevTotals.cirurgias_revenue += revenue;
+            }
+
+            if (curr.hospital) {
+                const h = curr.hospital as any;
+                if (!partnerMap[h.name]) {
+                    partnerMap[h.name] = {
+                        name: h.name,
+                        code: h.code,
+                        location: h.location,
+                        totalRevenue: 0,
+                        totalRepasse: 0,
+                        totalRevenuePrev: 0,
+                        totalRepassePrev: 0
+                    };
+                }
+                partnerMap[h.name].totalRevenuePrev += revenue;
+                partnerMap[h.name].totalRepassePrev += repasse;
             }
         });
 

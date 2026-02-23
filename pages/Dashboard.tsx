@@ -673,9 +673,12 @@ const Dashboard: React.FC = () => {
                                             <p className="text-xs text-slate-500 font-medium">{p.location}</p>
                                         </div>
                                     </div>
-                                    <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-xs">
-                                        {formatCurrency(p.totalRevenue)}
-                                    </span>
+                                    <div className="flex flex-col items-end">
+                                        <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-xs">
+                                            {formatCurrency(p.totalRevenue)}
+                                        </span>
+                                        <PercentageBadge current={p.totalRevenue} previous={p.totalRevenuePrev} />
+                                    </div>
                                 </div>
                             ))
                         )}
@@ -720,9 +723,12 @@ const Dashboard: React.FC = () => {
                                             <p className="text-xs text-slate-500 font-medium">{p.location}</p>
                                         </div>
                                     </div>
-                                    <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-xs">
-                                        {formatCurrency(p.totalRepasse)}
-                                    </span>
+                                    <div className="flex flex-col items-end">
+                                        <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-xs">
+                                            {formatCurrency(p.totalRepasse)}
+                                        </span>
+                                        <PercentageBadge current={p.totalRepasse} previous={p.totalRepassePrev} />
+                                    </div>
                                 </div>
                             ))
                         )}
