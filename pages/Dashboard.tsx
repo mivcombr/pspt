@@ -691,11 +691,16 @@ const Dashboard: React.FC = () => {
                         ) : (
                             sortedByRepasse.map((p: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
-                                    <div>
-                                        <p className="font-bold text-slate-900 dark:text-white text-sm">{p.name}</p>
-                                        <p className="text-xs text-slate-500 font-medium">{p.location}</p>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300`}>
+                                            {p.code}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white text-sm">{p.name}</p>
+                                            <p className="text-xs text-slate-500 font-medium">{p.location}</p>
+                                        </div>
                                     </div>
-                                    <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                                    <span className="font-black text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg text-xs">
                                         {formatCurrency(p.totalRepasse)}
                                     </span>
                                 </div>
