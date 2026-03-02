@@ -35,11 +35,25 @@ const Financials: React.FC = () => {
     // History Modal State
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+    const [appointments, setAppointments] = useState<any[]>([]);
     const [history, setHistory] = useState<any[]>([]);
     const [isFetchingHistory, setIsFetchingHistory] = useState(false);
 
-    const [appointments, setAppointments] = useState<any[]>([]);
-    const [totals, setTotals] = useState({ revenue: 0, repasse: 0, hospital: 0, pending: 0, pendingRepasse: 0 });
+    const [totals, setTotals] = useState({
+        revenue: 0,
+        repasse: 0,
+        hospital: 0,
+        pending: 0,
+        pendingRepasse: 0,
+        paid: 0,
+        failed: 0,
+        hospitalPaid: 0,
+        hospitalPending: 0,
+        hospitalFailed: 0,
+        repassePaid: 0,
+        repassePending: 0,
+        repasseFailed: 0
+    });
 
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -255,20 +269,50 @@ const Financials: React.FC = () => {
 
             const stats = data.reduce((acc, curr) => {
                 const cost = Number(curr.total_cost);
-                acc.revenue += cost;
-                acc.repasse += Number(curr.repasse_value);
-                acc.hospital += Number(curr.hospital_value);
-                if (curr.payment_status === 'Pendente') acc.pending += cost;
+                const hospitalValue = Number(curr.hospital_value);
+                const repasseValue = Number(curr.repasse_value);
 
-                // Track Pending Repasse (default to Pendente if null)
-                if (curr.repasse_status === 'Pendente' || !curr.repasse_status) acc.pendingRepasse += Number(curr.repasse_value);
+                acc.revenue += cost;
+                acc.repasse += repasseValue;
+                acc.hospital += hospitalValue;
+
+                // Status Normalization
+                const paymentStatus = curr.payment_status === 'Não realizado' || curr.payment_status === 'Nao realizado' ? 'Não realizado' : (curr.payment_status || 'Pendente');
+                const repasseStatus = paymentStatus === 'Não realizado' ? 'Não realizado' : (curr.repasse_status === 'Não realizado' || curr.repasse_status === 'Nao realizado' ? 'Não realizado' : (curr.repasse_status || 'Pendente'));
+
+                // Revenue / Hospital Breakdown
+                if (paymentStatus === 'Pago') {
+                    acc.paid += cost;
+                    acc.hospitalPaid += hospitalValue;
+                } else if (paymentStatus === 'Pendente') {
+                    acc.pending += cost;
+                    acc.hospitalPending += hospitalValue;
+                } else if (paymentStatus === 'Não realizado') {
+                    acc.failed += cost;
+                    acc.hospitalFailed += hospitalValue;
+                }
+
+                // Repasse Breakdown
+                if (repasseStatus === 'Pago') {
+                    acc.repassePaid += repasseValue;
+                } else if (repasseStatus === 'Pendente') {
+                    acc.repassePending += repasseValue;
+                    acc.pendingRepasse += repasseValue;
+                } else if (repasseStatus === 'Não realizado') {
+                    acc.repasseFailed += repasseValue;
+                }
 
                 if (curr.type === 'EXAME') acc.exames += cost;
                 else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
                 else if (curr.type === 'CONSULTA') acc.consultas += cost;
 
                 return acc;
-            }, { revenue: 0, repasse: 0, hospital: 0, pending: 0, pendingRepasse: 0, exames: 0, cirurgias: 0, consultas: 0 });
+            }, {
+                revenue: 0, repasse: 0, hospital: 0, pending: 0, pendingRepasse: 0, paid: 0, failed: 0,
+                hospitalPaid: 0, hospitalPending: 0, hospitalFailed: 0,
+                repassePaid: 0, repassePending: 0, repasseFailed: 0,
+                exames: 0, cirurgias: 0, consultas: 0
+            });
 
             setTotals(stats);
             setCategoryTotals({
@@ -327,8 +371,11 @@ const Financials: React.FC = () => {
                 (a.patient_name && a.patient_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 (a.procedure && a.procedure.toLowerCase().includes(searchTerm.toLowerCase()));
 
-            const matchesPayment = statusFilter === 'Todos Pagamentos' || a.payment_status === statusFilter;
-            const matchesRepasse = repasseStatusFilter === 'Todos Acertos' || (a.repasse_status || 'Pendente') === repasseStatusFilter;
+            const normalizedPaymentStatus = a.payment_status === 'Não realizado' || a.payment_status === 'Nao realizado' ? 'Não realizado' : (a.payment_status || 'Pendente');
+            const normalizedRepasseStatus = normalizedPaymentStatus === 'Não realizado' ? 'Não realizado' : (a.repasse_status === 'Não realizado' || a.repasse_status === 'Nao realizado' ? 'Não realizado' : (a.repasse_status || 'Pendente'));
+
+            const matchesPayment = statusFilter === 'Todos Pagamentos' || normalizedPaymentStatus === statusFilter;
+            const matchesRepasse = repasseStatusFilter === 'Todos Acertos' || normalizedRepasseStatus === repasseStatusFilter;
 
             return matchesSearch && matchesPayment && matchesRepasse;
         });
@@ -340,33 +387,66 @@ const Financials: React.FC = () => {
     const filteredTotals = useMemo(() => {
         return filteredTransactions.reduce((acc, curr) => {
             const cost = Number(curr.total_cost);
+            const hospitalValue = Number(curr.hospital_value);
+            const repasseValue = Number(curr.repasse_value);
+
             acc.revenue += cost;
-            acc.repasse += Number(curr.repasse_value);
-            acc.hospital += Number(curr.hospital_value);
-            if (curr.payment_status === 'Pendente') acc.pending += cost;
-            if (curr.repasse_status === 'Pendente' || !curr.repasse_status) acc.pendingRepasse += Number(curr.repasse_value);
+            acc.repasse += repasseValue;
+            acc.hospital += hospitalValue;
+
+            // Status Normalization
+            const paymentStatus = curr.payment_status === 'Não realizado' || curr.payment_status === 'Nao realizado' ? 'Não realizado' : (curr.payment_status || 'Pendente');
+            const repasseStatus = paymentStatus === 'Não realizado' ? 'Não realizado' : (curr.repasse_status === 'Não realizado' || curr.repasse_status === 'Nao realizado' ? 'Não realizado' : (curr.repasse_status || 'Pendente'));
+
+            // Revenue / Hospital Breakdown
+            if (paymentStatus === 'Pago') {
+                acc.paid += cost;
+                acc.hospitalPaid += hospitalValue;
+            } else if (paymentStatus === 'Pendente') {
+                acc.pending += cost;
+                acc.hospitalPending += hospitalValue;
+            } else if (paymentStatus === 'Não realizado') {
+                acc.failed += cost;
+                acc.hospitalFailed += hospitalValue;
+            }
+
+            // Repasse Breakdown (Total do Programa card)
+            if (repasseStatus === 'Pago') {
+                acc.repassePaid += repasseValue;
+            } else if (repasseStatus === 'Pendente') {
+                acc.repassePending += repasseValue;
+                acc.pendingRepasse += repasseValue; // Used for "Saldo a Receber" highlight cards
+            } else if (repasseStatus === 'Não realizado') {
+                acc.repasseFailed += repasseValue;
+            }
 
             if (curr.type === 'EXAME') acc.exames += cost;
             else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
             else if (curr.type === 'CONSULTA') acc.consultas += cost;
 
             return acc;
-        }, { revenue: 0, repasse: 0, hospital: 0, pending: 0, pendingRepasse: 0, exames: 0, cirurgias: 0, consultas: 0 });
+        }, {
+            revenue: 0, repasse: 0, hospital: 0, pending: 0, pendingRepasse: 0, paid: 0, failed: 0,
+            hospitalPaid: 0, hospitalPending: 0, hospitalFailed: 0,
+            repassePaid: 0, repassePending: 0, repasseFailed: 0,
+            exames: 0, cirurgias: 0, consultas: 0
+        });
     }, [filteredTransactions]);
 
     const filteredCategoryTotals = useMemo(() => {
+        const total = filteredTotals.revenue || 1;
         return {
             exames: {
                 value: filteredTotals.exames,
-                pct: filteredTotals.revenue ? `${(filteredTotals.exames / filteredTotals.revenue * 100).toFixed(0)}%` : '0%'
+                pct: (filteredTotals.exames / total * 100)
             },
             cirurgias: {
                 value: filteredTotals.cirurgias,
-                pct: filteredTotals.revenue ? `${(filteredTotals.cirurgias / filteredTotals.revenue * 100).toFixed(0)}%` : '0%'
+                pct: (filteredTotals.cirurgias / total * 100)
             },
             consultas: {
                 value: filteredTotals.consultas,
-                pct: filteredTotals.revenue ? `${(filteredTotals.consultas / filteredTotals.revenue * 100).toFixed(0)}%` : '0%'
+                pct: (filteredTotals.consultas / total * 100)
             }
         };
     }, [filteredTotals]);
@@ -425,7 +505,8 @@ const Financials: React.FC = () => {
             },
             repasse: {
                 Pago: 'Acerto Realizado',
-                Pendente: 'Acerto Pendente'
+                Pendente: 'Acerto Pendente',
+                'Não realizado': 'Não realizado'
             }
         };
 
@@ -569,7 +650,7 @@ const Financials: React.FC = () => {
                 financial_additional: additionalValue,
                 net_value: net_value,
                 payment_status: editForm.payment_status,
-                repasse_status: editForm.repasse_status as any
+                repasse_status: editForm.payment_status === 'Não realizado' ? 'Não realizado' : editForm.repasse_status as any
             });
             setIsEditModalOpen(false);
             fetchData();
@@ -731,79 +812,133 @@ const Financials: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="h-[7.5rem] sm:h-[8.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
+                        <div key={i} className="h-44 rounded-[2rem] bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
                     ))
                 ) : (
                     [
-                        { label: 'Faturamento Total', value: formatCurrency(filteredTotals.revenue), icon: 'payments' },
-                        { label: 'Faturamento Hospital', value: formatCurrency(filteredTotals.hospital), icon: 'domain' },
-                        { label: 'Total do Programa', value: formatCurrency(filteredTotals.repasse), icon: 'attach_money' },
                         {
-                            label: 'A Receber',
-                            value: formatCurrency(filteredTotals.pending),
-                            icon: 'account_balance_wallet',
-                            helper: 'Valor a ser pago pelos pacientes',
-                            highlight: true,
-                            divider: true
+                            label: 'Faturamento Bruto',
+                            value: filteredTotals.revenue,
+                            icon: 'payments',
+                            color: 'primary',
+                            breakdown: [
+                                { label: 'Pago', value: filteredTotals.paid, colorClass: 'text-green-500' },
+                                { label: 'Pendente', value: filteredTotals.pending, colorClass: 'text-amber-500' },
+                                { label: 'Não Realizado', value: filteredTotals.failed, colorClass: 'text-red-500' }
+                            ]
                         },
                         {
-                            label: 'Programa a Receber',
-                            value: formatCurrency(filteredTotals.pendingRepasse),
+                            label: 'Receita Hospital',
+                            value: filteredTotals.hospital,
+                            icon: 'domain',
+                            color: 'slate',
+                            breakdown: [
+                                { label: 'Pago', value: filteredTotals.hospitalPaid, colorClass: 'text-green-500' },
+                                { label: 'Pendente', value: filteredTotals.hospitalPending, colorClass: 'text-amber-500' },
+                                { label: 'Não Realizado', value: filteredTotals.hospitalFailed, colorClass: 'text-red-500' }
+                            ]
+                        },
+                        {
+                            label: 'Receita Programa',
+                            value: filteredTotals.repasse,
+                            icon: 'attach_money',
+                            color: 'primary',
+                            breakdown: [
+                                { label: 'Pago', value: filteredTotals.repassePaid, colorClass: 'text-green-500' },
+                                { label: 'Pendente', value: filteredTotals.repassePending, colorClass: 'text-amber-500' },
+                                { label: 'Não Realizado', value: filteredTotals.repasseFailed, colorClass: 'text-red-500' }
+                            ]
+                        },
+                        {
+                            label: 'Saldo a Receber',
+                            value: filteredTotals.pending,
+                            icon: 'account_balance_wallet',
+                            color: 'red',
+                            helper: 'Total pendente de pagamento pelos pacientes',
+                            highlight: true
+                        },
+                        {
+                            label: 'Repasse a Realizar',
+                            value: filteredTotals.pendingRepasse,
                             icon: 'currency_exchange',
-                            helper: 'Valor em aberto a ser repassado',
+                            color: 'red',
+                            helper: 'Total em aberto para repasse aos prestadores',
                             highlight: true
                         }
                     ].map((card, i) => (
                         <div
                             key={i}
-                            className={`relative p-4 sm:p-6 rounded-3xl border shadow-sm card-shadow min-h-[7.5rem] sm:min-h-[8.5rem] min-w-0 ${card.highlight ? 'bg-[rgb(254,242,242)] border-red-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}
+                            className={`group relative p-6 rounded-[2rem] border transition-all duration-300 hover:shadow-xl ${card.highlight
+                                ? 'bg-red-50/30 border-red-200 dark:bg-red-900/10 dark:border-red-800'
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
+                                }`}
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shrink-0 ${card.highlight ? 'bg-white text-primary border border-red-100' : 'bg-red-50 dark:bg-slate-800 text-primary dark:text-primary-hover'}`}>
-                                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{card.icon}</span>
+                            <div className="flex items-center justify-between mb-4">
+                                <div className={`size-10 rounded-2xl flex items-center justify-center ${card.highlight
+                                    ? 'bg-red-100 text-red-600'
+                                    : 'bg-slate-50 dark:bg-slate-800 text-slate-400 group-hover:text-primary transition-colors'
+                                    }`}>
+                                    <span className="material-symbols-outlined text-[20px]">{card.icon}</span>
                                 </div>
+                                {card.helper && (
+                                    <div className="has-tooltip cursor-help">
+                                        <span className="material-symbols-outlined text-[18px] text-slate-300 hover:text-slate-400">info</span>
+                                        <div className="tooltip-content !text-[10px] !p-2 !w-32">{card.helper}</div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="mt-4 min-w-0">
-                                <p className={`text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide ${card.highlight ? 'text-slate-500' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
-                                <h3 className="text-[clamp(0.95rem,4vw,1.25rem)] sm:text-[clamp(1rem,2.6vw,1.35rem)] font-extrabold text-slate-900 dark:text-white tracking-tight mt-2 leading-tight whitespace-normal break-words">
-                                    {card.value}
+
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.1em]">{card.label}</p>
+                                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                                    {formatCurrency(card.value)}
                                 </h3>
-                                {card.helper ? (
-                                    <span
-                                        title={card.helper}
-                                        className="absolute right-4 top-4 text-slate-400 hover:text-slate-500 transition-colors"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">info</span>
-                                    </span>
-                                ) : null}
                             </div>
+
+                            {card.breakdown && (
+                                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                                    {card.breakdown.map((item, idx) => (
+                                        <div key={idx} className="flex items-center justify-between gap-2">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter truncate">{item.label}</span>
+                                            <span className={`text-[11px] font-bold shrink-0 ${item.colorClass}`}>{formatCurrency(item.value)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {isLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-[5.5rem] rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
+                        <div key={i} className="h-24 rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
                     ))
                 ) : (
                     [
-                        { title: 'Exames', value: formatCurrency(filteredCategoryTotals.exames.value), icon: 'biotech', color: 'indigo', pct: filteredCategoryTotals.exames.pct },
-                        { title: 'Cirurgias', value: formatCurrency(filteredCategoryTotals.cirurgias.value), icon: 'medical_services', color: 'teal', pct: filteredCategoryTotals.cirurgias.pct },
-                        { title: 'Consultas', value: formatCurrency(filteredCategoryTotals.consultas.value), icon: 'stethoscope', color: 'purple', pct: filteredCategoryTotals.consultas.pct }
+                        { title: 'Exames', value: filteredCategoryTotals.exames.value, icon: 'biotech', pct: filteredCategoryTotals.exames.pct },
+                        { title: 'Cirurgias', value: filteredCategoryTotals.cirurgias.value, icon: 'medical_services', pct: filteredCategoryTotals.cirurgias.pct },
+                        { title: 'Consultas', value: filteredCategoryTotals.consultas.value, icon: 'stethoscope', pct: filteredCategoryTotals.consultas.pct }
                     ].map((item, i) => (
-                        <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-5 gap-2 sm:gap-3 min-w-0 text-center sm:text-left">
-                            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 min-w-0">
-                                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary dark:text-primary-hover shrink-0">
-                                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{item.icon}</span>
+                        <div key={i} className="group bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-700 p-5 flex items-center justify-between transition-all hover:bg-slate-50/50 dark:hover:bg-slate-800/50 shadow-sm">
+                            <div className="flex items-center gap-4 min-w-0">
+                                <div className="size-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0 transition-all group-hover:text-primary">
+                                    <span className="material-symbols-outlined text-[24px]">{item.icon}</span>
                                 </div>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-tight whitespace-normal">{item.title}</p>
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">{item.title}</p>
+                                    <h3 className="text-lg font-black text-slate-900 dark:text-white truncate">{formatCurrency(item.value)}</h3>
+                                </div>
                             </div>
-                            <h3 className="text-[clamp(0.95rem,4vw,1.2rem)] sm:text-[clamp(1.125rem,3.2vw,1.5rem)] font-extrabold text-slate-900 dark:text-white leading-tight whitespace-normal break-words">{item.value}</h3>
+                            <div className="text-right">
+                                <div className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                    {Math.round(item.pct)}%
+                                </div>
+                            </div>
                         </div>
                     ))
                 )}
@@ -866,6 +1001,7 @@ const Financials: React.FC = () => {
                                 <option value="Todos Acertos">Status Acerto</option>
                                 <option value="Pago">Pago</option>
                                 <option value="Pendente">Pendente</option>
+                                <option value="Não realizado">Não realizado</option>
                             </select>
                             <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">currency_exchange</span>
                         </div>
@@ -990,7 +1126,10 @@ const Financials: React.FC = () => {
 
                                         <td className="hidden lg:table-cell px-6 py-5 align-top text-center">
                                             <div className="flex flex-col items-center scale-90 origin-center">
-                                                {getStatusBadge(item.repasse_status || 'Pendente', 'repasse')}
+                                                {getStatusBadge(
+                                                    item.payment_status === 'Não realizado' ? 'Não realizado' : (item.repasse_status || 'Pendente'),
+                                                    'repasse'
+                                                )}
                                                 {item.repasse_status === 'Pago' && item.repasse_paid_at && (
                                                     <span className="text-[9px] font-bold text-slate-400 mt-1">{formatDate(item.repasse_paid_at)}</span>
                                                 )}
@@ -1100,7 +1239,10 @@ const Financials: React.FC = () => {
                                                     </div>
                                                     <div className="flex flex-col items-end gap-1 scale-75 origin-right">
                                                         {getStatusBadge(item.payment_status, 'payment')}
-                                                        {getStatusBadge(item.repasse_status || 'Pendente', 'repasse')}
+                                                        {getStatusBadge(
+                                                            item.payment_status === 'Não realizado' ? 'Não realizado' : (item.repasse_status || 'Pendente'),
+                                                            'repasse'
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1161,110 +1303,113 @@ const Financials: React.FC = () => {
             </div>
 
             {/* Edit Modal */}
-            {isEditModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-8">
-                            <div className="flex justify-between items-center mb-8">
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">Editar Registro</h3>
-                                <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                                    <span className="material-symbols-outlined text-slate-400">close</span>
-                                </button>
-                            </div>
+            {
+                isEditModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="p-8">
+                                <div className="flex justify-between items-center mb-8">
+                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white">Editar Registro</h3>
+                                    <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                                        <span className="material-symbols-outlined text-slate-400">close</span>
+                                    </button>
+                                </div>
 
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 mb-1 block">Valor Pago</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={editForm.total_cost}
-                                                onChange={e => setEditForm({ ...editForm, total_cost: formatMoneyInput(e.target.value) })}
-                                                className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 mb-1 block">Valor do Programa</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={editForm.repasse_value}
-                                                onChange={e => setEditForm({ ...editForm, repasse_value: formatMoneyInput(e.target.value) })}
-                                                className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-primary"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 mb-1 block">Hospital</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={editForm.hospital_value}
-                                                onChange={e => setEditForm({ ...editForm, hospital_value: formatMoneyInput(e.target.value) })}
-                                                className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
-                                            />
-                                        </div>
-                                    </div>
-                                    {isAdmin && (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-xs font-bold text-slate-500 mb-1 block">Adicional</label>
+                                            <label className="text-xs font-bold text-slate-500 mb-1 block">Valor Pago</label>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
-                                                    value={editForm.financial_additional}
-                                                    onChange={e => setEditForm({ ...editForm, financial_additional: formatMoneyInput(e.target.value) })}
-                                                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-amber-600"
+                                                    value={editForm.total_cost}
+                                                    onChange={e => setEditForm({ ...editForm, total_cost: formatMoneyInput(e.target.value) })}
+                                                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
                                                 />
                                             </div>
                                         </div>
-                                    )}
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 mb-1 block">Valor do Programa</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={editForm.repasse_value}
+                                                    onChange={e => setEditForm({ ...editForm, repasse_value: formatMoneyInput(e.target.value) })}
+                                                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-primary"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 mb-1 block">Hospital</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={editForm.hospital_value}
+                                                    onChange={e => setEditForm({ ...editForm, hospital_value: formatMoneyInput(e.target.value) })}
+                                                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
+                                                />
+                                            </div>
+                                        </div>
+                                        {isAdmin && (
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 mb-1 block">Adicional</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
+                                                    <input
+                                                        type="text"
+                                                        inputMode="decimal"
+                                                        value={editForm.financial_additional}
+                                                        onChange={e => setEditForm({ ...editForm, financial_additional: formatMoneyInput(e.target.value) })}
+                                                        className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-amber-600"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 mb-1 block">Status Pagamento</label>
+                                            <select
+                                                value={editForm.payment_status}
+                                                onChange={e => setEditForm({ ...editForm, payment_status: e.target.value })}
+                                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
+                                            >
+                                                <option value="Pendente">Pendente</option>
+                                                <option value="Pago">Pago</option>
+                                                <option value="Não realizado">Não realizado</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 mb-1 block">Status Programa</label>
+                                            <select
+                                                value={editForm.repasse_status}
+                                                onChange={e => setEditForm({ ...editForm, repasse_status: e.target.value })}
+                                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
+                                            >
+                                                <option value="Pendente">Pendente</option>
+                                                <option value="Pago">Pago</option>
+                                                <option value="Não realizado">Não realizado</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 mb-1 block">Status Pagamento</label>
-                                        <select
-                                            value={editForm.payment_status}
-                                            onChange={e => setEditForm({ ...editForm, payment_status: e.target.value })}
-                                            className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
-                                        >
-                                            <option value="Pendente">Pendente</option>
-                                            <option value="Pago">Pago</option>
-                                            <option value="Não realizado">Não realizado</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 mb-1 block">Status Programa</label>
-                                        <select
-                                            value={editForm.repasse_status}
-                                            onChange={e => setEditForm({ ...editForm, repasse_status: e.target.value })}
-                                            className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
-                                        >
-                                            <option value="Pendente">Pendente</option>
-                                            <option value="Pago">Pago</option>
-                                        </select>
-                                    </div>
+                                <div className="flex justify-end gap-3 mt-8">
+                                    <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
+                                    <button onClick={handleSaveEdit} className="px-6 py-2 text-sm font-bold bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all">Salvar Alterações</button>
                                 </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 mt-8">
-                                <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
-                                <button onClick={handleSaveEdit} className="px-6 py-2 text-sm font-bold bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all">Salvar Alterações</button>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
 
             {
@@ -1325,209 +1470,213 @@ const Financials: React.FC = () => {
             }
 
             {/* History Sidebar/Modal */}
-            {isHistoryOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-end animate-in fade-in duration-300">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsHistoryOpen(false)} />
+            {
+                isHistoryOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-end animate-in fade-in duration-300">
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsHistoryOpen(false)} />
 
-                    <div className="relative w-full max-w-2xl h-screen bg-slate-50 dark:bg-slate-950 shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
-                        {/* Modal Header */}
-                        <div className="bg-white dark:bg-slate-900 p-8 border-b border-slate-200 dark:border-slate-800 shrink-0">
-                            <div className="flex justify-between items-start mb-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="size-16 rounded-3xl bg-primary text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-primary/20">
-                                        {selectedPatient && getInitials(selectedPatient.name)}
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">{selectedPatient?.name}</h2>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                                                <span className="material-symbols-outlined text-[14px]">id_card</span>
-                                                Prontuário Digital
-                                            </span>
+                        <div className="relative w-full max-w-2xl h-screen bg-slate-50 dark:bg-slate-950 shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
+                            {/* Modal Header */}
+                            <div className="bg-white dark:bg-slate-900 p-8 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="size-16 rounded-3xl bg-primary text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-primary/20">
+                                            {selectedPatient && getInitials(selectedPatient.name)}
                                         </div>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setIsHistoryOpen(false)}
-                                    className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"
-                                >
-                                    <span className="material-symbols-outlined">close</span>
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Telefone</p>
-                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient?.phone}</p>
-                                </div>
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nascimento</p>
-                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient && formatDate(selectedPatient.birthDate)}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* History Content */}
-                        <div className="flex-1 overflow-y-auto p-8">
-                            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                                <span className="material-symbols-outlined text-primary">history</span>
-                                Histórico de Atendimentos
-                            </h3>
-
-                            <div className="space-y-6">
-                                {isFetchingHistory ? (
-                                    Array.from({ length: 3 }).map((_, i) => (
-                                        <div key={i} className="h-32 rounded-3xl bg-white dark:bg-slate-900 animate-pulse border border-slate-100 dark:border-slate-800" />
-                                    ))
-                                ) : history.length > 0 ? (
-                                    history.map((item, idx) => (
-                                        <div
-                                            key={idx}
-                                            className="relative pl-10 before:content-[''] before:absolute before:left-[19px] before:top-8 before:bottom-[-24px] before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800 last:before:hidden"
-                                        >
-                                            {/* Timeline dot */}
-                                            <div className="absolute left-0 top-2 size-10 rounded-full bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-950 flex items-center justify-center z-10 shadow-sm">
-                                                <div className={`size-3 rounded-full ${item.status === 'Atendido' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]' : 'bg-primary shadow-[0_0_10px_rgba(185,41,38,0.4)]'}`}></div>
-                                            </div>
-
-                                            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
-                                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
-                                                    <div>
-                                                        <p className="text-xs font-black text-primary uppercase tracking-widest">{formatDate(item.date)} • {item.time?.substring(0, 5)}</p>
-                                                        <h4 className="font-bold text-slate-900 dark:text-white mt-0.5">{item.procedure}</h4>
-                                                    </div>
-                                                    <Badge status={item.status} />
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50 dark:border-slate-800/50">
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Médico</p>
-                                                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{item.provider || 'Não informado'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Custos</p>
-                                                        <p className="text-xs font-bold text-slate-900 dark:text-white">{formatCurrency(item.total_cost)}</p>
-                                                    </div>
-                                                    <div className="col-span-2">
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Hospital / Clínica</p>
-                                                        <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{item.hospital?.name}</p>
-                                                    </div>
-                                                </div>
-
-                                                {item.notes && (
-                                                    <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Notas</p>
-                                                        <p className="text-xs text-slate-600 dark:text-slate-400 italic">"{item.notes}"</p>
-                                                    </div>
-                                                )}
+                                        <div>
+                                            <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">{selectedPatient?.name}</h2>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[14px]">id_card</span>
+                                                    Prontuário Digital
+                                                </span>
                                             </div>
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-10">
-                                        <p className="text-slate-500 font-bold">Nenhum histórico encontrado para este paciente.</p>
                                     </div>
-                                )}
+                                    <button
+                                        onClick={() => setIsHistoryOpen(false)}
+                                        className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Telefone</p>
+                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient?.phone}</p>
+                                    </div>
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nascimento</p>
+                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient && formatDate(selectedPatient.birthDate)}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* History Content */}
+                            <div className="flex-1 overflow-y-auto p-8">
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-primary">history</span>
+                                    Histórico de Atendimentos
+                                </h3>
+
+                                <div className="space-y-6">
+                                    {isFetchingHistory ? (
+                                        Array.from({ length: 3 }).map((_, i) => (
+                                            <div key={i} className="h-32 rounded-3xl bg-white dark:bg-slate-900 animate-pulse border border-slate-100 dark:border-slate-800" />
+                                        ))
+                                    ) : history.length > 0 ? (
+                                        history.map((item, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="relative pl-10 before:content-[''] before:absolute before:left-[19px] before:top-8 before:bottom-[-24px] before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800 last:before:hidden"
+                                            >
+                                                {/* Timeline dot */}
+                                                <div className="absolute left-0 top-2 size-10 rounded-full bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-950 flex items-center justify-center z-10 shadow-sm">
+                                                    <div className={`size-3 rounded-full ${item.status === 'Atendido' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]' : 'bg-primary shadow-[0_0_10px_rgba(185,41,38,0.4)]'}`}></div>
+                                                </div>
+
+                                                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                                                        <div>
+                                                            <p className="text-xs font-black text-primary uppercase tracking-widest">{formatDate(item.date)} • {item.time?.substring(0, 5)}</p>
+                                                            <h4 className="font-bold text-slate-900 dark:text-white mt-0.5">{item.procedure}</h4>
+                                                        </div>
+                                                        <Badge status={item.status} />
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50 dark:border-slate-800/50">
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Médico</p>
+                                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{item.provider || 'Não informado'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Custos</p>
+                                                            <p className="text-xs font-bold text-slate-900 dark:text-white">{formatCurrency(item.total_cost)}</p>
+                                                        </div>
+                                                        <div className="col-span-2">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Hospital / Clínica</p>
+                                                            <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{item.hospital?.name}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {item.notes && (
+                                                        <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Notas</p>
+                                                            <p className="text-xs text-slate-600 dark:text-slate-400 italic">"{item.notes}"</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-10">
+                                            <p className="text-slate-500 font-bold">Nenhum histórico encontrado para este paciente.</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
             {/* Confirmation Modal */}
-            {isConfirmModalOpen && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-8 pb-4">
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">Confirmar Recebimento</h3>
-                                    <p className="text-slate-500 font-bold text-sm mt-1">{confirmForm.patient_name}</p>
-                                </div>
-                                <button onClick={() => setIsConfirmModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                                    <span className="material-symbols-outlined text-slate-400">close</span>
-                                </button>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+            {
+                isConfirmModalOpen && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="p-8 pb-4">
+                                <div className="flex justify-between items-start mb-6">
                                     <div>
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Valor do Hospital</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={confirmForm.hospital_value}
-                                                onChange={e => setConfirmForm({ ...confirmForm, hospital_value: formatMoneyInput(e.target.value) })}
-                                                className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-primary focus:ring-0 transition-all"
-                                            />
-                                        </div>
+                                        <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">Confirmar Recebimento</h3>
+                                        <p className="text-slate-500 font-bold text-sm mt-1">{confirmForm.patient_name}</p>
                                     </div>
-                                    <div>
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Valor do Programa</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={confirmForm.repasse_value}
-                                                onChange={e => setConfirmForm({ ...confirmForm, repasse_value: formatMoneyInput(e.target.value) })}
-                                                className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-primary focus:ring-0 transition-all"
-                                            />
-                                        </div>
-                                    </div>
+                                    <button onClick={() => setIsConfirmModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                                        <span className="material-symbols-outlined text-slate-400">close</span>
+                                    </button>
                                 </div>
 
-                                {isAdmin && (
-                                    <>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-[10px) font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Adicional Financeiro (Taxas)</label>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Valor do Hospital</label>
                                             <div className="relative">
                                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
-                                                    value={confirmForm.financial_additional}
-                                                    onChange={e => setConfirmForm({ ...confirmForm, financial_additional: formatMoneyInput(e.target.value) })}
-                                                    className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-amber-500 focus:ring-0 transition-all"
+                                                    value={confirmForm.hospital_value}
+                                                    onChange={e => setConfirmForm({ ...confirmForm, hospital_value: formatMoneyInput(e.target.value) })}
+                                                    className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-primary focus:ring-0 transition-all"
                                                 />
                                             </div>
                                         </div>
-
-                                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Total Líquido da Venda</span>
-                                                <span className="text-xl font-black text-green-600 tracking-tight">
-                                                    {formatCurrency(
-                                                        parseCurrency(confirmForm.hospital_value)
-                                                        + parseCurrency(confirmForm.repasse_value)
-                                                        + parseCurrency(confirmForm.financial_additional)
-                                                    )}
-                                                </span>
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Valor do Programa</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={confirmForm.repasse_value}
+                                                    onChange={e => setConfirmForm({ ...confirmForm, repasse_value: formatMoneyInput(e.target.value) })}
+                                                    className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-primary focus:ring-0 transition-all"
+                                                />
                                             </div>
                                         </div>
-                                    </>
-                                )}
+                                    </div>
+
+                                    {isAdmin && (
+                                        <>
+                                            <div>
+                                                <label className="text-[10px) font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Adicional Financeiro (Taxas)</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
+                                                    <input
+                                                        type="text"
+                                                        inputMode="decimal"
+                                                        value={confirmForm.financial_additional}
+                                                        onChange={e => setConfirmForm({ ...confirmForm, financial_additional: formatMoneyInput(e.target.value) })}
+                                                        className="w-full h-12 pl-10 pr-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-sm font-bold focus:border-amber-500 focus:ring-0 transition-all"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Total Líquido da Venda</span>
+                                                    <span className="text-xl font-black text-green-600 tracking-tight">
+                                                        {formatCurrency(
+                                                            parseCurrency(confirmForm.hospital_value)
+                                                            + parseCurrency(confirmForm.repasse_value)
+                                                            + parseCurrency(confirmForm.financial_additional)
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="p-8 pt-4 flex gap-3">
+                                <button
+                                    onClick={() => setIsConfirmModalOpen(false)}
+                                    className="flex-1 px-6 py-4 rounded-2xl font-black text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase text-[10px] tracking-[0.2em]"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSaveConfirmation}
+                                    className="flex-[2] px-6 py-4 rounded-2xl font-black text-white bg-green-600 hover:bg-green-700 transition-all shadow-xl shadow-green-600/20 uppercase text-[10px] tracking-[0.2em]"
+                                >
+                                    Acerto Realizado
+                                </button>
                             </div>
                         </div>
-
-                        <div className="p-8 pt-4 flex gap-3">
-                            <button
-                                onClick={() => setIsConfirmModalOpen(false)}
-                                className="flex-1 px-6 py-4 rounded-2xl font-black text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase text-[10px] tracking-[0.2em]"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleSaveConfirmation}
-                                className="flex-[2] px-6 py-4 rounded-2xl font-black text-white bg-green-600 hover:bg-green-700 transition-all shadow-xl shadow-green-600/20 uppercase text-[10px] tracking-[0.2em]"
-                            >
-                                Acerto Realizado
-                            </button>
-                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
             <ConfirmModal
                 isOpen={confirmModal.isOpen}
                 title={confirmModal.title}
@@ -1539,7 +1688,7 @@ const Financials: React.FC = () => {
                 onConfirm={confirmModal.onConfirm}
                 onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
             />
-        </div>
+        </div >
     );
 };
 
