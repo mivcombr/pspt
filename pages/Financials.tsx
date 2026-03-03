@@ -886,7 +886,7 @@ const Financials: React.FC = () => {
                                 {card.helper && (
                                     <div className="has-tooltip cursor-help">
                                         <span className="material-symbols-outlined text-[18px] text-slate-300 hover:text-slate-400">info</span>
-                                        <div className="tooltip-content !text-[10px] !p-2 !w-32">{card.helper}</div>
+                                        <div className="tooltip-content !text-[10px] !p-2 !w-44">{card.helper}</div>
                                     </div>
                                 )}
                             </div>

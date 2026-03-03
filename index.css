@@ -172,11 +172,11 @@ button,
 
 /* Fix for modal/overlay z-index hierarchy */
 .modal-backdrop {
-  z-index: 40;
+  z-index: 100;
 }
 
 .modal-content {
-  z-index: 50;
+  z-index: 110;
 }
 
 .sidebar-mobile {
@@ -220,17 +220,15 @@ table tbody {
   overflow-y: visible !important;
 }
 
-/* Ensure tooltips are never cut off */
+/* Ensure tooltips stay below modals (modals are z-[60]+) */
 [class*="tooltip"],
-[class*="popover"],
-.z-\[100\],
-.z-\[9999\] {
-  z-index: 100 !important;
+[class*="popover"] {
+  z-index: 50;
 }
 
 /* Tooltip z-index */
 .z-\[9999\] {
-  z-index: 9999 !important;
+  z-index: 9999;
 }
 
 
@@ -356,7 +354,7 @@ select.appearance-none::-ms-expand {
   text-align: left;
   padding: 10px 14px;
   border-radius: 10px;
-  z-index: 100;
+  z-index: 50;
   white-space: nowrap;
   font-size: 11px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);

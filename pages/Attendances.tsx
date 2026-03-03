@@ -1920,7 +1920,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-between">
-                                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatientForHistory?.phone || 'Não informado'}</p>
+                                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatientForHistory?.phone ? formatPhoneInput(selectedPatientForHistory.phone) : 'Não informado'}</p>
                                                 <button
                                                     onClick={() => setIsEditingPhone(true)}
                                                     className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
@@ -1933,7 +1933,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nascimento</p>
-                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatientForHistory?.birthDate || 'Não informado'}</p>
+                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatientForHistory?.birthDate ? selectedPatientForHistory.birthDate.split('-').reverse().join('/') : 'Não informado'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -1957,7 +1957,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                 <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
                                                     <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-4">
                                                         <div>
-                                                            <p className="text-xs font-black text-primary uppercase tracking-widest">{item.date} • {item.time?.substring(0, 5)}</p>
+                                                            <p className="text-xs font-black text-primary uppercase tracking-widest">{item.date ? item.date.split('-').reverse().join('/') : ''} • {item.time?.substring(0, 5)}</p>
                                                             <h4 className="font-bold text-slate-900 dark:text-white mt-0.5">{item.procedure}</h4>
                                                         </div>
                                                         <Badge status={item.status} />

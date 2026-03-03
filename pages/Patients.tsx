@@ -29,6 +29,8 @@ const Patients: React.FC = () => {
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [viewMode, setViewMode] = useState<'grid' | 'rows'>('rows');
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const ITEMS_PER_PAGE = 12;
+    const [currentPage, setCurrentPage] = useState(1);
 
     const AVAILABLE_TAGS = ['CONSULTA', 'CIRURGIA', 'EXAMES', 'RETORNO', 'AGENDADO', 'FALHOU'];
 
@@ -43,6 +45,12 @@ const Patients: React.FC = () => {
     const [phoneInputValue, setPhoneInputValue] = useState('');
     const [isEditingHospital, setIsEditingHospital] = useState(false);
     const [hospitalInputValue, setHospitalInputValue] = useState('');
+
+    // Name & BirthDate Editing State
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [nameInputValue, setNameInputValue] = useState('');
+    const [isEditingBirthDate, setIsEditingBirthDate] = useState(false);
+    const [birthDateInputValue, setBirthDateInputValue] = useState('');
 
     const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -68,6 +76,7 @@ const Patients: React.FC = () => {
     };
 
     useEffect(() => {
+        setCurrentPage(1);
         fetchData();
     }, [selectedHospital, searchTerm]);
 
@@ -87,12 +96,17 @@ const Patients: React.FC = () => {
         setSelectedTags(prev =>
             prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
         );
+        setCurrentPage(1);
     };
 
     const handleOpenHistory = async (patient: PatientRecord) => {
         setSelectedPatient(patient);
         setPhoneInputValue(patient.phone || '');
         setIsEditingPhone(false);
+        setNameInputValue(patient.name || '');
+        setIsEditingName(false);
+        setBirthDateInputValue(patient.birthDate || '');
+        setIsEditingBirthDate(false);
         setHospitalInputValue(patient.hospital_id || '');
         setIsEditingHospital(false);
         setIsHistoryOpen(true);
@@ -105,6 +119,43 @@ const Patients: React.FC = () => {
             notify.error('Erro ao carregar histórico.');
         } finally {
             setIsFetchingHistory(false);
+        }
+    };
+
+    const handleSaveNameAndBirthDate = async () => {
+        if (!selectedPatient) return;
+        if (!nameInputValue.trim()) {
+            notify.warning('O nome não pode estar vazio.');
+            return;
+        }
+
+        const loadingToast = notify.loading('Atualizando cadastro...');
+
+        try {
+            await appointmentService.updatePatientNameAndBirthDate(
+                selectedPatient.name,
+                selectedPatient.birthDate,
+                nameInputValue.trim(),
+                birthDateInputValue,
+                selectedPatient.id
+            );
+
+            const updatedPatient = {
+                ...selectedPatient,
+                name: nameInputValue.trim(),
+                birthDate: birthDateInputValue
+            };
+            setSelectedPatient(updatedPatient);
+            setIsEditingName(false);
+            setIsEditingBirthDate(false);
+            notify.dismiss(loadingToast);
+            notify.success('Cadastro atualizado com sucesso!');
+
+            await fetchData();
+        } catch (err) {
+            console.error('Error updating patient:', err);
+            notify.dismiss(loadingToast);
+            notify.error('Erro ao atualizar cadastro.');
         }
     };
 
@@ -211,6 +262,17 @@ const Patients: React.FC = () => {
         return colors[baseType] || 'bg-slate-50 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400 border-slate-100 dark:border-slate-500/20';
     };
 
+    const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedPatients = filteredPatients.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    const goToPage = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
     return (
         <div className="max-w-[1600px] mx-auto space-y-8 pb-8 relative animate-in fade-in duration-500">
             {/* Header */}
@@ -310,8 +372,8 @@ const Patients: React.FC = () => {
                         Array.from({ length: 8 }).map((_, i) => (
                             <div key={i} className="h-64 rounded-[32px] bg-slate-100 dark:bg-slate-800 animate-pulse" />
                         ))
-                    ) : filteredPatients.length > 0 ? (
-                        filteredPatients.map((patient, idx) => (
+                    ) : paginatedPatients.length > 0 ? (
+                        paginatedPatients.map((patient, idx) => (
                             <div
                                 key={idx}
                                 onClick={() => handleOpenHistory(patient)}
@@ -387,8 +449,8 @@ const Patients: React.FC = () => {
                         Array.from({ length: 8 }).map((_, i) => (
                             <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
                         ))
-                    ) : filteredPatients.length > 0 ? (
-                        filteredPatients.map((patient, idx) => {
+                    ) : paginatedPatients.length > 0 ? (
+                        paginatedPatients.map((patient, idx) => {
                             const historyPreview = patient.history?.slice(0, 3) || [];
                             const extraHistoryCount = (patient.history?.length || 0) - historyPreview.length;
 
@@ -453,6 +515,60 @@ const Patients: React.FC = () => {
                 </div>
             )}
 
+            {/* Pagination Controls */}
+            {!isLoading && totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-slate-200 dark:border-slate-800">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest order-2 sm:order-1">
+                        Mostrando <span className="text-slate-900 dark:text-white">{paginatedPatients.length}</span> de <span className="text-slate-900 dark:text-white">{filteredPatients.length}</span> pacientes
+                    </p>
+                    <div className="flex items-center gap-2 order-1 sm:order-2">
+                        <button
+                            onClick={() => goToPage(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className={`size-10 rounded-xl flex items-center justify-center transition-all ${currentPage === 1 ? 'text-slate-300 dark:text-slate-700 cursor-not-allowed' : 'text-slate-500 hover:bg-white dark:hover:bg-slate-800 hover:text-primary shadow-sm active:scale-90'}`}
+                        >
+                            <span className="material-symbols-outlined">chevron_left</span>
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                            {Array.from({ length: totalPages }).map((_, i) => {
+                                const pageNum = i + 1;
+                                // Show first, last, and pages around current
+                                if (
+                                    pageNum === 1 ||
+                                    pageNum === totalPages ||
+                                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                ) {
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => goToPage(pageNum)}
+                                            className={`size-10 rounded-xl text-xs font-black transition-all ${currentPage === pageNum ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-110' : 'text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-600'}`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                } else if (
+                                    (pageNum === 2 && currentPage > 3) ||
+                                    (pageNum === totalPages - 1 && currentPage < totalPages - 2)
+                                ) {
+                                    return <span key={pageNum} className="px-1 text-slate-300">...</span>;
+                                }
+                                return null;
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => goToPage(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className={`size-10 rounded-xl flex items-center justify-center transition-all ${currentPage === totalPages ? 'text-slate-300 dark:text-slate-700 cursor-not-allowed' : 'text-slate-500 hover:bg-white dark:hover:bg-slate-800 hover:text-primary shadow-sm active:scale-90'}`}
+                        >
+                            <span className="material-symbols-outlined">chevron_right</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* History Sidebar/Modal */}
             {isHistoryOpen && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-end animate-in fade-in duration-300">
@@ -464,10 +580,38 @@ const Patients: React.FC = () => {
                             <div className="flex justify-between items-start mb-6">
                                 <div className="flex items-center gap-4">
                                     <div className="size-16 rounded-3xl bg-primary text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-primary/20">
-                                        {selectedPatient && getInitials(selectedPatient.name)}
+                                        {selectedPatient && getInitials(isEditingName ? nameInputValue : selectedPatient.name)}
                                     </div>
-                                    <div>
-                                        <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">{selectedPatient?.name}</h2>
+                                    <div className="flex-1 min-w-0">
+                                        {isEditingName ? (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={nameInputValue}
+                                                    onChange={(e) => setNameInputValue(e.target.value)}
+                                                    autoFocus
+                                                    className="flex-1 h-10 px-3 rounded-xl border-2 border-primary text-base font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none min-w-0"
+                                                    placeholder="Nome completo"
+                                                />
+                                                <button onClick={handleSaveNameAndBirthDate} className="size-9 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center shrink-0">
+                                                    <span className="material-symbols-outlined text-[18px]">check</span>
+                                                </button>
+                                                <button onClick={() => { setIsEditingName(false); setNameInputValue(selectedPatient?.name || ''); }} className="size-9 bg-red-100 text-red-500 rounded-xl hover:bg-red-200 transition-colors flex items-center justify-center shrink-0">
+                                                    <span className="material-symbols-outlined text-[18px]">close</span>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="group/name flex items-center gap-2">
+                                                <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{selectedPatient?.name}</h2>
+                                                <button
+                                                    onClick={() => setIsEditingName(true)}
+                                                    className="opacity-0 group-hover/name:opacity-100 p-1 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shrink-0"
+                                                    title="Editar nome"
+                                                >
+                                                    <span className="material-symbols-outlined text-[16px]">edit</span>
+                                                </button>
+                                            </div>
+                                        )}
                                         <div className="flex items-center gap-3 mt-1">
                                             <Badge status="Ativo" />
                                             <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
@@ -479,7 +623,7 @@ const Patients: React.FC = () => {
                                 </div>
                                 <button
                                     onClick={() => setIsHistoryOpen(false)}
-                                    className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"
+                                    className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors shrink-0"
                                 >
                                     <span className="material-symbols-outlined">close</span>
                                 </button>
@@ -523,9 +667,40 @@ const Patients: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 relative group">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nascimento</p>
-                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient && formatDate(selectedPatient.birthDate)}</p>
+                                    {isEditingBirthDate ? (
+                                        <div className="space-y-2">
+                                            <input
+                                                type="date"
+                                                value={birthDateInputValue}
+                                                onChange={(e) => setBirthDateInputValue(e.target.value)}
+                                                autoFocus
+                                                className="w-full h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none"
+                                            />
+                                            <div className="flex gap-2">
+                                                <button onClick={handleSaveNameAndBirthDate} className="flex-1 h-8 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-1 text-[10px] font-black uppercase">
+                                                    <span className="material-symbols-outlined text-[16px]">check</span>
+                                                    Salvar
+                                                </button>
+                                                <button onClick={() => { setIsEditingBirthDate(false); setBirthDateInputValue(selectedPatient?.birthDate || ''); }} className="flex-1 h-8 bg-red-100 text-red-500 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-1 text-[10px] font-black uppercase">
+                                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                                    Sair
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatient && formatDate(selectedPatient.birthDate)}</p>
+                                            <button
+                                                onClick={() => setIsEditingBirthDate(true)}
+                                                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                                                title="Editar data de nascimento"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">edit</span>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 col-span-2 sm:col-span-1 relative group">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hospital Principal</p>

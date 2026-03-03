@@ -741,6 +741,52 @@ export const appointmentService = {
         return data;
     },
 
+    async updatePatientNameAndBirthDate(
+        oldName: string,
+        oldBirthDate: string | null | undefined,
+        newName: string,
+        newBirthDate: string,
+        patientId?: string
+    ) {
+        const updates: Record<string, string> = {
+            patient_name: newName,
+            patient_birth_date: newBirthDate,
+        };
+
+        // Update appointments table
+        let apptQuery = supabase
+            .from('appointments')
+            .update(updates)
+            .eq('patient_name', oldName);
+
+        if (oldBirthDate && oldBirthDate.trim() !== '') {
+            apptQuery = apptQuery.eq('patient_birth_date', oldBirthDate);
+        } else {
+            apptQuery = apptQuery.is('patient_birth_date', null);
+        }
+
+        const { error: apptError } = await apptQuery.select();
+        if (apptError) {
+            logger.error({ action: 'update', entity: 'appointments', patient_name: oldName, error: apptError }, 'crud');
+            throw apptError;
+        }
+
+        // Update patients table if patient has an ID
+        if (patientId) {
+            const { error: patientError } = await supabase
+                .from('patients')
+                .update({ name: newName, birth_date: newBirthDate })
+                .eq('id', patientId);
+
+            if (patientError) {
+                logger.error({ action: 'update', entity: 'patients', id: patientId, error: patientError }, 'crud');
+                // Don't throw — appointments already updated
+            }
+        }
+
+        logger.info({ action: 'update', entity: 'appointments', fields: ['patient_name', 'patient_birth_date'], patient_name: oldName }, 'crud');
+    },
+
     async updatePayment(paymentId: string, updates: any) {
         const { data, error } = await supabase
             .from('appointment_payments')
