@@ -62,8 +62,7 @@ serve(async (req) => {
             return new Response(
                 JSON.stringify({
                     error: 'Unauthorized',
-                    details: userError?.message || 'Sessão inválida ou expirada. Por favor, faça login novamente.',
-                    stack: userError?.stack
+                    details: 'Sessão inválida ou expirada. Por favor, faça login novamente.',
                 }),
                 {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
