@@ -1,9 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// --- CORS: Only allow requests from known origins ---
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean);
+
+function getAllowedOrigin(req: Request): string | null {
+    const origin = req.headers.get('Origin') || '';
+    // Check against explicit allowlist
+    if (ALLOWED_ORIGINS.includes(origin)) return origin;
+    // In development, allow localhost origins
+    if (origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) return origin;
+    return null;
+}
+
+function getCorsHeaders(req: Request): Record<string, string> {
+    const origin = getAllowedOrigin(req);
+    return {
+        'Access-Control-Allow-Origin': origin || '',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Vary': 'Origin',
+    };
 }
 
 const findUserByEmail = async (supabaseAdmin: ReturnType<typeof createClient>, email: string) => {
@@ -32,9 +48,23 @@ const findUserByEmail = async (supabaseAdmin: ReturnType<typeof createClient>, e
 }
 
 serve(async (req) => {
+    const corsHeaders = getCorsHeaders(req);
+
     // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
+    }
+
+    // Block requests from disallowed origins
+    const origin = req.headers.get('Origin');
+    if (origin && !getAllowedOrigin(req)) {
+        return new Response(
+            JSON.stringify({ error: 'Origin not allowed' }),
+            {
+                headers: { 'Content-Type': 'application/json' },
+                status: 403,
+            }
+        )
     }
     try {
         const authHeader = req.headers.get('Authorization')
@@ -58,12 +88,11 @@ serve(async (req) => {
         } = await supabaseClient.auth.getUser()
 
         if (userError || !user) {
-            console.error('User auth error:', userError?.message || 'No user found in session');
+            console.error('User auth error:', userError?.message || 'No user found in session', userError?.stack);
             return new Response(
                 JSON.stringify({
                     error: 'Unauthorized',
-                    details: userError?.message || 'Sessão inválida ou expirada. Por favor, faça login novamente.',
-                    stack: userError?.stack
+                    details: 'Sessão inválida ou expirada. Por favor, faça login novamente.'
                 }),
                 {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -153,9 +182,9 @@ serve(async (req) => {
             })
 
             if (updateError) {
-                console.error('Error updating existing user:', updateError)
+                console.error('Error updating existing user:', updateError.message, updateError.stack)
                 return new Response(
-                    JSON.stringify({ error: updateError.message }),
+                    JSON.stringify({ error: 'Erro ao atualizar usuário. Tente novamente.' }),
                     {
                         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                         status: 400,
@@ -178,9 +207,9 @@ serve(async (req) => {
             })
 
             if (createError) {
-                console.error('Error creating user:', createError)
+                console.error('Error creating user:', createError.message, createError.stack)
                 return new Response(
-                    JSON.stringify({ error: createError.message }),
+                    JSON.stringify({ error: 'Erro ao criar usuário. Verifique os dados e tente novamente.' }),
                     {
                         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                         status: 400,
@@ -230,7 +259,7 @@ serve(async (req) => {
         )
 
     } catch (error) {
-        console.error('Error in create-user function:', error)
+        console.error('Error in create-user function:', (error as any)?.message, (error as any)?.stack)
         const rawMessage = String((error as any)?.message || '')
         const normalized = rawMessage.toLowerCase()
         const isDuplicateEmail =
@@ -242,7 +271,7 @@ serve(async (req) => {
         const status = isDuplicateEmail ? 409 : 500
         const message = isDuplicateEmail
             ? 'E-mail já cadastrado. Use outro e-mail ou recupere o acesso.'
-            : (rawMessage || 'Erro ao criar usuário.')
+            : 'Erro interno ao criar usuário. Tente novamente.'
 
         return new Response(
             JSON.stringify({ error: message }),

@@ -1,14 +1,44 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// --- CORS: Only allow requests from known origins ---
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean);
+
+function getAllowedOrigin(req: Request): string | null {
+    const origin = req.headers.get('Origin') || '';
+    // Check against explicit allowlist
+    if (ALLOWED_ORIGINS.includes(origin)) return origin;
+    // In development, allow localhost origins
+    if (origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) return origin;
+    return null;
+}
+
+function getCorsHeaders(req: Request): Record<string, string> {
+    const origin = getAllowedOrigin(req);
+    return {
+        'Access-Control-Allow-Origin': origin || '',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Vary': 'Origin',
+    };
 }
 
 serve(async (req) => {
+    const corsHeaders = getCorsHeaders(req);
+
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
+    }
+
+    // Block requests from disallowed origins
+    const origin = req.headers.get('Origin');
+    if (origin && !getAllowedOrigin(req)) {
+        return new Response(
+            JSON.stringify({ error: 'Origin not allowed' }),
+            {
+                headers: { 'Content-Type': 'application/json' },
+                status: 403,
+            }
+        )
     }
     try {
         const authHeader = req.headers.get('Authorization')
@@ -29,8 +59,9 @@ serve(async (req) => {
         } = await supabaseClient.auth.getUser()
 
         if (userError || !user) {
+            console.error('Delete-user auth error:', userError?.message, userError?.stack);
             return new Response(
-                JSON.stringify({ error: 'Unauthorized', details: userError?.message }),
+                JSON.stringify({ error: 'Unauthorized', details: 'Sessão inválida ou expirada. Por favor, faça login novamente.' }),
                 {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                     status: 401,
@@ -79,8 +110,9 @@ serve(async (req) => {
 
         const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(user_id)
         if (deleteAuthError && !deleteAuthError.message?.toLowerCase().includes('not found')) {
+            console.error('Error deleting user from auth:', deleteAuthError.message, deleteAuthError.stack);
             return new Response(
-                JSON.stringify({ error: deleteAuthError.message }),
+                JSON.stringify({ error: 'Erro ao remover usuário. Tente novamente.' }),
                 {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                     status: 400,
@@ -94,8 +126,9 @@ serve(async (req) => {
             .eq('id', user_id)
 
         if (deleteProfileError) {
+            console.error('Error deleting profile:', deleteProfileError.message, deleteProfileError.stack);
             return new Response(
-                JSON.stringify({ error: deleteProfileError.message }),
+                JSON.stringify({ error: 'Erro ao remover perfil do usuário. Tente novamente.' }),
                 {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                     status: 400,
@@ -111,8 +144,9 @@ serve(async (req) => {
             }
         )
     } catch (error) {
+        console.error('Error in delete-user function:', (error as any)?.message, (error as any)?.stack);
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: 'Erro interno ao remover usuário. Tente novamente.' }),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 500,
