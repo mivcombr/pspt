@@ -66,161 +66,109 @@ serve(async (req) => {
             }
         )
     }
+
     try {
         const authHeader = req.headers.get('Authorization')
-        console.log('Auth header present:', !!authHeader)
-
-        // Create a Supabase client with the Auth context of the logged in user
-        const supabaseClient = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-            {
-                global: {
-                    headers: { Authorization: authHeader! },
-                },
-            }
-        )
-
-        // Verify the user is authenticated and is an admin
-        const {
-            data: { user },
-            error: userError
-        } = await supabaseClient.auth.getUser()
-
-        if (userError || !user) {
-            console.error('User auth error:', userError?.message || 'No user found in session', userError?.stack);
+        if (!authHeader) {
             return new Response(
-                JSON.stringify({
-                    error: 'Unauthorized',
-                    details: 'Sessão inválida ou expirada. Por favor, faça login novamente.'
-                }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 401,
-                }
+                JSON.stringify({ error: 'Nenhum token fornecido' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
             )
         }
-        console.log('Authenticated user:', user.id)
 
-        // Check if user is admin
-        const { data: profile } = await supabaseClient
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+        // Create a client with the Auth header to verify the caller's identity
+        const authClient = createClient(supabaseUrl, supabaseServiceKey, {
+            global: { headers: { Authorization: authHeader } },
+        });
+
+        // Create a separate client with Service Role for admin operations
+        const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
+
+        // Verify the caller's identity
+        const { data: { user: caller }, error: callerError } = await authClient.auth.getUser();
+
+        if (callerError || !caller) {
+            console.error('Erro ao autenticar autor da requisição:', callerError);
+            return new Response(
+                JSON.stringify({ error: 'Sessão inválida ou expirada' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+            );
+        }
+
+        // 1. Verify if the caller is an ADMIN
+        const { data: profile, error: profileErr } = await adminClient
             .from('profiles')
             .select('role')
-            .eq('id', user.id)
-            .single()
+            .eq('id', caller.id)
+            .single();
 
-        if (profile?.role !== 'ADMIN') {
+        if (profileErr || profile?.role !== 'ADMIN') {
+            console.error('Tentativa de criação sem permissão de admin:', caller.id, profileErr);
             return new Response(
-                JSON.stringify({ error: 'Forbidden: Admin access required' }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 403,
-                }
-            )
+                JSON.stringify({ error: 'Acesso negado: Administradores apenas' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+            );
         }
 
-        // Get request body
+        // 2. Get request body
         const { email, password, name, role, hospital_id } = await req.json()
 
         // Validate required fields
         if (!email || !password || !name || !role || !hospital_id) {
             return new Response(
-                JSON.stringify({ error: 'Missing required fields: email, password, name, role, hospital_id' }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400,
-                }
+                JSON.stringify({ error: 'Campos obrigatórios ausentes' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
             )
         }
 
-        // Validate role
-        if (!['RECEPTION', 'FINANCIAL'].includes(role)) {
-            return new Response(
-                JSON.stringify({ error: 'Invalid role. Must be RECEPTION or FINANCIAL' }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400,
-                }
-            )
-        }
+        // 3. Process User (Auth)
+        const { user: existingUser, error: findError } = await findUserByEmail(adminClient, email)
+        if (findError) console.error('Error finding user:', findError)
 
-        // Create Supabase Admin client
-        const supabaseAdmin = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-            {
-                auth: {
-                    autoRefreshToken: false,
-                    persistSession: false
-                }
-            }
-        )
+        let resolvedUser;
 
-        const { user: existingUser, error: existingError } = await findUserByEmail(supabaseAdmin, email)
-        if (existingError) {
-            console.error('Error checking existing user:', existingError)
-        }
-
-        let resolvedUser = existingUser
-
-        if (resolvedUser) {
-            // If user exists in Auth, we will update it.
-            // We don't return 409 anymore, instead we "adopt" the existing user.
-            // This handles cases where a user was deleted but Auth remained, 
-            // or if the admin just wants to re-register/update the user.
-
-            console.log('User already exists in Auth, updating:', resolvedUser.id)
-
-            const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(resolvedUser.id, {
+        if (existingUser) {
+            // Update existing user in Auth
+            console.log('User already exists in Auth, updating:', existingUser.id)
+            const { data: updated, error: updateError } = await adminClient.auth.admin.updateUserById(existingUser.id, {
                 password,
                 email_confirm: true,
-                user_metadata: {
-                    name,
-                    role,
-                    hospital_id,
-                }
-            })
+                user_metadata: { name, role, hospital_id }
+            });
 
             if (updateError) {
-                console.error('Error updating existing user:', updateError.message, updateError.stack)
+                console.error('Error updating auth:', updateError.message);
                 return new Response(
-                    JSON.stringify({ error: 'Erro ao atualizar usuário. Tente novamente.' }),
-                    {
-                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                        status: 400,
-                    }
+                    JSON.stringify({ error: 'Erro ao atualizar credenciais do usuário' }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
                 )
             }
-
-            resolvedUser = updatedUser.user
+            resolvedUser = updated.user;
         } else {
-            // Create new user
-            const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            // Create new user in Auth
+            const { data: created, error: createError } = await adminClient.auth.admin.createUser({
                 email,
                 password,
                 email_confirm: true,
-                user_metadata: {
-                    name,
-                    role,
-                    hospital_id,
-                }
-            })
+                user_metadata: { name, role, hospital_id }
+            });
 
             if (createError) {
-                console.error('Error creating user:', createError.message, createError.stack)
+                console.error('Error creating auth:', createError.message);
                 return new Response(
-                    JSON.stringify({ error: 'Erro ao criar usuário. Verifique os dados e tente novamente.' }),
-                    {
-                        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                        status: 400,
-                    }
+                    JSON.stringify({ error: 'Erro ao criar conta do usuário' }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
                 )
             }
-
-            resolvedUser = newUser.user
+            resolvedUser = created.user;
         }
 
-        // Ensure profile exists and is updated
+        // 4. Upsert Profile
         const profilePayload = {
             id: resolvedUser.id,
             name,
@@ -229,56 +177,37 @@ serve(async (req) => {
             email,
         }
 
-        const { data: newProfile, error: profileError } = await supabaseAdmin
+        const { data: finalProfile, error: finalProfileErr } = await adminClient
             .from('profiles')
             .upsert([profilePayload], { onConflict: 'id' })
             .select('*')
             .single()
 
-        if (profileError) {
-            console.error('Error upserting profile:', profileError)
-            // We still return success if Auth was created/updated, but log the profile error
+        if (finalProfileErr) {
+            console.error('Error upserting profile:', finalProfileErr)
+            // Still returning success for auth creation, but logging the error
         }
 
         return new Response(
             JSON.stringify({
                 success: true,
-                user: {
-                    id: resolvedUser.id,
-                    email: resolvedUser.email,
-                    name,
-                    role,
-                    hospital_id,
-                },
-                profile: newProfile
+                user: { id: resolvedUser.id, email: resolvedUser.email, name, role, hospital_id },
+                profile: finalProfile
             }),
-            {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 200,
-            }
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         )
 
     } catch (error) {
-        console.error('Error in create-user function:', (error as any)?.message, (error as any)?.stack)
-        const rawMessage = String((error as any)?.message || '')
-        const normalized = rawMessage.toLowerCase()
-        const isDuplicateEmail =
-            normalized.includes('already registered')
-            || normalized.includes('already exists')
-            || normalized.includes('email already')
-            || normalized.includes('user already')
+        console.error('Internal Error:', (error as any)?.message);
 
-        const status = isDuplicateEmail ? 409 : 500
-        const message = isDuplicateEmail
-            ? 'E-mail já cadastrado. Use outro e-mail ou recupere o acesso.'
-            : 'Erro interno ao criar usuário. Tente novamente.'
+        const rawMessage = String((error as any)?.message || '').toLowerCase();
+        const isDuplicate = rawMessage.includes('already registered') || rawMessage.includes('already exists');
 
         return new Response(
-            JSON.stringify({ error: message }),
-            {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status,
-            }
+            JSON.stringify({
+                error: isDuplicate ? 'E-mail já cadastrado.' : 'Erro interno ao processar solicitação.'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: isDuplicate ? 409 : 500 }
         )
     }
 })
