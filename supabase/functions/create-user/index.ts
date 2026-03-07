@@ -53,6 +53,8 @@ serve(async (req) => {
         const authHeader = req.headers.get('Authorization')
         console.log('Auth header present:', !!authHeader)
 
+        const jwt = authHeader?.replace('Bearer ', '')
+
         // Create a Supabase client with the Auth context of the logged in user
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
@@ -65,10 +67,11 @@ serve(async (req) => {
         )
 
         // Verify the user is authenticated and is an admin
+        // Pass the JWT explicitly — newer supabase-js versions require this in Edge Function contexts
         const {
             data: { user },
             error: userError
-        } = await supabaseClient.auth.getUser()
+        } = await supabaseClient.auth.getUser(jwt)
 
         if (userError || !user) {
             console.error('User auth error:', userError?.message || 'No user found in session');

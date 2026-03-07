@@ -25,6 +25,7 @@ serve(async (req) => {
     }
     try {
         const authHeader = req.headers.get('Authorization')
+        const jwt = authHeader?.replace('Bearer ', '')
 
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
@@ -36,10 +37,11 @@ serve(async (req) => {
             }
         )
 
+        // Pass the JWT explicitly — newer supabase-js versions require this in Edge Function contexts
         const {
             data: { user },
             error: userError
-        } = await supabaseClient.auth.getUser()
+        } = await supabaseClient.auth.getUser(jwt)
 
         if (userError || !user) {
             return new Response(
