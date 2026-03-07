@@ -130,6 +130,22 @@ serve(async (req) => {
             )
         }
 
+        // Validate password strength
+        const passwordErrors: string[] = []
+        if (password.length < 8) passwordErrors.push('mínimo 8 caracteres')
+        if (!/[A-Z]/.test(password)) passwordErrors.push('1 letra maiúscula')
+        if (!/[0-9]/.test(password)) passwordErrors.push('1 número')
+        if (!/[^A-Za-z0-9]/.test(password)) passwordErrors.push('1 caractere especial')
+        if (passwordErrors.length > 0) {
+            return new Response(
+                JSON.stringify({ error: `Senha fraca. Requisitos: ${passwordErrors.join(', ')}.` }),
+                {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 400,
+                }
+            )
+        }
+
         // Create Supabase Admin client
         const supabaseAdmin = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
