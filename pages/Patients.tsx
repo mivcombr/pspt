@@ -112,7 +112,8 @@ const Patients: React.FC = () => {
         setIsHistoryOpen(true);
         setIsFetchingHistory(true);
         try {
-            const data = await appointmentService.getPatientHistory(patient.name, patient.birthDate, patient.id);
+            const scopedHospitalId = !isAdmin ? user?.hospitalId : undefined;
+            const data = await appointmentService.getPatientHistory(patient.name, patient.birthDate, patient.id, scopedHospitalId);
             setHistory(data);
         } catch (err) {
             console.error('Error fetching history:', err);
