@@ -1,137 +1,86 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://saudeparatodos.cloud')
-    .split(',')
-    .map(o => o.trim())
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean);
 
-const getCorsHeaders = (origin: string | null) => {
-    const allowed = origin && ALLOWED_ORIGINS.includes(origin)
-        ? origin
-        : ALLOWED_ORIGINS[0]
+function getCorsHeaders(req: Request) {
+    const origin = req.headers.get('Origin') || '';
+    const isAllowed = ALLOWED_ORIGINS.includes(origin) || origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/);
     return {
-        'Access-Control-Allow-Origin': allowed,
+        'Access-Control-Allow-Origin': isAllowed ? origin : '',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
         'Vary': 'Origin',
-    }
+        'Content-Type': 'application/json',
+    };
 }
 
-serve(async (req) => {
-    const origin = req.headers.get('Origin')
-    const corsHeaders = getCorsHeaders(origin)
+Deno.serve(async (req) => {
+    const headers = getCorsHeaders(req);
+    if (req.method === 'OPTIONS') return new Response('ok', { headers });
 
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders })
-    }
     try {
-        const authHeader = req.headers.get('Authorization')
-        const jwt = authHeader?.replace('Bearer ', '')
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-        const supabaseClient = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-            {
-                global: {
-                    headers: { Authorization: authHeader! },
-                },
-            }
-        )
-
-        // Pass the JWT explicitly — newer supabase-js versions require this in Edge Function contexts
-        const {
-            data: { user },
-            error: userError
-        } = await supabaseClient.auth.getUser(jwt)
-
-        if (userError || !user) {
-            return new Response(
-                JSON.stringify({ error: 'Unauthorized', details: userError?.message }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 401,
-                }
-            )
+        // Auth Check
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) {
+            return new Response(JSON.stringify({ error: 'No authorization header' }), { status: 401, headers });
         }
 
-        const { data: profile } = await supabaseClient
+        const token = authHeader.replace(/Bearer /i, '');
+        const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
+
+        // 1. Validate Caller Identity
+        const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+        if (authError || !caller) {
+            console.error('Auth Error:', authError?.message);
+            return new Response(JSON.stringify({
+                error: 'Sessão inválida',
+                debug: authError?.message || 'User not found for token',
+                hint: 'Tente fazer Logoff e Logon novamente.'
+            }), { status: 401, headers });
+        }
+
+        // 2. Validate Admin Role
+        const { data: profile, error: pError } = await supabaseAdmin
             .from('profiles')
             .select('role')
-            .eq('id', user.id)
-            .single()
+            .eq('id', caller.id)
+            .single();
 
-        if (profile?.role !== 'ADMIN') {
-            return new Response(
-                JSON.stringify({ error: 'Forbidden: Admin access required' }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 403,
-                }
-            )
+        if (pError || profile?.role !== 'ADMIN') {
+            return new Response(JSON.stringify({ error: 'Acesso negado: Administradores apenas' }), { status: 403, headers });
         }
 
-        const { user_id } = await req.json()
+        // 3. Process Deletion
+        const { user_id } = await req.json();
 
         if (!user_id) {
-            return new Response(
-                JSON.stringify({ error: 'Missing required field: user_id' }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400,
-                }
-            )
+            return new Response(JSON.stringify({ error: 'Falta o parâmetro user_id' }), { status: 400, headers });
         }
 
-        const supabaseAdmin = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-            {
-                auth: {
-                    autoRefreshToken: false,
-                    persistSession: false
-                }
-            }
-        )
+        // 4. Delete Auth (with service role)
+        const { error: authDelError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+        if (authDelError && !authDelError.message.includes('not found')) throw authDelError;
 
-        const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(user_id)
-        if (deleteAuthError && !deleteAuthError.message?.toLowerCase().includes('not found')) {
-            return new Response(
-                JSON.stringify({ error: deleteAuthError.message }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400,
-                }
-            )
-        }
-
-        const { error: deleteProfileError } = await supabaseAdmin
+        // 5. Delete Profile (with service role)
+        const { error: profileDelError } = await supabaseAdmin
             .from('profiles')
             .delete()
-            .eq('id', user_id)
+            .eq('id', user_id);
 
-        if (deleteProfileError) {
-            return new Response(
-                JSON.stringify({ error: deleteProfileError.message }),
-                {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400,
-                }
-            )
-        }
+        if (profileDelError) throw profileDelError;
 
-        return new Response(
-            JSON.stringify({ success: true }),
-            {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 200,
-            }
-        )
-    } catch (error) {
-        return new Response(
-            JSON.stringify({ error: error.message }),
-            {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 500,
-            }
-        )
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers });
+
+    } catch (error: any) {
+        console.error('Critical Error:', error.message);
+        return new Response(JSON.stringify({
+            error: 'Erro ao remover usuário',
+            details: error.message
+        }), { status: 400, headers });
     }
-})
+});
