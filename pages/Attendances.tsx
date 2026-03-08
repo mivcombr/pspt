@@ -752,7 +752,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setIsHistoryOpen(true);
         setIsFetchingHistory(true);
         try {
-            const history = await appointmentService.getPatientHistory(name, birthDate);
+            const scopedHospitalId = user?.role !== UserRole.ADMIN ? user?.hospitalId : undefined;
+            const history = await appointmentService.getPatientHistory(name, birthDate, undefined, scopedHospitalId);
             setPatientHistory(history);
         } catch (err) {
             console.error('Error fetching history:', err);

@@ -515,15 +515,21 @@ export const appointmentService = {
         return [...new Set(names)].sort();
     },
 
-    async getPatients(searchTerm: string) {
+    async getPatients(searchTerm: string, hospitalId?: string) {
         // Query unique patients from appointments (latest appointment first)
-        const { data, error } = await supabase
+        let query = supabase
             .from('appointments')
             .select('id, patient_name, patient_phone, patient_birth_date, hospital_id, hospital:hospitals(name)')
             .ilike('patient_name', `%${searchTerm}%`)
             .order('date', { ascending: false })
             .order('time', { ascending: false })
             .limit(25);
+
+        if (hospitalId) {
+            query = query.eq('hospital_id', hospitalId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             logger.error({ action: 'read', entity: 'appointments', error }, 'crud');
@@ -667,7 +673,7 @@ export const appointmentService = {
         return Array.from(uniquePatients.values()).sort((a, b) => a.name.localeCompare(b.name));
     },
 
-    async getPatientHistory(name: string, birthDate: string | null | undefined, patientId?: string) {
+    async getPatientHistory(name: string, birthDate: string | null | undefined, patientId?: string, hospitalId?: string) {
         let query = supabase
             .from('appointments')
             .select(`
@@ -684,6 +690,10 @@ export const appointmentService = {
             } else {
                 query = query.is('patient_birth_date', null);
             }
+        }
+
+        if (hospitalId) {
+            query = query.eq('hospital_id', hospitalId);
         }
 
         const { data, error } = await query

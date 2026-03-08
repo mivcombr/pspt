@@ -158,7 +158,8 @@ const NewAppointment: React.FC = () => {
 
     if (term.length >= 3) {
       try {
-        const results = await appointmentService.getPatients(term);
+        const scopedHospitalId = user?.role !== UserRole.ADMIN ? user?.hospitalId : formData.hospitalId || undefined;
+        const results = await appointmentService.getPatients(term, scopedHospitalId);
         setSearchResults(results);
       } catch (err) {
         console.error('Error searching patients:', err);

@@ -558,7 +558,8 @@ const Financials: React.FC = () => {
             // Note: We need birthDate to accurately find history. 
             // If birthDate is missing in the row data, the history fetch might fail or return empty.
             // Ensure getAll returns birthDate.
-            const data = await appointmentService.getPatientHistory(patientName, patientBirthDate || '');
+            const scopedHospitalId = user?.role !== UserRole.ADMIN ? user?.hospitalId : undefined;
+            const data = await appointmentService.getPatientHistory(patientName, patientBirthDate || '', undefined, scopedHospitalId);
             setHistory(data);
         } catch (err) {
             console.error('Error fetching history:', err);

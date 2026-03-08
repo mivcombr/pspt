@@ -249,10 +249,27 @@ const Hospitals: React.FC = () => {
         });
     };
 
+    const validatePassword = (pwd: string): string[] => {
+        const errors: string[] = [];
+        if (pwd.length < 8) errors.push('mínimo 8 caracteres');
+        if (!/[A-Z]/.test(pwd)) errors.push('1 letra maiúscula');
+        if (!/[0-9]/.test(pwd)) errors.push('1 número');
+        if (!/[^A-Za-z0-9]/.test(pwd)) errors.push('1 caractere especial');
+        return errors;
+    };
+
     const handleSaveUser = async () => {
         if (!selectedHospital || !userForm.name || !userForm.email || (!isEditingUser && !userForm.password)) {
             notify.warning('Preencha todos os campos obrigatórios');
             return;
+        }
+
+        if (!isEditingUser) {
+            const pwdErrors = validatePassword(userForm.password);
+            if (pwdErrors.length > 0) {
+                notify.error(`Senha fraca. Requisitos: ${pwdErrors.join(', ')}.`);
+                return;
+            }
         }
 
         setIsSaving(true);
@@ -620,6 +637,12 @@ const Hospitals: React.FC = () => {
                                                         className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                                                         placeholder="••••••••"
                                                     />
+                                                    {userForm.password && (() => {
+                                                        const errs = validatePassword(userForm.password);
+                                                        return errs.length > 0
+                                                            ? <p className="text-xs text-red-500 mt-1 ml-1">Faltando: {errs.join(', ')}</p>
+                                                            : <p className="text-xs text-green-600 mt-1 ml-1">✓ Senha forte</p>;
+                                                    })()}
                                                 </div>
                                             )}
                                             <div>

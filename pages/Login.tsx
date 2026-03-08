@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { logLoginAttempt } from '../services/loginAuditService';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -15,12 +16,14 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      console.log('Login successful, navigating...');
+      await logLoginAttempt({ email, success: true, userId: data.user?.id });
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro.');
+      const errorMessage = err.message || 'Ocorreu um erro.';
+      setError(errorMessage);
+      await logLoginAttempt({ email, success: false, errorMessage });
     } finally {
       setLoading(false);
     }

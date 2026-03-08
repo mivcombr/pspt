@@ -62,7 +62,20 @@ Deno.serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando' }), { status: 400, headers });
         }
 
-        // 4. Create in Auth (with Idempotency)
+        // 4. Validate password strength
+        const passwordErrors: string[] = [];
+        if (password.length < 8) passwordErrors.push('mínimo 8 caracteres');
+        if (!/[A-Z]/.test(password)) passwordErrors.push('1 letra maiúscula');
+        if (!/[0-9]/.test(password)) passwordErrors.push('1 número');
+        if (!/[^A-Za-z0-9]/.test(password)) passwordErrors.push('1 caractere especial');
+        if (passwordErrors.length > 0) {
+            return new Response(
+                JSON.stringify({ error: `Senha fraca. Requisitos: ${passwordErrors.join(', ')}.` }),
+                { status: 400, headers }
+            );
+        }
+
+        // 5. Create in Auth (with Idempotency)
         const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
             email,
             password,
@@ -83,7 +96,7 @@ Deno.serve(async (req) => {
             targetId = authData.user.id;
         }
 
-        // 5. Update Profile
+        // 6. Update Profile
         const { error: upsertError } = await supabaseAdmin.from('profiles').upsert([
             { id: targetId, name, role, hospital_id, email }
         ]);
