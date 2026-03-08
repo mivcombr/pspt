@@ -272,13 +272,18 @@ const Financials: React.FC = () => {
                 const hospitalValue = Number(curr.hospital_value);
                 const repasseValue = Number(curr.repasse_value);
 
-                acc.revenue += cost;
-                acc.repasse += repasseValue;
-                acc.hospital += hospitalValue;
-
-                // Status Normalization
+                // Status Normalization (first, to exclude losses from totals)
                 const paymentStatus = curr.payment_status === 'Não realizado' || curr.payment_status === 'Nao realizado' ? 'Não realizado' : (curr.payment_status || 'Pendente');
                 const repasseStatus = paymentStatus === 'Não realizado' ? 'Não realizado' : (curr.repasse_status === 'Não realizado' || curr.repasse_status === 'Nao realizado' ? 'Não realizado' : (curr.repasse_status || 'Pendente'));
+
+                // Totals: only PAGO + PENDENTE (Não realizado is a loss, not revenue)
+                if (paymentStatus !== 'Não realizado') {
+                    acc.revenue += cost;
+                    acc.hospital += hospitalValue;
+                }
+                if (repasseStatus !== 'Não realizado') {
+                    acc.repasse += repasseValue;
+                }
 
                 // Revenue / Hospital Breakdown
                 if (paymentStatus === 'Pago') {
@@ -302,9 +307,12 @@ const Financials: React.FC = () => {
                     acc.repasseFailed += repasseValue;
                 }
 
-                if (curr.type === 'EXAME') acc.exames += cost;
-                else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
-                else if (curr.type === 'CONSULTA') acc.consultas += cost;
+                // Category breakdown: also exclude losses
+                if (paymentStatus !== 'Não realizado') {
+                    if (curr.type === 'EXAME') acc.exames += cost;
+                    else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
+                    else if (curr.type === 'CONSULTA') acc.consultas += cost;
+                }
 
                 return acc;
             }, {
@@ -390,13 +398,18 @@ const Financials: React.FC = () => {
             const hospitalValue = Number(curr.hospital_value);
             const repasseValue = Number(curr.repasse_value);
 
-            acc.revenue += cost;
-            acc.repasse += repasseValue;
-            acc.hospital += hospitalValue;
-
-            // Status Normalization
+            // Status Normalization (first, to exclude losses from totals)
             const paymentStatus = curr.payment_status === 'Não realizado' || curr.payment_status === 'Nao realizado' ? 'Não realizado' : (curr.payment_status || 'Pendente');
             const repasseStatus = paymentStatus === 'Não realizado' ? 'Não realizado' : (curr.repasse_status === 'Não realizado' || curr.repasse_status === 'Nao realizado' ? 'Não realizado' : (curr.repasse_status || 'Pendente'));
+
+            // Totals: only PAGO + PENDENTE (Não realizado is a loss, not revenue)
+            if (paymentStatus !== 'Não realizado') {
+                acc.revenue += cost;
+                acc.hospital += hospitalValue;
+            }
+            if (repasseStatus !== 'Não realizado') {
+                acc.repasse += repasseValue;
+            }
 
             // Revenue / Hospital Breakdown
             if (paymentStatus === 'Pago') {
@@ -420,9 +433,12 @@ const Financials: React.FC = () => {
                 acc.repasseFailed += repasseValue;
             }
 
-            if (curr.type === 'EXAME') acc.exames += cost;
-            else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
-            else if (curr.type === 'CONSULTA') acc.consultas += cost;
+            // Category breakdown: also exclude losses
+            if (paymentStatus !== 'Não realizado') {
+                if (curr.type === 'EXAME') acc.exames += cost;
+                else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
+                else if (curr.type === 'CONSULTA') acc.consultas += cost;
+            }
 
             return acc;
         }, {
