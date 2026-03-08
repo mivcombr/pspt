@@ -749,35 +749,16 @@ const Financials: React.FC = () => {
                 start.setDate(today.getDate() - 1);
                 end.setDate(today.getDate() - 1);
                 break;
-            case 'Hoje e ontem':
-                start.setDate(today.getDate() - 1);
-                break;
             case 'Últimos 7 dias':
                 start.setDate(today.getDate() - 6);
                 break;
-            case 'Últimos 14 dias':
-                start.setDate(today.getDate() - 13);
-                break;
-            case 'Últimos 28 dias':
-                start.setDate(today.getDate() - 27);
-                break;
-            case 'Últimos 30 dias':
-                start.setDate(today.getDate() - 29);
-                break;
-            case 'Esta semana':
+            case 'Esta semana': {
                 const day = today.getDay();
                 const diff = today.getDate() - day + (day === 0 ? -6 : 1);
                 start.setDate(diff);
                 end.setDate(diff + 6);
                 break;
-            case 'Semana passada':
-                const prevWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
-                const pDay = prevWeek.getDay();
-                const pDiff = prevWeek.getDate() - pDay + (pDay === 0 ? -6 : 1);
-                start = new Date(prevWeek.setDate(pDiff));
-                end = new Date(prevWeek);
-                end.setDate(start.getDate() + 6);
-                break;
+            }
             case 'Este mês':
                 start = new Date(today.getFullYear(), today.getMonth(), 1);
                 end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -785,6 +766,14 @@ const Financials: React.FC = () => {
             case 'Mês passado':
                 start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
                 end = new Date(today.getFullYear(), today.getMonth(), 0);
+                break;
+            case 'Este ano':
+                start = new Date(today.getFullYear(), 0, 1);
+                end = new Date(today.getFullYear(), 11, 31);
+                break;
+            case 'Ano passado':
+                start = new Date(today.getFullYear() - 1, 0, 1);
+                end = new Date(today.getFullYear() - 1, 11, 31);
                 break;
         }
         setTempStartDate(start);
@@ -1434,7 +1423,7 @@ const Financials: React.FC = () => {
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
                         <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex border border-slate-200 dark:border-slate-700 h-[500px]">
                             <div className="w-64 bg-slate-50/80 dark:bg-slate-800/30 border-r border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-2 overflow-y-auto">
-                                {['Hoje', 'Ontem', 'Hoje e ontem', 'Últimos 7 dias', 'Últimos 14 dias', 'Últimos 28 dias', 'Últimos 30 dias', 'Esta semana', 'Este mês'].map(preset => (
+                                {['Hoje', 'Ontem', 'Últimos 7 dias', 'Esta semana', 'Este mês', 'Mês passado', 'Este ano', 'Ano passado'].map(preset => (
                                     <button key={preset} onClick={() => applyPreset(preset)} className="text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-all">{preset}</button>
                                 ))}
                             </div>
