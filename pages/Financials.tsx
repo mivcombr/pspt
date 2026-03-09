@@ -1042,7 +1042,7 @@ const Financials: React.FC = () => {
                                 <th className="px-6 py-4">Unidade / Data</th>
                                 <th className="px-6 py-4">Pagamento</th>
                                 <th className="px-6 py-4">Distribuição</th>
-                                {isAdmin && <th className="px-6 py-4 text-green-600">Total Líquido</th>}
+                                {isAdmin && <th className="px-6 py-4">Total Líquido</th>}
                                 <th className="px-6 py-4 text-center">Status Pag.</th>
                                 <th className="px-6 py-4 text-center">Status Acerto</th>
                                 <th className="px-6 py-4 text-right">Ações</th>
