@@ -421,11 +421,11 @@ const NewAppointment: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <header className="mb-8">
-        <h1 className="text-3xl font-black tracking-[-0.033em] text-slate-900 dark:text-white">Novo Agendamento</h1>
+        <h1 className="text-3xl font-black tracking-[-0.033em] text-slate-900 dark:text-white font-display">Novo Agendamento</h1>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
 
           <section className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative z-20">
             <div className="flex justify-between items-center mb-4">

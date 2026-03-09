@@ -464,7 +464,7 @@ const Hospitals: React.FC = () => {
                             <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                                 <div>
                                     <div className="flex items-center gap-3 mb-2">
-                                        <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">{selectedHospital.name}</h2>
+                                        <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white font-display">{selectedHospital.name}</h2>
                                         <span className={`text-xs font-bold px-3 py-1 rounded-full border ${selectedHospital.status === 'Ativo'
                                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800'
                                             : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700'

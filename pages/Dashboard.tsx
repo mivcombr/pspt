@@ -286,7 +286,7 @@ const Dashboard: React.FC = () => {
             {/* Header & Filters */}
             <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 pb-2">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
+                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Dashboard</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Visão consolidada financeira e operacional.</p>
                 </div>
 
@@ -365,7 +365,7 @@ const Dashboard: React.FC = () => {
                                         Faturamento Total
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display">
                                             {formatCurrency(dashboardData.totals.revenue)}
                                         </h3>
                                         <PercentageBadge
@@ -391,7 +391,7 @@ const Dashboard: React.FC = () => {
                                         Repasse ao programa
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display">
                                             {formatCurrency(dashboardData.totals.repasse)}
                                         </h3>
                                         <PercentageBadge
@@ -425,7 +425,7 @@ const Dashboard: React.FC = () => {
                     ].map((item, i) => (
                         <div
                             key={i}
-                            className="bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300"
+                            className={`bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 card-hover transition-all duration-300 animate-card-entrance stagger-${i + 1}`}
                         >
                             <div className="flex items-center gap-3 mb-5">
                                 <div className="size-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700/50">
@@ -438,7 +438,7 @@ const Dashboard: React.FC = () => {
                                 <div className="flex items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                                     <div>
                                         <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-0.5">Faturamento</p>
-                                        <p className="font-black text-slate-900 dark:text-white text-lg tracking-tight leading-none">{item.value}</p>
+                                        <p className="font-black text-slate-900 dark:text-white text-lg tracking-tight leading-none font-display">{item.value}</p>
                                     </div>
                                     <PercentageBadge current={item.valueRaw} previous={item.valuePrev} />
                                 </div>

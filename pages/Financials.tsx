@@ -785,7 +785,7 @@ const Financials: React.FC = () => {
         <div className="max-w-screen-xl w-full mx-auto space-y-6 sm:space-y-8 pb-8 relative px-4 sm:px-6">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 sm:gap-5">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Pagamentos</h1>
+                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Pagamentos</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Acompanhe registros financeiros e repasses.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
@@ -829,18 +829,17 @@ const Financials: React.FC = () => {
                             label: 'Faturamento Bruto',
                             value: filteredTotals.revenue,
                             icon: 'payments',
-                            color: 'primary',
+                            hero: true,
                             breakdown: [
-                                { label: 'Pago', value: filteredTotals.paid, colorClass: 'text-green-500' },
-                                { label: 'Pendente', value: filteredTotals.pending, colorClass: 'text-amber-500' },
-                                { label: 'Não Realizado', value: filteredTotals.failed, colorClass: 'text-red-500' }
+                                { label: 'Pago', value: filteredTotals.paid, colorClass: 'text-green-300' },
+                                { label: 'Pendente', value: filteredTotals.pending, colorClass: 'text-amber-300' },
+                                { label: 'Não Realizado', value: filteredTotals.failed, colorClass: 'text-red-300' }
                             ]
                         },
                         {
                             label: 'Receita Hospital',
                             value: filteredTotals.hospital,
                             icon: 'domain',
-                            color: 'slate',
                             breakdown: [
                                 { label: 'Pago', value: filteredTotals.hospitalPaid, colorClass: 'text-green-500' },
                                 { label: 'Pendente', value: filteredTotals.hospitalPending, colorClass: 'text-amber-500' },
@@ -851,7 +850,6 @@ const Financials: React.FC = () => {
                             label: 'Receita Programa',
                             value: filteredTotals.repasse,
                             icon: 'attach_money',
-                            color: 'primary',
                             breakdown: [
                                 { label: 'Pago', value: filteredTotals.repassePaid, colorClass: 'text-green-500' },
                                 { label: 'Pendente', value: filteredTotals.repassePending, colorClass: 'text-amber-500' },
@@ -862,53 +860,57 @@ const Financials: React.FC = () => {
                             label: 'Saldo a Receber',
                             value: filteredTotals.pending,
                             icon: 'account_balance_wallet',
-                            color: 'red',
+                            highlight: true,
                             helper: 'Total pendente de pagamento pelos pacientes',
-                            highlight: true
                         },
                         {
                             label: 'Repasse a Realizar',
                             value: filteredTotals.pendingRepasse,
                             icon: 'currency_exchange',
-                            color: 'red',
+                            highlight: true,
                             helper: 'Total em aberto para repasse aos prestadores',
-                            highlight: true
                         }
                     ].map((card, i) => (
                         <div
                             key={i}
-                            className={`group relative p-6 rounded-[2rem] border transition-all duration-300 hover:shadow-xl ${card.highlight
-                                ? 'bg-red-50/30 border-red-200 dark:bg-red-900/10 dark:border-red-800'
-                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
-                                }`}
+                            className={`group relative p-6 rounded-[2rem] border transition-all duration-300 card-hover animate-card-entrance stagger-${i + 1} ${
+                                card.hero
+                                    ? 'card-hero-gradient text-white border-red-700/30 shadow-lg shadow-primary/20'
+                                    : card.highlight
+                                        ? 'bg-red-50/30 border-red-200 dark:bg-red-900/10 dark:border-red-800'
+                                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
+                            }`}
                         >
                             <div className="flex items-center justify-between mb-4">
-                                <div className={`size-10 rounded-2xl flex items-center justify-center ${card.highlight
-                                    ? 'bg-red-100 text-red-600'
-                                    : 'bg-slate-50 dark:bg-slate-800 text-slate-400 group-hover:text-primary transition-colors'
-                                    }`}>
+                                <div className={`size-10 rounded-2xl flex items-center justify-center ${
+                                    card.hero
+                                        ? 'bg-white/20 text-white'
+                                        : card.highlight
+                                            ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                                            : 'bg-slate-50 dark:bg-slate-800 text-slate-400 group-hover:text-primary transition-colors'
+                                }`}>
                                     <span className="material-symbols-outlined text-[20px]">{card.icon}</span>
                                 </div>
                                 {card.helper && (
                                     <div className="has-tooltip cursor-help">
-                                        <span className="material-symbols-outlined text-[18px] text-slate-300 hover:text-slate-400">info</span>
+                                        <span className={`material-symbols-outlined text-[18px] ${card.hero ? 'text-white/50 hover:text-white/80' : 'text-slate-300 hover:text-slate-400'}`}>info</span>
                                         <div className="tooltip-content !text-[10px] !p-2 !w-44">{card.helper}</div>
                                     </div>
                                 )}
                             </div>
 
                             <div className="space-y-1">
-                                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.1em]">{card.label}</p>
-                                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                                <p className={`text-[10px] font-black uppercase tracking-[0.1em] ${card.hero ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
+                                <h3 className={`text-xl sm:text-2xl font-black tracking-tight font-display ${card.hero ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                                     {formatCurrency(card.value)}
                                 </h3>
                             </div>
 
                             {card.breakdown && (
-                                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                                <div className={`mt-5 pt-4 border-t space-y-2 ${card.hero ? 'border-white/20' : 'border-slate-100 dark:border-slate-800'}`}>
                                     {card.breakdown.map((item, idx) => (
                                         <div key={idx} className="flex items-center justify-between gap-2">
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter truncate">{item.label}</span>
+                                            <span className={`text-[10px] font-black uppercase tracking-tighter truncate ${card.hero ? 'text-white/60' : 'text-slate-400'}`}>{item.label}</span>
                                             <span className={`text-[11px] font-bold shrink-0 ${item.colorClass}`}>{formatCurrency(item.value)}</span>
                                         </div>
                                     ))}
@@ -926,18 +928,18 @@ const Financials: React.FC = () => {
                     ))
                 ) : (
                     [
-                        { title: 'Exames', value: filteredCategoryTotals.exames.value, icon: 'biotech', pct: filteredCategoryTotals.exames.pct },
-                        { title: 'Cirurgias', value: filteredCategoryTotals.cirurgias.value, icon: 'medical_services', pct: filteredCategoryTotals.cirurgias.pct },
-                        { title: 'Consultas', value: filteredCategoryTotals.consultas.value, icon: 'stethoscope', pct: filteredCategoryTotals.consultas.pct }
+                        { title: 'Exames', value: filteredCategoryTotals.exames.value, icon: 'biotech', pct: filteredCategoryTotals.exames.pct, iconColor: 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400' },
+                        { title: 'Cirurgias', value: filteredCategoryTotals.cirurgias.value, icon: 'medical_services', pct: filteredCategoryTotals.cirurgias.pct, iconColor: 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400' },
+                        { title: 'Consultas', value: filteredCategoryTotals.consultas.value, icon: 'stethoscope', pct: filteredCategoryTotals.consultas.pct, iconColor: 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400' }
                     ].map((item, i) => (
-                        <div key={i} className="group bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-700 p-5 flex items-center justify-between transition-all hover:bg-slate-50/50 dark:hover:bg-slate-800/50 shadow-sm">
+                        <div key={i} className={`group bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-700 p-5 flex items-center justify-between transition-all card-hover shadow-sm animate-card-entrance stagger-${i + 1}`}>
                             <div className="flex items-center gap-4 min-w-0">
-                                <div className="size-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0 transition-all group-hover:text-primary">
+                                <div className={`size-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${item.iconColor}`}>
                                     <span className="material-symbols-outlined text-[24px]">{item.icon}</span>
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">{item.title}</p>
-                                    <h3 className="text-lg font-black text-slate-900 dark:text-white truncate">{formatCurrency(item.value)}</h3>
+                                    <h3 className="text-lg font-black text-slate-900 dark:text-white truncate font-display">{formatCurrency(item.value)}</h3>
                                 </div>
                             </div>
                             <div className="text-right">
@@ -1040,7 +1042,7 @@ const Financials: React.FC = () => {
                                 <th className="px-6 py-4">Unidade / Data</th>
                                 <th className="px-6 py-4">Pagamento</th>
                                 <th className="px-6 py-4">Distribuição</th>
-                                {isAdmin && <th className="px-6 py-4 text-green-600">Total Líquido</th>}
+                                {isAdmin && <th className="px-6 py-4">Total Líquido</th>}
                                 <th className="px-6 py-4 text-center">Status Pag.</th>
                                 <th className="px-6 py-4 text-center">Status Acerto</th>
                                 <th className="px-6 py-4 text-right">Ações</th>
@@ -1098,7 +1100,7 @@ const Financials: React.FC = () => {
                                                 </div>
                                                 <div className="flex justify-between gap-4 text-[10px]">
                                                     <span className="font-bold text-slate-400 uppercase">Programa:</span>
-                                                    <span className="font-black text-primary">{formatCurrency(item.repasse_value)}</span>
+                                                    <span className="font-black text-slate-600 dark:text-slate-400">{formatCurrency(item.repasse_value)}</span>
                                                 </div>
                                                 {isAdmin && (
                                                     <div className="flex justify-between gap-4 text-[10px]">
@@ -1109,7 +1111,7 @@ const Financials: React.FC = () => {
                                                                 Diferença de parcelamento
                                                             </div>
                                                         </div>
-                                                        <span className="font-black text-amber-600">{formatCurrency(item.financial_additional || 0)}</span>
+                                                        <span className="font-black text-slate-600 dark:text-slate-400">{formatCurrency(item.financial_additional || 0)}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -1118,10 +1120,9 @@ const Financials: React.FC = () => {
                                         {isAdmin && (
                                             <td className="hidden lg:table-cell px-6 py-5 align-top text-center">
                                                 <div className="inline-flex flex-col items-center">
-                                                    <span className="text-sm font-black text-green-600 tracking-tight">
+                                                    <span className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
                                                         {formatCurrency(item.net_value || (Number(item.hospital_value || 0) + Number(item.repasse_value || 0) + Number(item.financial_additional || 0)))}
                                                     </span>
-                                                    <div className="h-0.5 w-full bg-green-500/10 dark:bg-green-500/20 rounded-full mt-1"></div>
                                                 </div>
                                             </td>
                                         )}
@@ -1214,12 +1215,12 @@ const Financials: React.FC = () => {
                                                         </div>
                                                         <div className="flex justify-between text-[10px] font-bold text-slate-500 mt-1">
                                                             <span>Programa</span>
-                                                            <span className="text-primary">{formatCurrency(item.repasse_value)}</span>
+                                                            <span className="text-slate-700 dark:text-slate-300">{formatCurrency(item.repasse_value)}</span>
                                                         </div>
                                                         {isAdmin && (
                                                             <div className="flex justify-between text-[10px] font-bold text-slate-500 mt-1">
                                                                 <span>Adicional</span>
-                                                                <span className="text-amber-600">{formatCurrency(item.financial_additional || 0)}</span>
+                                                                <span className="text-slate-700 dark:text-slate-300">{formatCurrency(item.financial_additional || 0)}</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1230,7 +1231,7 @@ const Financials: React.FC = () => {
                                                         {isAdmin ? (
                                                             <>
                                                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Líquido</span>
-                                                                <span className="text-base font-black text-green-600">
+                                                                <span className="text-base font-black text-slate-900 dark:text-white">
                                                                     {formatCurrency(item.net_value || (Number(item.hospital_value || 0) + Number(item.repasse_value || 0) + Number(item.financial_additional || 0)))}
                                                                 </span>
                                                             </>
