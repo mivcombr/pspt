@@ -12,6 +12,9 @@ import Hospitals from './pages/Hospitals';
 import Expenses from './pages/Expenses';
 import Attendances from './pages/Attendances';
 import Patients from './pages/Patients';
+import ChangePassword from './pages/ChangePassword';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -19,10 +22,15 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, mustChangePassword } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Force password change before any other route
+  if (mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
@@ -36,7 +44,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 };
 
 const AppRoutes = () => {
-  const { user, isLoading, authStatus, error, retryFetchProfile, signOut } = useAuth();
+  const { user, isLoading, authStatus, error, retryFetchProfile, signOut, isAuthenticated, mustChangePassword } = useAuth();
 
   if (isLoading) {
     return (
@@ -80,7 +88,20 @@ const AppRoutes = () => {
 
   return (
     <Routes>
+      {/* Public routes (no auth required) */}
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+      <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* Change password (requires auth + must_change_password flag) */}
+      <Route
+        path="/change-password"
+        element={
+          isAuthenticated && mustChangePassword
+            ? <ChangePassword />
+            : <Navigate to={isAuthenticated ? '/' : '/login'} replace />
+        }
+      />
 
       <Route element={<Layout />}>
         {/* Admin Dashboard */}

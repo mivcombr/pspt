@@ -13,6 +13,43 @@ function getCorsHeaders(req: Request) {
     };
 }
 
+/**
+ * Generates a secure temporary password that meets all validation requirements:
+ * - At least 12 characters
+ * - 1 uppercase letter, 1 lowercase letter, 1 digit, 1 special character
+ */
+function generateTempPassword(): string {
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lower = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const special = '!@#$%&*';
+    const all = upper + lower + digits + special;
+
+    // Guarantee one of each required type
+    let pwd = '';
+    pwd += upper[Math.floor(Math.random() * upper.length)];
+    pwd += lower[Math.floor(Math.random() * lower.length)];
+    pwd += digits[Math.floor(Math.random() * digits.length)];
+    pwd += special[Math.floor(Math.random() * special.length)];
+
+    // Fill remaining 8 characters randomly
+    for (let i = 0; i < 8; i++) {
+        pwd += all[Math.floor(Math.random() * all.length)];
+    }
+
+    // Shuffle to avoid predictable positions
+    return pwd.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+function validatePassword(password: string): string[] {
+    const errors: string[] = [];
+    if (password.length < 8) errors.push('mínimo 8 caracteres');
+    if (!/[A-Z]/.test(password)) errors.push('1 letra maiúscula');
+    if (!/[0-9]/.test(password)) errors.push('1 número');
+    if (!/[^A-Za-z0-9]/.test(password)) errors.push('1 caractere especial');
+    return errors;
+}
+
 Deno.serve(async (req) => {
     const headers = getCorsHeaders(req);
     if (req.method === 'OPTIONS') return new Response('ok', { headers });
@@ -56,18 +93,18 @@ Deno.serve(async (req) => {
         }
 
         // 3. Process Creation
-        const { email, password, name, role, hospital_id } = await req.json();
+        const { email, password: providedPassword, name, role, hospital_id } = await req.json();
 
-        if (!email || !password || !name) {
-            return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando' }), { status: 400, headers });
+        if (!email || !name) {
+            return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando (email, name)' }), { status: 400, headers });
         }
 
-        // 4. Validate password strength
-        const passwordErrors: string[] = [];
-        if (password.length < 8) passwordErrors.push('mínimo 8 caracteres');
-        if (!/[A-Z]/.test(password)) passwordErrors.push('1 letra maiúscula');
-        if (!/[0-9]/.test(password)) passwordErrors.push('1 número');
-        if (!/[^A-Za-z0-9]/.test(password)) passwordErrors.push('1 caractere especial');
+        // 4. Use provided password or generate a temporary one
+        const isTemporaryPassword = !providedPassword;
+        const finalPassword = providedPassword || generateTempPassword();
+
+        // 5. Validate password strength
+        const passwordErrors = validatePassword(finalPassword);
         if (passwordErrors.length > 0) {
             return new Response(
                 JSON.stringify({ error: `Senha fraca. Requisitos: ${passwordErrors.join(', ')}.` }),
@@ -75,12 +112,17 @@ Deno.serve(async (req) => {
             );
         }
 
-        // 5. Create in Auth (with Idempotency)
+        // 6. Create in Auth (with Idempotency)
         const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
             email,
-            password,
+            password: finalPassword,
             email_confirm: true,
-            user_metadata: { name, role, hospital_id }
+            user_metadata: {
+                name,
+                role,
+                hospital_id,
+                ...(isTemporaryPassword ? { must_change_password: true } : {})
+            }
         });
 
         let targetId = '';
@@ -96,14 +138,18 @@ Deno.serve(async (req) => {
             targetId = authData.user.id;
         }
 
-        // 6. Update Profile
+        // 7. Update Profile
         const { error: upsertError } = await supabaseAdmin.from('profiles').upsert([
             { id: targetId, name, role, hospital_id, email }
         ]);
 
         if (upsertError) throw upsertError;
 
-        return new Response(JSON.stringify({ success: true, user_id: targetId }), { status: 200, headers });
+        return new Response(JSON.stringify({
+            success: true,
+            user_id: targetId,
+            ...(isTemporaryPassword ? { temporary_password: finalPassword } : {})
+        }), { status: 200, headers });
 
     } catch (error: any) {
         console.error('Critical Error:', error.message);

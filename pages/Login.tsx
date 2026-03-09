@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { logLoginAttempt } from '../services/loginAuditService';
 
 const Login: React.FC = () => {
@@ -98,6 +98,12 @@ const Login: React.FC = () => {
                   className="w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                   placeholder="••••••••"
                 />
+              </div>
+
+              <div className="flex justify-end">
+                <Link to="/forgot-password" className="text-xs font-bold text-primary hover:text-primary-hover hover:underline transition-colors">
+                  Esqueci minha senha
+                </Link>
               </div>
 
               <button
