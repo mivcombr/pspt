@@ -279,7 +279,7 @@ const Patients: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Pacientes</h1>
+                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Pacientes</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Histórico e registros únicos de pacientes.</p>
                 </div>
 

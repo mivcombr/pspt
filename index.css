@@ -170,21 +170,31 @@ button,
   overflow-x: hidden;
 }
 
-/* Fix for modal/overlay z-index hierarchy */
+/* Z-index scale (standardized) */
+:root {
+  --z-dropdown: 40;
+  --z-sidebar: 50;
+  --z-modal-backdrop: 60;
+  --z-modal-panel: 70;
+  --z-confirm-modal: 100;
+  --z-toast: 200;
+  --z-tooltip: 9999;
+}
+
 .modal-backdrop {
-  z-index: 100;
+  z-index: var(--z-modal-backdrop);
 }
 
 .modal-content {
-  z-index: 110;
+  z-index: var(--z-modal-panel);
 }
 
 .sidebar-mobile {
-  z-index: 50;
+  z-index: var(--z-sidebar);
 }
 
 .dropdown-menu {
-  z-index: 60;
+  z-index: var(--z-dropdown);
 }
 
 /* Prevent content shift when modals open */
@@ -399,4 +409,58 @@ table tbody tr:nth-child(2) .tooltip-content::after {
   border-width: 5px;
   border-style: solid;
   border-color: #1e293b transparent transparent transparent;
+}
+
+/* ============================================
+   DESIGN SYSTEM — Card Animations & Utilities
+   ============================================ */
+
+/* Staggered card entrance */
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-card-entrance {
+  animation: cardEntrance 0.4s ease-out both;
+}
+
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+.stagger-5 { animation-delay: 0.25s; }
+
+/* Card hover elevation */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3), 0 4px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+/* Hero card gradient (Faturamento Bruto) */
+.card-hero-gradient {
+  background: linear-gradient(135deg, #B92926 0%, #dc2626 50%, #ef4444 100%);
+}
+
+.dark .card-hero-gradient {
+  background: linear-gradient(135deg, #991b1b 0%, #B92926 50%, #dc2626 100%);
+}
+
+/* Login page SVG pattern */
+.login-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }

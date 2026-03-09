@@ -569,7 +569,7 @@ const Expenses: React.FC = () => {
             {/* --- HEADER --- */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-6 pb-4">
                <div>
-                  <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Saídas & Rateios</h1>
+                  <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Saídas & Rateios</h1>
                   <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Gestão de despesas operacionais e distribuição de lucros.</p>
                </div>
 
@@ -641,43 +641,43 @@ const Expenses: React.FC = () => {
                   ))
                ) : (
                   <>
-                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow card-hover flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
                            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">trending_down</span>
                         </div>
                         <div className="flex-1">
                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saída Total</p>
-                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOutflow)}</h3>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display">{formatCurrency(totalOutflow)}</h3>
                         </div>
                      </div>
 
-                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow card-hover flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
                            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">receipt_long</span>
                         </div>
                         <div className="flex-1">
                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operacionais</p>
-                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalOperatingExpenses)}</h3>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display">{formatCurrency(totalOperatingExpenses)}</h3>
                         </div>
                      </div>
 
-                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow card-hover flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
                            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">pie_chart</span>
                         </div>
                         <div className="flex-1">
                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rateios</p>
-                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{formatCurrency(totalWithdrawals)}</h3>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display">{formatCurrency(totalWithdrawals)}</h3>
                         </div>
                      </div>
 
-                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
+                     <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow card-hover flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-amber-500">
                            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">schedule</span>
                         </div>
                         <div className="flex-1">
                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pagamentos Pendentes</p>
-                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{pendingCount}</h3>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display">{pendingCount}</h3>
                         </div>
                      </div>
                   </>

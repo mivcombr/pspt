@@ -970,7 +970,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shrink-0">
                 {!isEmbedded && (
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Atendimentos</h1>
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display">Atendimentos</h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gerencie a agenda e os pagamentos.</p>
                     </div>
                 )}

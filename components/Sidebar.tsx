@@ -109,13 +109,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                         {/* Geral for Admin */}
                         {user?.role?.toUpperCase() === UserRole.ADMIN && (
                             <>
-                                <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2 px-4 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Geral</p>
+                                <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2 px-4 border-l-2 border-slate-200 dark:border-slate-700 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Geral</p>
                                 <NavItem to="/" icon="dashboard" label="Dashboard" />
                             </>
                         )}
 
                         {/* Operational Section - Visible to All */}
-                        <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-4 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Operacional</p>
+                        <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-4 border-l-2 border-slate-200 dark:border-slate-700 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Operacional</p>
                         <NavItem to="/attendances" icon="event_list" label="Atendimentos" />
                         <NavItem to="/new-appointment" icon="add_circle" label="Novo Agendamento" />
                         <NavItem to="/patients" icon="groups" label="Pacientes" />
@@ -123,7 +123,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                         {/* Management Section - Visible to Admin & Financial */}
                         {(user?.role?.toUpperCase() === UserRole.ADMIN || user?.role?.toUpperCase() === UserRole.FINANCIAL) && (
                             <>
-                                <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-4 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Gestão</p>
+                                <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-4 border-l-2 border-slate-200 dark:border-slate-700 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Gestão</p>
                                 <NavItem to="/financials" icon="account_balance_wallet" label="Financeiro" />
 
                                 {user?.role?.toUpperCase() === UserRole.ADMIN && (

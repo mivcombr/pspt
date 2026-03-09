@@ -12,7 +12,7 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; do
     'Falhou': { label: 'Falhou', bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', dot: 'bg-red-500' },
     'Pago': { label: 'Pago', bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500' },
     'Pendente': { label: 'Pendente', bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-500' },
-    'Não realizado': { label: 'Não realizado', bg: 'bg-slate-50 dark:bg-slate-800/50', text: 'text-slate-400', dot: 'bg-slate-300' },
+    'Não realizado': { label: 'Não realizado', bg: 'bg-slate-100 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400 dark:bg-slate-500' },
 };
 
 export const Badge: React.FC<BadgeProps> = ({ status, className = '' }) => {
