@@ -7,6 +7,8 @@ interface AuthContextType {
   isLoading: boolean;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
+  mustChangePassword: boolean;
+  clearMustChangePassword: () => void;
   authStatus?: string;
   error: string | null;
   setLoadingState: (loading: boolean) => void;
@@ -20,6 +22,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState('Verificando sessão...');
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   // useRef to always have the latest user value — avoids stale closure bugs
   // where callbacks captured an old (null) user and incorrectly cleared state.
@@ -30,6 +33,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  const clearMustChangePassword = useCallback(() => {
+    setMustChangePassword(false);
+  }, []);
 
   const fetchProfile = useCallback(async (userId: string, authUserEmail?: string) => {
     // Prevent concurrent fetches
@@ -69,6 +76,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!profile) {
           console.warn('Profile not found in database for user:', userId);
           throw new Error('Seu perfil não foi encontrado. Por favor, entre em contato com o administrador.');
+        }
+
+        // Check if user must change their password (temporary password flow)
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser?.user_metadata?.must_change_password === true) {
+          console.log('[Auth] User must change password on first login');
+          setMustChangePassword(true);
         }
 
         return {
@@ -142,6 +156,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (event === 'SIGNED_OUT') {
           userRef.current = null;
           setUser(null);
+          setMustChangePassword(false);
           return;
         }
 
@@ -149,6 +164,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Token refreshed successfully — session is still valid, no action needed.
           console.log('[Auth] Token refreshed. User present:', !!userRef.current);
           return;
+        }
+
+        // Handle password recovery flow — don't load full profile
+        if (event === 'PASSWORD_RECOVERY') {
+          console.log('[Auth] Password recovery event detected');
+          setIsLoading(false);
+          return;
+        }
+
+        // When user updates their password, check if must_change_password was cleared
+        if (event === 'USER_UPDATED' && session) {
+          if (session.user?.user_metadata?.must_change_password === false || !session.user?.user_metadata?.must_change_password) {
+            setMustChangePassword(false);
+          }
         }
 
         // For SIGNED_IN, INITIAL_SESSION, USER_UPDATED — only fetch profile if we don't have one
@@ -212,6 +241,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // 3. Clear user state
       userRef.current = null;
       setUser(null);
+      setMustChangePassword(false);
 
       // 4. Redirect and reload to ensure a fresh state
       window.location.hash = '#/login';
@@ -220,6 +250,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('Logout error:', err);
       userRef.current = null;
       setUser(null);
+      setMustChangePassword(false);
       window.location.hash = '#/login';
       window.location.reload();
     } finally {
@@ -228,7 +259,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signOut, isAuthenticated: !!user, authStatus, error, setLoadingState: setIsLoading, retryFetchProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, signOut, isAuthenticated: !!user, mustChangePassword, clearMustChangePassword, authStatus, error, setLoadingState: setIsLoading, retryFetchProfile }}>
       {children}
     </AuthContext.Provider>
   );

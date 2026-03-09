@@ -3,10 +3,16 @@ import { logger } from '../lib/logger';
 
 export interface CreateUserPayload {
     email: string;
-    password: string;
+    password?: string;
     name: string;
     role: 'RECEPTION' | 'FINANCIAL';
     hospital_id: string;
+}
+
+export interface CreateUserResponse {
+    success: boolean;
+    user_id: string;
+    temporary_password?: string;
 }
 
 const invokeFunctionWithSession = async <T,>(name: string, body: Record<string, any>) => {
@@ -71,11 +77,11 @@ export const userService = {
     /**
      * Create a new user (requires admin privileges)
      */
-    async createUser(payload: CreateUserPayload) {
+    async createUser(payload: CreateUserPayload): Promise<CreateUserResponse> {
         try {
-            const { data } = await invokeFunctionWithSession('create-user', payload);
+            const { data } = await invokeFunctionWithSession<CreateUserResponse>('create-user', payload);
             logger.info({ action: 'create', entity: 'profiles', email: payload.email }, 'crud');
-            return data;
+            return data as CreateUserResponse;
         } catch (error: any) {
             logger.error({ action: 'create', entity: 'profiles', error: error.message }, 'crud');
             throw error;
