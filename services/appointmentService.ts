@@ -797,6 +797,53 @@ export const appointmentService = {
         logger.info({ action: 'update', entity: 'appointments', fields: ['patient_name', 'patient_birth_date'], patient_name: oldName }, 'crud');
     },
 
+    async mergePatients(
+        primary: { name: string; birthDate: string | null | undefined; id?: string },
+        duplicate: { name: string; birthDate: string | null | undefined; id?: string }
+    ) {
+        // Step 1: Update all appointments from the duplicate to point to the primary
+        let apptQuery = supabase
+            .from('appointments')
+            .update({
+                patient_name: primary.name,
+                patient_birth_date: primary.birthDate || null,
+                patient_id: primary.id || null
+            })
+            .eq('patient_name', duplicate.name);
+
+        if (duplicate.birthDate && duplicate.birthDate.trim() !== '') {
+            apptQuery = apptQuery.eq('patient_birth_date', duplicate.birthDate);
+        } else {
+            apptQuery = apptQuery.is('patient_birth_date', null);
+        }
+
+        const { error: apptError } = await apptQuery.select();
+        if (apptError) {
+            logger.error({ action: 'merge', entity: 'appointments', primary: primary.name, duplicate: duplicate.name, error: apptError }, 'crud');
+            throw apptError;
+        }
+
+        // Step 2: If the duplicate exists in the patients table, delete it
+        if (duplicate.id) {
+            const { error: deleteError } = await supabase
+                .from('patients')
+                .delete()
+                .eq('id', duplicate.id);
+
+            if (deleteError) {
+                logger.error({ action: 'merge_delete', entity: 'patients', id: duplicate.id, error: deleteError }, 'crud');
+                // Don't throw — appointments already merged
+            }
+        }
+
+        logger.info({
+            action: 'merge',
+            entity: 'patients',
+            primary: { name: primary.name, birthDate: primary.birthDate, id: primary.id },
+            duplicate: { name: duplicate.name, birthDate: duplicate.birthDate, id: duplicate.id }
+        }, 'crud');
+    },
+
     async updatePayment(paymentId: string, updates: any) {
         const { data, error } = await supabase
             .from('appointment_payments')

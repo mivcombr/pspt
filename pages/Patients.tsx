@@ -8,6 +8,7 @@ import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { useNotification } from '../hooks/useNotification';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 interface PatientRecord {
     id?: string;
@@ -51,6 +52,15 @@ const Patients: React.FC = () => {
     const [nameInputValue, setNameInputValue] = useState('');
     const [isEditingBirthDate, setIsEditingBirthDate] = useState(false);
     const [birthDateInputValue, setBirthDateInputValue] = useState('');
+
+    // Merge Modal State
+    const [isMergeOpen, setIsMergeOpen] = useState(false);
+    const [mergeSearchPrimary, setMergeSearchPrimary] = useState('');
+    const [mergeSearchDuplicate, setMergeSearchDuplicate] = useState('');
+    const [mergePrimary, setMergePrimary] = useState<PatientRecord | null>(null);
+    const [mergeDuplicate, setMergeDuplicate] = useState<PatientRecord | null>(null);
+    const [isMerging, setIsMerging] = useState(false);
+    const [showMergeConfirm, setShowMergeConfirm] = useState(false);
 
     const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -225,6 +235,66 @@ const Patients: React.FC = () => {
         }
     };
 
+    const handleOpenMerge = () => {
+        setMergeSearchPrimary('');
+        setMergeSearchDuplicate('');
+        setMergePrimary(null);
+        setMergeDuplicate(null);
+        setIsMergeOpen(true);
+    };
+
+    const handleSwapMerge = () => {
+        const temp = mergePrimary;
+        setMergePrimary(mergeDuplicate);
+        setMergeDuplicate(temp);
+        const tempSearch = mergeSearchPrimary;
+        setMergeSearchPrimary(mergeSearchDuplicate);
+        setMergeSearchDuplicate(tempSearch);
+    };
+
+    const handleConfirmMerge = async () => {
+        if (!mergePrimary || !mergeDuplicate) return;
+
+        setIsMerging(true);
+        const loadingToast = notify.loading('Mesclando pacientes...');
+
+        try {
+            await appointmentService.mergePatients(
+                { name: mergePrimary.name, birthDate: mergePrimary.birthDate, id: mergePrimary.id },
+                { name: mergeDuplicate.name, birthDate: mergeDuplicate.birthDate, id: mergeDuplicate.id }
+            );
+
+            notify.dismiss(loadingToast);
+            notify.success(`Paciente "${mergeDuplicate.name}" foi mesclado com "${mergePrimary.name}" com sucesso!`);
+            setIsMergeOpen(false);
+            setMergePrimary(null);
+            setMergeDuplicate(null);
+            await fetchData();
+        } catch (err) {
+            console.error('Error merging patients:', err);
+            notify.dismiss(loadingToast);
+            notify.error('Erro ao mesclar pacientes. Tente novamente.');
+        } finally {
+            setIsMerging(false);
+        }
+    };
+
+    const mergeFilteredPrimary = useMemo(() => {
+        if (mergeSearchPrimary.length < 2) return [];
+        return patients.filter(p =>
+            p.name.toLowerCase().includes(mergeSearchPrimary.toLowerCase()) &&
+            (!mergeDuplicate || p.name !== mergeDuplicate.name || p.birthDate !== mergeDuplicate.birthDate)
+        ).slice(0, 5);
+    }, [patients, mergeSearchPrimary, mergeDuplicate]);
+
+    const mergeFilteredDuplicate = useMemo(() => {
+        if (mergeSearchDuplicate.length < 2) return [];
+        return patients.filter(p =>
+            p.name.toLowerCase().includes(mergeSearchDuplicate.toLowerCase()) &&
+            (!mergePrimary || p.name !== mergePrimary.name || p.birthDate !== mergePrimary.birthDate)
+        ).slice(0, 5);
+    }, [patients, mergeSearchDuplicate, mergePrimary]);
+
     const formatPhoneInput = (value: string) => {
         const digits = value.replace(/\D/g, '');
         if (digits.length <= 10) {
@@ -335,6 +405,18 @@ const Patients: React.FC = () => {
                             Linhas
                         </button>
                     </div>
+
+                    {/* Merge Button (Admin Only) */}
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            onClick={handleOpenMerge}
+                            className="h-12 px-5 rounded-2xl bg-primary text-white font-bold text-sm flex items-center gap-2 hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 active:scale-95"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">merge</span>
+                            Mesclar
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -569,6 +651,255 @@ const Patients: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Merge Modal */}
+            {isMergeOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsMergeOpen(false)} />
+                    <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-primary text-2xl">merge</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Mesclar Pacientes</h2>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Unifique registros duplicados de um mesmo paciente.</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsMergeOpen(false)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6">
+                            {/* Info Banner */}
+                            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
+                                <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 mt-0.5">info</span>
+                                <div>
+                                    <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Como funciona a mesclagem?</p>
+                                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                                        Todos os agendamentos do paciente <strong>duplicado</strong> ser&atilde;o transferidos para o paciente <strong>principal</strong>.
+                                        O registro duplicado ser&aacute; removido ap&oacute;s a mesclagem. Esta a&ccedil;&atilde;o n&atilde;o pode ser desfeita.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-start">
+                                {/* Primary Patient */}
+                                <div>
+                                    <label className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-2 block flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[14px]">star</span>
+                                        Paciente Principal (manter)
+                                    </label>
+                                    {mergePrimary ? (
+                                        <div className="bg-green-50 dark:bg-green-900/10 border-2 border-green-300 dark:border-green-700 rounded-2xl p-4 relative">
+                                            <button
+                                                onClick={() => { setMergePrimary(null); setMergeSearchPrimary(''); }}
+                                                className="absolute top-2 right-2 p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">close</span>
+                                            </button>
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="size-10 rounded-xl bg-green-100 dark:bg-green-800/30 text-green-700 dark:text-green-400 flex items-center justify-center font-black text-sm">
+                                                    {getInitials(mergePrimary.name)}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{mergePrimary.name}</p>
+                                                    <p className="text-[10px] font-black text-green-600 uppercase tracking-widest">Principal</p>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-400">cake</span>
+                                                    <span className="font-medium">{formatDate(mergePrimary.birthDate)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-400">call</span>
+                                                    <span className="font-medium">{mergePrimary.phone || 'Sem telefone'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-400">domain</span>
+                                                    <span className="font-medium">{mergePrimary.hospital_name || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div className="relative">
+                                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+                                                <input
+                                                    type="text"
+                                                    value={mergeSearchPrimary}
+                                                    onChange={(e) => setMergeSearchPrimary(e.target.value)}
+                                                    placeholder="Buscar paciente principal..."
+                                                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                />
+                                            </div>
+                                            {mergeFilteredPrimary.length > 0 && (
+                                                <div className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-lg max-h-48 overflow-y-auto">
+                                                    {mergeFilteredPrimary.map((p, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => { setMergePrimary(p); setMergeSearchPrimary(p.name); }}
+                                                            className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0"
+                                                        >
+                                                            <p className="text-sm font-bold text-slate-900 dark:text-white">{p.name}</p>
+                                                            <p className="text-[11px] text-slate-500 dark:text-slate-400">{formatDate(p.birthDate)} • {p.hospital_name}</p>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Swap Button */}
+                                <div className="flex items-center justify-center md:pt-8">
+                                    <button
+                                        onClick={handleSwapMerge}
+                                        disabled={!mergePrimary && !mergeDuplicate}
+                                        className="size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-primary hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center shadow-sm hover:shadow-md active:scale-90"
+                                        title="Trocar pacientes"
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">swap_horiz</span>
+                                    </button>
+                                </div>
+
+                                {/* Duplicate Patient */}
+                                <div>
+                                    <label className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2 block flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
+                                        Paciente Duplicado (remover)
+                                    </label>
+                                    {mergeDuplicate ? (
+                                        <div className="bg-red-50 dark:bg-red-900/10 border-2 border-red-300 dark:border-red-700 rounded-2xl p-4 relative">
+                                            <button
+                                                onClick={() => { setMergeDuplicate(null); setMergeSearchDuplicate(''); }}
+                                                className="absolute top-2 right-2 p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">close</span>
+                                            </button>
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="size-10 rounded-xl bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-400 flex items-center justify-center font-black text-sm">
+                                                    {getInitials(mergeDuplicate.name)}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{mergeDuplicate.name}</p>
+                                                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">Duplicado</p>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-400">cake</span>
+                                                    <span className="font-medium">{formatDate(mergeDuplicate.birthDate)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-400">call</span>
+                                                    <span className="font-medium">{mergeDuplicate.phone || 'Sem telefone'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-400">domain</span>
+                                                    <span className="font-medium">{mergeDuplicate.hospital_name || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div className="relative">
+                                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+                                                <input
+                                                    type="text"
+                                                    value={mergeSearchDuplicate}
+                                                    onChange={(e) => setMergeSearchDuplicate(e.target.value)}
+                                                    placeholder="Buscar paciente duplicado..."
+                                                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                />
+                                            </div>
+                                            {mergeFilteredDuplicate.length > 0 && (
+                                                <div className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-lg max-h-48 overflow-y-auto">
+                                                    {mergeFilteredDuplicate.map((p, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => { setMergeDuplicate(p); setMergeSearchDuplicate(p.name); }}
+                                                            className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0"
+                                                        >
+                                                            <p className="text-sm font-bold text-slate-900 dark:text-white">{p.name}</p>
+                                                            <p className="text-[11px] text-slate-500 dark:text-slate-400">{formatDate(p.birthDate)} • {p.hospital_name}</p>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Merge Preview */}
+                            {mergePrimary && mergeDuplicate && (
+                                <div className="mt-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="material-symbols-outlined text-primary text-[18px]">preview</span>
+                                        <p className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Resultado da Mesclagem</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black text-xs">
+                                            {getInitials(mergePrimary.name)}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-900 dark:text-white">{mergePrimary.name}</p>
+                                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                                {formatDate(mergePrimary.birthDate)} • Todos os agendamentos de "{mergeDuplicate.name}" ser&atilde;o transferidos.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+                            <button
+                                onClick={() => setIsMergeOpen(false)}
+                                className="px-5 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => setShowMergeConfirm(true)}
+                                disabled={!mergePrimary || !mergeDuplicate || isMerging}
+                                className="px-5 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-all text-sm shadow-lg shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isMerging ? (
+                                    <>
+                                        <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Mesclando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="material-symbols-outlined text-[18px]">merge</span>
+                                        Mesclar Pacientes
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Merge Confirm Dialog */}
+            <ConfirmModal
+                isOpen={showMergeConfirm}
+                onClose={() => setShowMergeConfirm(false)}
+                onConfirm={handleConfirmMerge}
+                title="Confirmar Mesclagem"
+                message={`Todos os agendamentos de "${mergeDuplicate?.name || ''}" ser\u00e3o transferidos para "${mergePrimary?.name || ''}". O registro duplicado ser\u00e1 removido. Esta a\u00e7\u00e3o n\u00e3o pode ser desfeita.`}
+                confirmText="Sim, Mesclar"
+                cancelText="Cancelar"
+                variant="warning"
+            />
 
             {/* History Sidebar/Modal */}
             {isHistoryOpen && (
