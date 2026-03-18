@@ -29,6 +29,7 @@ const NewAppointment: React.FC = () => {
 
   // Form State
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchMode, setSearchMode] = useState<'name' | 'phone' | 'birthDate'>('name');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
   const [isCreatingPatient, setIsCreatingPatient] = useState(false);
@@ -154,9 +155,23 @@ const NewAppointment: React.FC = () => {
   // Patient Search (by name, phone, or birth date)
   const handleSearchChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
-    // Only title-case if it looks like a name (not phone digits or date)
-    const isPhoneOrDate = /^[\d\s()\-+\/]+$/.test(raw);
-    const term = isPhoneOrDate ? raw : raw.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+    let term: string;
+    if (searchMode === 'name') {
+      term = raw.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+    } else if (searchMode === 'phone') {
+      const digits = raw.replace(/\D/g, '');
+      if (digits.length <= 10) {
+        term = digits.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '').replace(/\(\) /, '');
+      } else {
+        term = digits.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+      }
+    } else {
+      const digits = raw.replace(/\D/g, '');
+      let formatted = digits;
+      if (digits.length >= 2) formatted = digits.slice(0, 2) + '/' + digits.slice(2);
+      if (digits.length >= 4) formatted = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4, 8);
+      term = formatted;
+    }
     setSearchTerm(term);
     setSelectedPatient(null);
 
@@ -463,16 +478,40 @@ const NewAppointment: React.FC = () => {
             </div>
 
             {!isCreatingPatient ? (
-              <label className="flex flex-col relative">
-                <div className="flex justify-between">
-                  <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Buscar Paciente</p>
+              <div className="flex flex-col relative">
+                <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Buscar Paciente</p>
+                <div className="flex gap-1 mb-2">
+                  {([
+                    { key: 'name', label: 'Nome', icon: 'person' },
+                    { key: 'phone', label: 'Telefone', icon: 'phone' },
+                    { key: 'birthDate', label: 'Nascimento', icon: 'cake' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => { setSearchMode(opt.key); setSearchTerm(''); setSearchResults([]); }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        searchMode === opt.key
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[14px]">{opt.icon}</span>
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
                 <div className="relative flex w-full flex-1 items-stretch rounded-lg">
                   <input
                     value={searchTerm}
                     onChange={handleSearchChange}
                     className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base"
-                    placeholder="Nome, telefone ou data de nascimento..."
+                    placeholder={
+                      searchMode === 'name' ? 'Digite o nome do paciente...' :
+                      searchMode === 'phone' ? '(00) 00000-0000' :
+                      'DD/MM/AAAA'
+                    }
+                    inputMode={searchMode === 'name' ? 'text' : 'numeric'}
                   />
                   <div className="absolute inset-y-0 right-0 text-slate-400 flex items-center justify-center pr-4">
                     <span className="material-symbols-outlined text-xl">search</span>
@@ -498,7 +537,7 @@ const NewAppointment: React.FC = () => {
                     ))}
                   </div>
                 )}
-              </label>
+              </div>
             ) : (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-lg text-sm text-primary mb-2 flex items-center gap-2">

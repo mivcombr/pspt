@@ -26,6 +26,7 @@ const Patients: React.FC = () => {
     const [patients, setPatients] = useState<PatientRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchMode, setSearchMode] = useState<'name' | 'phone' | 'birthDate'>('name');
     const [selectedHospital, setSelectedHospital] = useState('Todos os Hospitais');
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [viewMode, setViewMode] = useState<'grid' | 'rows'>('rows');
@@ -356,18 +357,59 @@ const Patients: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
                     {isLoading && <LoadingIndicator />}
                     {/* Search */}
-                    <div className="relative w-full sm:w-80">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                        <input
-                            value={searchTerm}
-                            onChange={(e) => {
-                                const raw = e.target.value;
-                                const isPhoneOrDate = /^[\d\s()\-+\/]+$/.test(raw);
-                                setSearchTerm(isPhoneOrDate ? raw : raw.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase()));
-                            }}
-                            className="w-full h-12 pl-12 pr-4 rounded-2xl border-none bg-white dark:bg-slate-900 shadow-sm focus:ring-2 focus:ring-primary text-sm font-medium text-slate-700 dark:text-white placeholder-slate-400"
-                            placeholder="Nome, telefone ou data de nascimento..."
-                        />
+                    <div className="w-full sm:w-auto">
+                        <div className="flex gap-1 mb-2">
+                            {([
+                                { key: 'name', label: 'Nome', icon: 'person' },
+                                { key: 'phone', label: 'Telefone', icon: 'phone' },
+                                { key: 'birthDate', label: 'Nascimento', icon: 'cake' },
+                            ] as const).map(opt => (
+                                <button
+                                    key={opt.key}
+                                    onClick={() => { setSearchMode(opt.key); setSearchTerm(''); }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                        searchMode === opt.key
+                                            ? 'bg-primary text-white shadow-sm'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                                >
+                                    <span className="material-symbols-outlined text-[14px]">{opt.icon}</span>
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative w-full sm:w-80">
+                            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                            <input
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (searchMode === 'name') {
+                                        setSearchTerm(raw.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase()));
+                                    } else if (searchMode === 'phone') {
+                                        const digits = raw.replace(/\D/g, '');
+                                        if (digits.length <= 10) {
+                                            setSearchTerm(digits.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '').replace(/\(\) /, ''));
+                                        } else {
+                                            setSearchTerm(digits.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, ''));
+                                        }
+                                    } else {
+                                        const digits = raw.replace(/\D/g, '');
+                                        let formatted = digits;
+                                        if (digits.length >= 2) formatted = digits.slice(0, 2) + '/' + digits.slice(2);
+                                        if (digits.length >= 4) formatted = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4, 8);
+                                        setSearchTerm(formatted);
+                                    }
+                                }}
+                                className="w-full h-12 pl-12 pr-4 rounded-2xl border-none bg-white dark:bg-slate-900 shadow-sm focus:ring-2 focus:ring-primary text-sm font-medium text-slate-700 dark:text-white placeholder-slate-400"
+                                placeholder={
+                                    searchMode === 'name' ? 'Digite o nome do paciente...' :
+                                    searchMode === 'phone' ? '(00) 00000-0000' :
+                                    'DD/MM/AAAA'
+                                }
+                                inputMode={searchMode === 'name' ? 'text' : 'numeric'}
+                            />
+                        </div>
                     </div>
 
                     {/* Hospital Filter (Admin Only) */}
