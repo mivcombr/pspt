@@ -530,8 +530,8 @@ export const appointmentService = {
             .select(selectFields);
 
         if (isPhoneSearch) {
-            // Search by phone digits using pattern matching
-            query = query.ilike('patient_phone', `%${digitsOnly.slice(-8)}%`);
+            // Search both formatted and raw digits to handle any storage format
+            query = query.or(`patient_phone.ilike.%${searchTerm}%,patient_phone.ilike.%${digitsOnly.slice(-8)}%`);
         } else if (isDateSearch) {
             // Convert DD/MM/YYYY to YYYY-MM-DD if needed
             const isoDate = dateMatch
@@ -598,7 +598,8 @@ export const appointmentService = {
 
         if (term) {
             if (isPhoneSearch) {
-                patientQuery = patientQuery.ilike('phone', `%${digitsOnly.slice(-8)}%`);
+                // Search both formatted and raw digits to handle any storage format
+                patientQuery = patientQuery.or(`phone.ilike.%${term}%,phone.ilike.%${digitsOnly.slice(-8)}%`);
             } else if (isDateSearch) {
                 patientQuery = patientQuery.eq('birth_date', isoDate);
             } else {
@@ -663,7 +664,7 @@ export const appointmentService = {
 
         if (term) {
             if (isPhoneSearch) {
-                query = query.ilike('patient_phone', `%${digitsOnly.slice(-8)}%`);
+                query = query.or(`patient_phone.ilike.%${term}%,patient_phone.ilike.%${digitsOnly.slice(-8)}%`);
             } else if (isDateSearch) {
                 query = query.eq('patient_birth_date', isoDate);
             } else {
