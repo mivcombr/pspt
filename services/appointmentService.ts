@@ -578,6 +578,15 @@ export const appointmentService = {
     },
 
     async getPatientRecords(filters?: { hospitalId?: string; searchTerm?: string }) {
+        // Detect search type: phone (digits), birth date (DD/MM/YYYY or YYYY-MM-DD), or name
+        const term = filters?.searchTerm || '';
+        const digitsOnly = term.replace(/\D/g, '');
+        const isPhoneSearch = digitsOnly.length >= 4 && /^[\d\s()\-+]+$/.test(term);
+        const dateMatch = term.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        const isoDateMatch = term.match(/^\d{4}-\d{2}-\d{2}$/);
+        const isDateSearch = !!(dateMatch || isoDateMatch);
+        const isoDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : term;
+
         // Try to fetch from the new patients table first
         let patientQuery = supabase
             .from('patients')
@@ -587,8 +596,14 @@ export const appointmentService = {
             patientQuery = patientQuery.eq('hospital_id', filters.hospitalId);
         }
 
-        if (filters?.searchTerm) {
-            patientQuery = patientQuery.ilike('name', `%${filters.searchTerm}%`);
+        if (term) {
+            if (isPhoneSearch) {
+                patientQuery = patientQuery.ilike('phone', `%${digitsOnly.slice(-8)}%`);
+            } else if (isDateSearch) {
+                patientQuery = patientQuery.eq('birth_date', isoDate);
+            } else {
+                patientQuery = patientQuery.ilike('name', `%${term}%`);
+            }
         }
 
         const { data: patientsData, error: patientError } = await patientQuery.order('name', { ascending: true });
@@ -646,8 +661,14 @@ export const appointmentService = {
             query = query.eq('hospital_id', filters.hospitalId);
         }
 
-        if (filters?.searchTerm) {
-            query = query.ilike('patient_name', `%${filters.searchTerm}%`);
+        if (term) {
+            if (isPhoneSearch) {
+                query = query.ilike('patient_phone', `%${digitsOnly.slice(-8)}%`);
+            } else if (isDateSearch) {
+                query = query.eq('patient_birth_date', isoDate);
+            } else {
+                query = query.ilike('patient_name', `%${term}%`);
+            }
         }
 
         const { data, error } = await query.order('date', { ascending: true }).order('time', { ascending: true });

@@ -360,9 +360,13 @@ const Patients: React.FC = () => {
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
                         <input
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase()))}
+                            onChange={(e) => {
+                                const raw = e.target.value;
+                                const isPhoneOrDate = /^[\d\s()\-+\/]+$/.test(raw);
+                                setSearchTerm(isPhoneOrDate ? raw : raw.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase()));
+                            }}
                             className="w-full h-12 pl-12 pr-4 rounded-2xl border-none bg-white dark:bg-slate-900 shadow-sm focus:ring-2 focus:ring-primary text-sm font-medium text-slate-700 dark:text-white placeholder-slate-400"
-                            placeholder="Buscar paciente por nome..."
+                            placeholder="Nome, telefone ou data de nascimento..."
                         />
                     </div>
 
