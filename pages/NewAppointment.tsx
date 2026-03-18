@@ -11,6 +11,7 @@ import { procedureService } from '../services/procedureService';
 import { doctorService } from '../services/doctorService';
 import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
 import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
+import { formatPhoneMask, isValidPhone } from '../utils/formatters';
 
 // Doctors list removed - dynamic fetching implemented
 
@@ -237,6 +238,9 @@ const NewAppointment: React.FC = () => {
     if (name === 'name') {
       value = value.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
     }
+    if (name === 'phone') {
+      value = formatPhoneMask(value);
+    }
 
     const updatedData = { ...newPatientData, [name]: value };
     setNewPatientData(updatedData);
@@ -339,6 +343,10 @@ const NewAppointment: React.FC = () => {
     }
     if (!selectedPatient.name || !selectedPatient.phone) {
       notify.warning('Todos os dados do paciente (Nome e Telefone) são obrigatórios.');
+      return;
+    }
+    if (isCreatingPatient && !isValidPhone(selectedPatient.phone)) {
+      notify.warning('Telefone inválido. Use o formato (XX) XXXXX-XXXX com DDD.');
       return;
     }
 

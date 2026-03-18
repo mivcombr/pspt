@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Appointment, PaymentPart, UserRole } from '../types';
-import { APP_TIME_ZONE, formatCurrency, parseCurrency } from '../utils/formatters';
+import { APP_TIME_ZONE, formatCurrency, parseCurrency, formatPhoneMask, formatPhone, isValidPhone } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -765,6 +765,10 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     const handleSavePhone = async () => {
         if (!selectedPatientForHistory) return;
+        if (phoneInputValue && !isValidPhone(phoneInputValue)) {
+            notify.warning('Telefone inválido. Use o formato (XX) XXXXX-XXXX com DDD.');
+            return;
+        }
 
         const loadingToast = notify.loading('Atualizando telefone...');
 
@@ -795,20 +799,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         }
     };
 
-    const formatPhoneInput = (value: string) => {
-        // Remove all non-digits
-        const digits = value.replace(/\D/g, '');
-
-        // Format as (XX) XXXXX-XXXX or (XX) XXXX-XXXX
-        if (digits.length <= 10) {
-            return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
-        }
-        return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
-    };
-
     const handlePhoneInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const formatted = formatPhoneInput(e.target.value);
-        setPhoneInputValue(formatted);
+        setPhoneInputValue(formatPhoneMask(e.target.value));
     };
 
     const handleOpenAuditLog = async (appointmentId: string) => {
@@ -1921,7 +1913,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-between">
-                                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatientForHistory?.phone ? formatPhoneInput(selectedPatientForHistory.phone) : 'Não informado'}</p>
+                                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedPatientForHistory?.phone ? formatPhone(selectedPatientForHistory.phone) : 'Não informado'}</p>
                                                 <button
                                                     onClick={() => setIsEditingPhone(true)}
                                                     className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"

@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate, formatPhoneMask, isValidPhone } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { useNotification } from '../hooks/useNotification';
@@ -173,6 +173,10 @@ const Patients: React.FC = () => {
 
     const handleSavePhone = async () => {
         if (!selectedPatient) return;
+        if (phoneInputValue && !isValidPhone(phoneInputValue)) {
+            notify.warning('Telefone inválido. Use o formato (XX) XXXXX-XXXX com DDD.');
+            return;
+        }
 
         const loadingToast = notify.loading('Atualizando telefone...');
 
@@ -296,17 +300,8 @@ const Patients: React.FC = () => {
         ).slice(0, 5);
     }, [patients, mergeSearchDuplicate, mergePrimary]);
 
-    const formatPhoneInput = (value: string) => {
-        const digits = value.replace(/\D/g, '');
-        if (digits.length <= 10) {
-            return digits.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
-        }
-        return digits.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
-    };
-
     const handlePhoneInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const formatted = formatPhoneInput(e.target.value);
-        setPhoneInputValue(formatted);
+        setPhoneInputValue(formatPhoneMask(e.target.value));
     };
 
     const getInitials = (name: string) => {
