@@ -530,8 +530,10 @@ export const appointmentService = {
             .select(selectFields);
 
         if (isPhoneSearch) {
-            // Search both formatted and raw digits to handle any storage format
-            query = query.or(`patient_phone.ilike.%${searchTerm}%,patient_phone.ilike.%${digitsOnly.slice(-8)}%`);
+            // Search by last 8 digits using a pattern that matches inside formatted phones
+            const d = digitsOnly.slice(-8);
+            const phonePattern = `%${d.slice(0,4)}%${d.slice(4)}%`;
+            query = query.ilike('patient_phone', phonePattern);
         } else if (isDateSearch) {
             // Convert DD/MM/YYYY to YYYY-MM-DD if needed
             const isoDate = dateMatch
@@ -598,8 +600,9 @@ export const appointmentService = {
 
         if (term) {
             if (isPhoneSearch) {
-                // Search both formatted and raw digits to handle any storage format
-                patientQuery = patientQuery.or(`phone.ilike.%${term}%,phone.ilike.%${digitsOnly.slice(-8)}%`);
+                const d = digitsOnly.slice(-8);
+                const phonePattern = `%${d.slice(0,4)}%${d.slice(4)}%`;
+                patientQuery = patientQuery.ilike('phone', phonePattern);
             } else if (isDateSearch) {
                 patientQuery = patientQuery.eq('birth_date', isoDate);
             } else {
@@ -664,7 +667,9 @@ export const appointmentService = {
 
         if (term) {
             if (isPhoneSearch) {
-                query = query.or(`patient_phone.ilike.%${term}%,patient_phone.ilike.%${digitsOnly.slice(-8)}%`);
+                const d = digitsOnly.slice(-8);
+                const phonePattern = `%${d.slice(0,4)}%${d.slice(4)}%`;
+                query = query.ilike('patient_phone', phonePattern);
             } else if (isDateSearch) {
                 query = query.eq('patient_birth_date', isoDate);
             } else {
