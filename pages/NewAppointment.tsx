@@ -39,6 +39,7 @@ const NewAppointment: React.FC = () => {
     birthDate: '',
     hospitalId: (user?.role === UserRole.RECEPTION || user?.role === UserRole.FINANCIAL) ? user.hospitalId : ''
   });
+  const [duplicateSuggestions, setDuplicateSuggestions] = useState<any[]>([]);
 
   const formatDateForInput = (date: Date | null) => {
     if (!date) return '';
@@ -150,9 +151,12 @@ const NewAppointment: React.FC = () => {
 
   // --- Handlers ---
 
-  // Patient Search
+  // Patient Search (by name, phone, or birth date)
   const handleSearchChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const term = e.target.value.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+    const raw = e.target.value;
+    // Only title-case if it looks like a name (not phone digits or date)
+    const isPhoneOrDate = /^[\d\s()\-+\/]+$/.test(raw);
+    const term = isPhoneOrDate ? raw : raw.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
     setSearchTerm(term);
     setSelectedPatient(null);
 
@@ -203,6 +207,7 @@ const NewAppointment: React.FC = () => {
     setSelectedPatient(null);
     setSearchTerm('');
     setSearchResults([]);
+    setDuplicateSuggestions([]);
     setNewPatientData({
       name: '',
       phone: '',
@@ -211,7 +216,7 @@ const NewAppointment: React.FC = () => {
     });
   };
 
-  const handleNewPatientInput = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleNewPatientInput = async (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     let { name, value } = e.target;
 
     if (name === 'name') {
@@ -237,6 +242,25 @@ const NewAppointment: React.FC = () => {
     } else {
       setSelectedPatient(null);
     }
+
+    // Search for duplicate patients when name has 3+ characters
+    if (name === 'name' && value.length >= 3) {
+      try {
+        const scopedHospitalId = user?.role !== UserRole.ADMIN ? user?.hospitalId : formData.hospitalId || undefined;
+        const results = await appointmentService.getPatients(value, scopedHospitalId);
+        setDuplicateSuggestions(results);
+      } catch {
+        setDuplicateSuggestions([]);
+      }
+    } else if (name === 'name' && value.length < 3) {
+      setDuplicateSuggestions([]);
+    }
+  };
+
+  const useSuggestedPatient = (patient: any) => {
+    setDuplicateSuggestions([]);
+    setIsCreatingPatient(false);
+    selectPatient(patient);
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -448,7 +472,7 @@ const NewAppointment: React.FC = () => {
                     value={searchTerm}
                     onChange={handleSearchChange}
                     className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-base"
-                    placeholder={(user?.role === UserRole.RECEPTION || user?.role === UserRole.FINANCIAL) ? `Buscar paciente...` : "Digite o nome do paciente..."}
+                    placeholder="Nome, telefone ou data de nascimento..."
                   />
                   <div className="absolute inset-y-0 right-0 text-slate-400 flex items-center justify-center pr-4">
                     <span className="material-symbols-outlined text-xl">search</span>
@@ -468,6 +492,7 @@ const NewAppointment: React.FC = () => {
                         </p>
                         <div className="flex justify-between items-center mt-1">
                           <p className="text-xs text-slate-500">Nasc: {formatDateDisplay(patient.birthDate)}</p>
+                          {patient.phone && <p className="text-xs text-slate-500">Tel: {patient.phone}</p>}
                         </div>
                       </div>
                     ))}
@@ -491,6 +516,29 @@ const NewAppointment: React.FC = () => {
                       placeholder="Ex: João da Silva"
                       required
                     />
+                    {duplicateSuggestions.length > 0 && (
+                      <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg animate-in fade-in duration-300">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[18px]">warning</span>
+                          <p className="text-sm font-bold text-amber-700 dark:text-amber-300">Paciente(s) semelhante(s) encontrado(s)</p>
+                        </div>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">Deseja usar um paciente já existente?</p>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {duplicateSuggestions.map(p => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => useSuggestedPatient(p)}
+                              className="w-full text-left p-2 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors flex justify-between items-center"
+                            >
+                              <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{p.name}</span>
+                              <span className="text-xs text-slate-500">{p.phone || ''} {p.birthDate ? `· Nasc: ${formatDateDisplay(p.birthDate)}` : ''}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[11px] text-amber-500 dark:text-amber-500 mt-2 italic">Ou continue preenchendo para cadastrar como novo paciente.</p>
+                      </div>
+                    )}
                   </label>
                   <label className="flex flex-col">
                     <p className="text-sm font-medium leading-normal pb-2 text-slate-600 dark:text-slate-300">Telefone <span className="text-red-500">*</span></p>

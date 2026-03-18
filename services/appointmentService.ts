@@ -516,14 +516,36 @@ export const appointmentService = {
     },
 
     async getPatients(searchTerm: string, hospitalId?: string) {
-        // Query unique patients from appointments (latest appointment first)
+        // Detect search type: phone (digits), birth date (DD/MM/YYYY or YYYY-MM-DD), or name
+        const digitsOnly = searchTerm.replace(/\D/g, '');
+        const isPhoneSearch = digitsOnly.length >= 4 && /^[\d\s()\-+]+$/.test(searchTerm);
+        const dateMatch = searchTerm.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        const isoDateMatch = searchTerm.match(/^\d{4}-\d{2}-\d{2}$/);
+        const isDateSearch = !!(dateMatch || isoDateMatch);
+
+        const selectFields = 'id, patient_name, patient_phone, patient_birth_date, hospital_id, hospital:hospitals(name)';
+
         let query = supabase
             .from('appointments')
-            .select('id, patient_name, patient_phone, patient_birth_date, hospital_id, hospital:hospitals(name)')
-            .ilike('patient_name', `%${searchTerm}%`)
+            .select(selectFields);
+
+        if (isPhoneSearch) {
+            // Search by phone digits using pattern matching
+            query = query.ilike('patient_phone', `%${digitsOnly.slice(-8)}%`);
+        } else if (isDateSearch) {
+            // Convert DD/MM/YYYY to YYYY-MM-DD if needed
+            const isoDate = dateMatch
+                ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`
+                : searchTerm;
+            query = query.eq('patient_birth_date', isoDate);
+        } else {
+            query = query.ilike('patient_name', `%${searchTerm}%`);
+        }
+
+        query = query
             .order('date', { ascending: false })
             .order('time', { ascending: false })
-            .limit(25);
+            .limit(50);
 
         if (hospitalId) {
             query = query.eq('hospital_id', hospitalId);
@@ -536,7 +558,7 @@ export const appointmentService = {
             throw error;
         }
 
-        // De-duplicate in memory (Supabase doesn't support SELECT DISTINCT on multiple columns easily with PostgREST)
+        // De-duplicate in memory
         const uniquePatients = new Map();
         data.forEach(p => {
             const key = `${p.patient_name}-${p.patient_birth_date}`;
