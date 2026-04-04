@@ -32,6 +32,21 @@ const Financials: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState('Todos Pagamentos');
     const [repasseStatusFilter, setRepasseStatusFilter] = useState('Todos Acertos');
 
+    // Sort State
+    type SortKey = 'patient_name' | 'date' | 'total_cost' | 'net_value' | 'payment_status' | 'repasse_status';
+    const [sortKey, setSortKey] = useState<SortKey>('date');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+    const handleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDirection(key === 'date' ? 'desc' : 'asc');
+        }
+        setCurrentPage(1);
+    };
+
     // History Modal State
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
@@ -374,7 +389,7 @@ const Financials: React.FC = () => {
     }, [activeDateFilter]);
 
     const filteredTransactions = useMemo(() => {
-        return appointments.filter(a => {
+        const filtered = appointments.filter(a => {
             const matchesSearch = !searchTerm ||
                 (a.patient_name && a.patient_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 (a.procedure && a.procedure.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -387,7 +402,45 @@ const Financials: React.FC = () => {
 
             return matchesSearch && matchesPayment && matchesRepasse;
         });
-    }, [appointments, searchTerm, statusFilter, repasseStatusFilter]);
+
+        const statusOrder: Record<string, number> = { 'Pago': 0, 'Pendente': 1, 'Não realizado': 2 };
+
+        filtered.sort((a, b) => {
+            let cmp = 0;
+            switch (sortKey) {
+                case 'patient_name':
+                    cmp = (a.patient_name || '').localeCompare(b.patient_name || '', 'pt-BR');
+                    break;
+                case 'date': {
+                    const dateA = `${a.date || ''}T${a.time || '00:00'}`;
+                    const dateB = `${b.date || ''}T${b.time || '00:00'}`;
+                    cmp = dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
+                    break;
+                }
+                case 'total_cost':
+                    cmp = (Number(a.total_cost) || 0) - (Number(b.total_cost) || 0);
+                    break;
+                case 'net_value':
+                    cmp = (Number(a.net_value) || 0) - (Number(b.net_value) || 0);
+                    break;
+                case 'payment_status': {
+                    const sA = a.payment_status === 'Não realizado' || a.payment_status === 'Nao realizado' ? 'Não realizado' : (a.payment_status || 'Pendente');
+                    const sB = b.payment_status === 'Não realizado' || b.payment_status === 'Nao realizado' ? 'Não realizado' : (b.payment_status || 'Pendente');
+                    cmp = (statusOrder[sA] ?? 9) - (statusOrder[sB] ?? 9);
+                    break;
+                }
+                case 'repasse_status': {
+                    const rA = a.repasse_status === 'Não realizado' || a.repasse_status === 'Nao realizado' ? 'Não realizado' : (a.repasse_status || 'Pendente');
+                    const rB = b.repasse_status === 'Não realizado' || b.repasse_status === 'Nao realizado' ? 'Não realizado' : (b.repasse_status || 'Pendente');
+                    cmp = (statusOrder[rA] ?? 9) - (statusOrder[rB] ?? 9);
+                    break;
+                }
+            }
+            return sortDirection === 'asc' ? cmp : -cmp;
+        });
+
+        return filtered;
+    }, [appointments, searchTerm, statusFilter, repasseStatusFilter, sortKey, sortDirection]);
     const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const currentData = filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -1038,13 +1091,25 @@ const Financials: React.FC = () => {
                     <table className="w-full text-left border-collapse">
                         <thead className="hidden lg:table-header-group">
                             <tr className="bg-slate-50 dark:bg-slate-800 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] border-b border-slate-200 dark:border-slate-700">
-                                <th className="px-6 py-4">Paciente / Procedimento</th>
-                                <th className="px-6 py-4">Unidade / Data</th>
-                                <th className="px-6 py-4">Pagamento</th>
+                                <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('patient_name')}>
+                                    <span className="inline-flex items-center gap-1">Paciente / Procedimento {sortKey === 'patient_name' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
+                                </th>
+                                <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('date')}>
+                                    <span className="inline-flex items-center gap-1">Unidade / Data {sortKey === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
+                                </th>
+                                <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('total_cost')}>
+                                    <span className="inline-flex items-center gap-1">Pagamento {sortKey === 'total_cost' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
+                                </th>
                                 <th className="px-6 py-4">Distribuição</th>
-                                {isAdmin && <th className="px-6 py-4">Total Líquido</th>}
-                                <th className="px-6 py-4 text-center">Status Pag.</th>
-                                <th className="px-6 py-4 text-center">Status Acerto</th>
+                                {isAdmin && <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('net_value')}>
+                                    <span className="inline-flex items-center gap-1">Total Líquido {sortKey === 'net_value' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
+                                </th>}
+                                <th className="px-6 py-4 text-center cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('payment_status')}>
+                                    <span className="inline-flex items-center gap-1 justify-center">Status Pag. {sortKey === 'payment_status' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
+                                </th>
+                                <th className="px-6 py-4 text-center cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('repasse_status')}>
+                                    <span className="inline-flex items-center gap-1 justify-center">Status Acerto {sortKey === 'repasse_status' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
+                                </th>
                                 <th className="px-6 py-4 text-right">Ações</th>
                             </tr>
                         </thead>

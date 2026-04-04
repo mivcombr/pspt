@@ -29,7 +29,7 @@ export const appointmentService = {
             query = query.eq('hospital_id', filters.hospitalId);
         }
 
-        const { data, error } = await query.order('time', { ascending: true });
+        const { data, error } = await query.order('date', { ascending: false }).order('time', { ascending: false });
 
         if (error) {
             logger.error({ action: 'read', entity: 'appointments', error }, 'crud');

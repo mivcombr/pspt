@@ -631,6 +631,13 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const proceedWithFinish = async (isFullyPaid: boolean, targetStatus: string) => {
         if (!currentAppointment) return;
 
+        // Final validation: sum of ALL payments (existing + new) must not exceed total_cost
+        const totalAllPayments = paymentDraft.reduce((acc, p) => acc + p.value, 0);
+        if (totalAllPayments > currentAppointment.cost + 0.01) {
+            notify.error(`O total dos pagamentos (${formatCurrency(totalAllPayments)}) excede o valor total do atendimento (${formatCurrency(currentAppointment.cost)}). Remova ou ajuste os pagamentos antes de salvar.`);
+            return;
+        }
+
         const loadingToast = notify.loading('Salvando alterações...');
 
         try {
