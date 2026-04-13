@@ -36,8 +36,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     // If Admin tries to access reception-only page (rare), redirect to dashboard
     if (user.role === UserRole.ADMIN) return <Navigate to="/" replace />;
-    // If Reception/Financial tries to access admin page, redirect to their home
-    if (user.role === UserRole.RECEPTION || user.role === UserRole.FINANCIAL) return <Navigate to="/attendances" replace />;
+    // If Reception/Financial/Commercial tries to access admin page, redirect to their home
+    if (user.role === UserRole.RECEPTION || user.role === UserRole.FINANCIAL || user.role === UserRole.COMMERCIAL) return <Navigate to="/attendances" replace />;
   }
 
   return <>{children}</>;
@@ -124,11 +124,11 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Reception & Financial Shared */}
+        {/* Reception, Financial & Commercial Shared */}
         <Route
           path="/attendances"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.RECEPTION, UserRole.FINANCIAL, UserRole.ADMIN]}>
+            <ProtectedRoute allowedRoles={[UserRole.RECEPTION, UserRole.FINANCIAL, UserRole.ADMIN, UserRole.COMMERCIAL]}>
               <Attendances />
             </ProtectedRoute>
           }
@@ -136,7 +136,7 @@ const AppRoutes = () => {
         <Route
           path="/patients"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.RECEPTION, UserRole.FINANCIAL, UserRole.ADMIN]}>
+            <ProtectedRoute allowedRoles={[UserRole.RECEPTION, UserRole.FINANCIAL, UserRole.ADMIN, UserRole.COMMERCIAL]}>
               <Patients />
             </ProtectedRoute>
           }
@@ -174,7 +174,7 @@ const AppRoutes = () => {
         <Route
           path="*"
           element={
-            user?.role === UserRole.RECEPTION || user?.role === UserRole.FINANCIAL
+            user?.role === UserRole.RECEPTION || user?.role === UserRole.FINANCIAL || user?.role === UserRole.COMMERCIAL
               ? <Navigate to="/attendances" replace />
               : <Navigate to="/" replace />
           }

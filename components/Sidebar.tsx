@@ -150,7 +150,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                                         {user?.role === UserRole.ADMIN ? 'Administrador' :
                                             user?.role === UserRole.RECEPTION ? 'Recepção' :
                                                 user?.role === UserRole.FINANCIAL ? 'Financeiro' :
-                                                    user?.role?.toLowerCase()}
+                                                    user?.role === UserRole.COMMERCIAL ? 'Comercial' :
+                                                        user?.role?.toLowerCase()}
                                     </p>
                                 </div>
                             )}

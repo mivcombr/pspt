@@ -184,6 +184,7 @@ const AccessControl: React.FC = () => {
                             <option value="ALL">Todos os Roles</option>
                             <option value="SUPER_ADMIN">Super Administrador</option>
                             <option value="ADMIN">Administrador</option>
+                            <option value="COMMERCIAL">Comercial</option>
                             <option value="FINANCIAL">Financeiro</option>
                             <option value="RECEPTION">Recepção</option>
                         </select>
@@ -235,6 +236,7 @@ const AccessControl: React.FC = () => {
                                                 >
                                                     <option value="SUPER_ADMIN">Super Admin</option>
                                                     <option value="ADMIN">Administrador</option>
+                                                    <option value="COMMERCIAL">Comercial</option>
                                                     <option value="FINANCIAL">Financeiro</option>
                                                     <option value="RECEPTION">Recepção</option>
                                                 </select>
