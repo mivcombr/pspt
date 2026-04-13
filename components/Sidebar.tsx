@@ -134,6 +134,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                                 )}
                             </>
                         )}
+                        {/* Super Admin Section */}
+                        {user?.role?.toUpperCase() === UserRole.SUPER_ADMIN && (
+                            <>
+                                <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-4 border-l-2 border-slate-200 dark:border-slate-700 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Super Admin</p>
+                                <NavItem to="/access-control" icon="admin_panel_settings" label="Controle de Acessos" />
+                            </>
+                        )}
                     </nav>
 
                     {/* User Profile */}
