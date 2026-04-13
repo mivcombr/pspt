@@ -34,9 +34,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // If Admin tries to access reception-only page (rare), redirect to dashboard
-    if (user.role === UserRole.ADMIN) return <Navigate to="/" replace />;
-    // If Reception/Financial/Commercial tries to access admin page, redirect to their home
+    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) return <Navigate to="/" replace />;
     if (user.role === UserRole.RECEPTION || user.role === UserRole.FINANCIAL || user.role === UserRole.COMMERCIAL) return <Navigate to="/attendances" replace />;
   }
 
@@ -108,7 +106,7 @@ const AppRoutes = () => {
         <Route
           path="/"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+            <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.ADMIN]}>
               <Dashboard />
             </ProtectedRoute>
           }
@@ -124,11 +122,11 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Reception, Financial & Commercial Shared */}
+        {/* Reception, Financial, Commercial & Admin Shared */}
         <Route
           path="/attendances"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.RECEPTION, UserRole.FINANCIAL, UserRole.ADMIN, UserRole.COMMERCIAL]}>
+            <ProtectedRoute allowedRoles={[UserRole.RECEPTION, UserRole.FINANCIAL, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.COMMERCIAL]}>
               <Attendances />
             </ProtectedRoute>
           }
@@ -136,27 +134,27 @@ const AppRoutes = () => {
         <Route
           path="/patients"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.RECEPTION, UserRole.FINANCIAL, UserRole.ADMIN, UserRole.COMMERCIAL]}>
+            <ProtectedRoute allowedRoles={[UserRole.RECEPTION, UserRole.FINANCIAL, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.COMMERCIAL]}>
               <Patients />
             </ProtectedRoute>
           }
         />
 
-        {/* Financials: Admin and Financial Role */}
+        {/* Financials: Admin, Super Admin and Financial Role */}
         <Route
           path="/financials"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.FINANCIAL]}>
+            <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.FINANCIAL]}>
               <Financials />
             </ProtectedRoute>
           }
         />
 
-        {/* Admin Only Routes */}
+        {/* Admin / Super Admin Only Routes */}
         <Route
           path="/expenses"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+            <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.ADMIN]}>
               <Expenses />
             </ProtectedRoute>
           }
@@ -164,7 +162,7 @@ const AppRoutes = () => {
         <Route
           path="/hospitals"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+            <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.ADMIN]}>
               <Hospitals />
             </ProtectedRoute>
           }

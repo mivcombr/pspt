@@ -106,8 +106,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
 
                     {/* Nav */}
                     <nav className="flex-1 overflow-y-auto py-4 px-4 flex flex-col gap-1 overflow-x-hidden min-h-0">
-                        {/* Geral for Admin */}
-                        {user?.role?.toUpperCase() === UserRole.ADMIN && (
+                        {/* Geral for Admin / Super Admin */}
+                        {(user?.role?.toUpperCase() === UserRole.ADMIN || user?.role?.toUpperCase() === UserRole.SUPER_ADMIN) && (
                             <>
                                 <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2 px-4 border-l-2 border-slate-200 dark:border-slate-700 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Geral</p>
                                 <NavItem to="/" icon="dashboard" label="Dashboard" />
@@ -120,13 +120,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                         <NavItem to="/new-appointment" icon="add_circle" label="Novo Agendamento" />
                         <NavItem to="/patients" icon="groups" label="Pacientes" />
 
-                        {/* Management Section - Visible to Admin & Financial */}
-                        {(user?.role?.toUpperCase() === UserRole.ADMIN || user?.role?.toUpperCase() === UserRole.FINANCIAL) && (
+                        {/* Management Section - Visible to Admin, Super Admin & Financial */}
+                        {(user?.role?.toUpperCase() === UserRole.ADMIN || user?.role?.toUpperCase() === UserRole.SUPER_ADMIN || user?.role?.toUpperCase() === UserRole.FINANCIAL) && (
                             <>
                                 <p className={`text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4 px-4 border-l-2 border-slate-200 dark:border-slate-700 ${(!isOpen && !isMobileOpen) && 'hidden'}`}>Gestão</p>
                                 <NavItem to="/financials" icon="account_balance_wallet" label="Financeiro" />
 
-                                {user?.role?.toUpperCase() === UserRole.ADMIN && (
+                                {(user?.role?.toUpperCase() === UserRole.ADMIN || user?.role?.toUpperCase() === UserRole.SUPER_ADMIN) && (
                                     <>
                                         <NavItem to="/expenses" icon="pie_chart" label="Despesas" />
                                         <NavItem to="/hospitals" icon="domain" label="Hospitais" />
@@ -147,11 +147,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, isMobileOpen, onMob
                                 <div className="overflow-hidden min-w-0 flex-1">
                                     <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user?.name}</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                        {user?.role === UserRole.ADMIN ? 'Administrador' :
-                                            user?.role === UserRole.RECEPTION ? 'Recepção' :
-                                                user?.role === UserRole.FINANCIAL ? 'Financeiro' :
-                                                    user?.role === UserRole.COMMERCIAL ? 'Comercial' :
-                                                        user?.role?.toLowerCase()}
+                                        {user?.role === UserRole.SUPER_ADMIN ? 'Super Administrador' :
+                                            user?.role === UserRole.ADMIN ? 'Administrador' :
+                                                user?.role === UserRole.RECEPTION ? 'Recepção' :
+                                                    user?.role === UserRole.FINANCIAL ? 'Financeiro' :
+                                                        user?.role === UserRole.COMMERCIAL ? 'Comercial' :
+                                                            user?.role?.toLowerCase()}
                                     </p>
                                 </div>
                             )}
