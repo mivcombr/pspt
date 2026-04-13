@@ -135,5 +135,86 @@ export const userService = {
             logger.error({ action: 'delete', entity: 'profiles', error: error.message }, 'crud');
             throw error;
         }
-    }
+    },
+
+    /**
+     * Get all users via v_access_overview view (Super Admin / Admin)
+     */
+    async getAllAccessOverview() {
+        const { data, error } = await supabase
+            .from('v_access_overview')
+            .select('*')
+            .order('name');
+
+        if (error) {
+            logger.error({ action: 'read', entity: 'v_access_overview', error }, 'crud');
+            throw error;
+        }
+        return data;
+    },
+
+    /**
+     * Get audit log entries
+     */
+    async getAuditLog(limit = 200) {
+        const { data, error } = await supabase
+            .from('access_audit_log')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            logger.error({ action: 'read', entity: 'access_audit_log', error }, 'crud');
+            throw error;
+        }
+        return data;
+    },
+
+    /**
+     * Manage user: activate, deactivate, set role, set hospital
+     */
+    async manageUser(userId: string, action: string, value?: string | null) {
+        let updates: Record<string, any> = {};
+
+        switch (action) {
+            case 'ACTIVATE':
+                updates = { is_active: true };
+                break;
+            case 'DEACTIVATE':
+                updates = { is_active: false };
+                break;
+            case 'SET_ROLE':
+                updates = { role: value };
+                break;
+            case 'SET_HOSPITAL':
+                updates = { hospital_id: value || null };
+                break;
+            default:
+                throw new Error(`Ação desconhecida: ${action}`);
+        }
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', userId)
+            .select()
+            .single();
+
+        if (error) {
+            logger.error({ action: 'manage', entity: 'profiles', user_id: userId, error }, 'crud');
+            throw error;
+        }
+
+        // Log to audit
+        const { data: { user: me } } = await supabase.auth.getUser();
+        await supabase.from('access_audit_log').insert({
+            actor_id: me?.id,
+            actor_email: me?.email,
+            target_id: userId,
+            action,
+            metadata: { value },
+        });
+
+        return data;
+    },
 };
