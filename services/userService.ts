@@ -5,8 +5,8 @@ export interface CreateUserPayload {
     email: string;
     password?: string;
     name: string;
-    role: 'RECEPTION' | 'FINANCIAL';
-    hospital_id: string;
+    role: 'RECEPTION' | 'FINANCIAL' | 'COMMERCIAL' | 'ADMIN';
+    hospital_id?: string | null;
 }
 
 export interface CreateUserResponse {
