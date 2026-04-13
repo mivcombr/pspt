@@ -360,9 +360,7 @@ const AccessControl: React.FC = () => {
                     </div>
                 </div>
             )}
-        </div>
-
-            {/* Modal: Criar Usuário */}
+        {/* Modal: Criar Usuário */}
             {showCreate && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700">
