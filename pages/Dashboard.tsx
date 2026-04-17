@@ -76,7 +76,7 @@ const PercentageBadge = ({ current, previous, className = "" }: { current: numbe
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
     const [selectedHospitalId, setSelectedHospitalId] = useState<string>(
-        user?.role === 'ADMIN' ? '' : (user?.hospitalId || '')
+        (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? '' : (user?.hospitalId || '')
     );
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear.toString());
@@ -102,7 +102,7 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         const fetchHospitals = async () => {
-            if (user?.role === 'ADMIN') {
+            if ((user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN')) {
                 try {
                     const data = await hospitalService.getAll();
                     setHospitals(data || []);
@@ -293,7 +293,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center flex-wrap w-full xl:w-auto">
                     {isLoading && <LoadingIndicator />}
                     {/* Hospital Select (Admin only) */}
-                    {user?.role === 'ADMIN' ? (
+                    {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? (
                         <div className="relative w-full sm:w-auto">
                             <select
                                 value={selectedHospitalId}

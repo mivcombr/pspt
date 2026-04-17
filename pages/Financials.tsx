@@ -265,7 +265,7 @@ const Financials: React.FC = () => {
             setHospitals(hospitalArr);
 
             const filters: any = {};
-            if (user?.role === UserRole.ADMIN) {
+            if (user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN) {
                 if (selectedHospital !== 'Todos os Hospitais') {
                     const hosp = hospitalArr.find(h => h.name === selectedHospital);
                     if (hosp) filters.hospitalId = hosp.id;
@@ -502,6 +502,24 @@ const Financials: React.FC = () => {
         });
     }, [filteredTransactions]);
 
+    const hospitalAdditionalTotals = useMemo(() => {
+        const map = new Map<string, number>();
+        filteredTransactions.forEach((curr) => {
+            const additional = Number(curr.financial_additional || 0);
+            if (!additional) return;
+            const name = curr.hospital?.name || 'Sem Hospital';
+            map.set(name, (map.get(name) || 0) + additional);
+        });
+        return Array.from(map.entries())
+            .map(([label, value]) => ({ label, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [filteredTransactions]);
+
+    const totalAdditional = useMemo(
+        () => hospitalAdditionalTotals.reduce((sum, h) => sum + h.value, 0),
+        [hospitalAdditionalTotals]
+    );
+
     const filteredCategoryTotals = useMemo(() => {
         const total = filteredTotals.revenue || 1;
         return {
@@ -605,7 +623,7 @@ const Financials: React.FC = () => {
         }
     };
 
-    const isAdmin = user?.role === UserRole.ADMIN;
+    const isAdmin = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN;
 
     const handleCalendarNav = (direction: number) => {
         const newDate = new Date(viewDate);
@@ -922,7 +940,16 @@ const Financials: React.FC = () => {
                             icon: 'currency_exchange',
                             highlight: true,
                             helper: 'Total em aberto para repasse aos prestadores',
-                        }
+                        },
+                        ...(isAdmin ? [{
+                            label: 'Distribuição Adicional por Hospital',
+                            value: totalAdditional,
+                            icon: 'account_tree',
+                            helper: 'Soma do valor adicional (diferença de parcelamento) agrupado por hospital',
+                            breakdown: hospitalAdditionalTotals.length > 0
+                                ? hospitalAdditionalTotals.map((h) => ({ label: h.label, value: h.value, colorClass: 'text-slate-500 dark:text-slate-400' }))
+                                : [{ label: 'Sem dados', value: 0, colorClass: 'text-slate-400' }]
+                        }] : [])
                     ].map((card, i) => (
                         <div
                             key={i}

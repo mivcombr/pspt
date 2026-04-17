@@ -116,6 +116,9 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const [statusInputValue, setStatusInputValue] = useState('');
     const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
+    // Prevent double-submit when finalizing appointment / saving payments
+    const [isFinishing, setIsFinishing] = useState(false);
+
     // Phone Editing State
     const [isEditingPhone, setIsEditingPhone] = useState(false);
     const [phoneInputValue, setPhoneInputValue] = useState('');
@@ -593,6 +596,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     const confirmFinishAppointment = async (targetStatus?: string) => {
         if (!currentAppointment) return;
+        if (isFinishing) return; // prevent double-submit
         const statusToApply = targetStatus || statusInputValue;
         const totalPaid = paymentDraft.reduce((acc, p) => acc + p.value, 0);
 
@@ -631,11 +635,14 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     const proceedWithFinish = async (isFullyPaid: boolean, targetStatus: string) => {
         if (!currentAppointment) return;
+        if (isFinishing) return; // guard against concurrent invocations
+        setIsFinishing(true);
 
         // Final validation: sum of ALL payments (existing + new) must not exceed total_cost
         const totalAllPayments = paymentDraft.reduce((acc, p) => acc + p.value, 0);
         if (totalAllPayments > currentAppointment.cost + 0.01) {
             notify.error(`O total dos pagamentos (${formatCurrency(totalAllPayments)}) excede o valor total do atendimento (${formatCurrency(currentAppointment.cost)}). Remova ou ajuste os pagamentos antes de salvar.`);
+            setIsFinishing(false);
             return;
         }
 
@@ -679,6 +686,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             console.error('Error finalizing appointment:', err);
             notify.dismiss(loadingToast);
             notify.error('Erro ao finalizar atendimento.');
+        } finally {
+            setIsFinishing(false);
         }
     };
 
@@ -1823,32 +1832,36 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     <>
                                         <button
                                             onClick={() => confirmFinishAppointment('Falhou')}
-                                            className="flex-1 py-3.5 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                                            disabled={isFinishing}
+                                            className="flex-1 py-3.5 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <span className="material-symbols-outlined text-[20px]">block</span>
                                             Falhou
                                         </button>
                                         <button
                                             onClick={() => confirmFinishAppointment('Agendado')}
-                                            className="flex-1 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                                            disabled={isFinishing}
+                                            className="flex-1 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            Salvar
+                                            {isFinishing ? 'Salvando...' : 'Salvar'}
                                         </button>
                                         <button
                                             onClick={() => confirmFinishAppointment('Atendido')}
-                                            className="flex-[1.5] py-3.5 rounded-2xl bg-[#009366] text-white font-black hover:opacity-90 transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2"
+                                            disabled={isFinishing}
+                                            className="flex-[1.5] py-3.5 rounded-2xl bg-[#009366] text-white font-black hover:opacity-90 transition-all shadow-lg shadow-green-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <span className="material-symbols-outlined text-[20px]">check_circle</span>
-                                            Confirmar
+                                            {isFinishing ? 'Salvando...' : 'Confirmar'}
                                         </button>
                                     </>
                                 ) : (
                                     <button
                                         onClick={() => confirmFinishAppointment()}
-                                        className="flex-[1.5] py-3.5 rounded-2xl bg-green-600 text-white font-black hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 flex items-center justify-center gap-2"
+                                        disabled={isFinishing}
+                                        className="flex-[1.5] py-3.5 rounded-2xl bg-green-600 text-white font-black hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <span className="material-symbols-outlined text-[20px]">save</span>
-                                        Atualizar Dados
+                                        {isFinishing ? 'Salvando...' : 'Atualizar Dados'}
                                     </button>
                                 )}
                             </div>

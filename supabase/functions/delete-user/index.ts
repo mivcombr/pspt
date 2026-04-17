@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
             .eq('id', caller.id)
             .single();
 
-        if (pError || profile?.role !== 'ADMIN') {
+        if (pError || !['ADMIN', 'SUPER_ADMIN'].includes(profile?.role)) {
             return new Response(JSON.stringify({ error: 'Acesso negado: Administradores apenas' }), { status: 403, headers });
         }
 
@@ -60,6 +60,21 @@ Deno.serve(async (req) => {
 
         if (!user_id) {
             return new Response(JSON.stringify({ error: 'Falta o parâmetro user_id' }), { status: 400, headers });
+        }
+
+        // 3.1 Apenas SUPER_ADMIN pode excluir contas ADMIN/SUPER_ADMIN
+        const { data: targetProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('role, email')
+            .eq('id', user_id)
+            .single();
+
+        if (targetProfile && ['ADMIN', 'SUPER_ADMIN'].includes(targetProfile.role) && profile.role !== 'SUPER_ADMIN') {
+            return new Response(JSON.stringify({ error: 'Apenas Super Administradores podem excluir contas ADMIN ou SUPER_ADMIN.' }), { status: 403, headers });
+        }
+
+        if (user_id === caller.id) {
+            return new Response(JSON.stringify({ error: 'Você não pode excluir o próprio usuário.' }), { status: 400, headers });
         }
 
         // 4. Delete Auth (with service role)
@@ -73,6 +88,15 @@ Deno.serve(async (req) => {
             .eq('id', user_id);
 
         if (profileDelError) throw profileDelError;
+
+        await supabaseAdmin.from('access_audit_log').insert({
+            actor_id: caller.id,
+            actor_email: caller.email,
+            target_id: user_id,
+            target_email: targetProfile?.email,
+            action: 'DELETE_USER',
+            metadata: { role: targetProfile?.role }
+        });
 
         return new Response(JSON.stringify({ success: true }), { status: 200, headers });
 

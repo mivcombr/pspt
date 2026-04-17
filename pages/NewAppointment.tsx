@@ -192,7 +192,7 @@ const NewAppointment: React.FC = () => {
   const selectPatient = (patient: any) => {
     const patientHospitalId = patient.hospitalId || patient.hospital_id;
     if (patientHospitalId && formData.hospitalId && patientHospitalId !== formData.hospitalId) {
-      if (user?.role === UserRole.ADMIN) {
+      if ((user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN)) {
         setFormData(prev => ({
           ...prev,
           hospitalId: patientHospitalId,
@@ -666,7 +666,7 @@ const NewAppointment: React.FC = () => {
 
               {/* 1. LOCAL DE ATENDIMENTO (FIRST) */}
               <div className="bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all hover:border-primary/30">
-                {user?.role === UserRole.ADMIN ? (
+                {(user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN) ? (
                   <label className="flex flex-col">
                     <p className="text-[10px] font-black leading-normal pb-2 text-primary uppercase tracking-widest ml-1">Unidade de Atendimento</p>
                     <div className="relative">

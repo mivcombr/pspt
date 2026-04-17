@@ -95,6 +95,11 @@ Deno.serve(async (req) => {
         // 3. Process Creation
         const { email, password: providedPassword, name, role, hospital_id } = await req.json();
 
+        // 3.1 Apenas SUPER_ADMIN pode criar/promover usuários ADMIN ou SUPER_ADMIN
+        if (['ADMIN', 'SUPER_ADMIN'].includes(role) && profile.role !== 'SUPER_ADMIN') {
+            return new Response(JSON.stringify({ error: 'Apenas Super Administradores podem criar contas ADMIN ou SUPER_ADMIN.' }), { status: 403, headers });
+        }
+
         if (!email || !name) {
             return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando (email, name)' }), { status: 400, headers });
         }
@@ -140,10 +145,20 @@ Deno.serve(async (req) => {
 
         // 7. Update Profile
         const { error: upsertError } = await supabaseAdmin.from('profiles').upsert([
-            { id: targetId, name, role, hospital_id, email }
+            { id: targetId, name, role, hospital_id, email, is_active: true }
         ]);
 
         if (upsertError) throw upsertError;
+
+        // 7.1 Audit
+        await supabaseAdmin.from('access_audit_log').insert({
+            actor_id: caller.id,
+            actor_email: caller.email,
+            target_id: targetId,
+            target_email: email,
+            action: 'CREATE_USER',
+            metadata: { role, hospital_id }
+        });
 
         return new Response(JSON.stringify({
             success: true,
