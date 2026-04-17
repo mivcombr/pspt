@@ -21,9 +21,13 @@ const Login: React.FC = () => {
       await logLoginAttempt({ email, success: true, userId: data.user?.id });
       navigate('/');
     } catch (err: any) {
-      const errorMessage = err.message || 'Ocorreu um erro.';
+      const rawMessage = err.message || 'Ocorreu um erro.';
+      const isNetworkError = /failed to fetch|load failed|network request failed|fetch/i.test(rawMessage);
+      const errorMessage = isNetworkError
+        ? 'Erro de conexão: não foi possível conectar ao servidor. Verifique sua internet e tente novamente.'
+        : rawMessage;
       setError(errorMessage);
-      await logLoginAttempt({ email, success: false, errorMessage });
+      await logLoginAttempt({ email, success: false, errorMessage: rawMessage });
     } finally {
       setLoading(false);
     }
