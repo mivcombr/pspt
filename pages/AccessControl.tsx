@@ -33,6 +33,15 @@ const formatDate = (d?: string | null) => {
     } catch { return '—'; }
 };
 
+interface CreateForm {
+    name: string;
+    email: string;
+    role: 'RECEPTION' | 'FINANCIAL' | 'COMMERCIAL' | 'ADMIN';
+    hospital_id: string;
+}
+
+const INITIAL_FORM: CreateForm = { name: '', email: '', role: 'COMMERCIAL', hospital_id: '' };
+
 const AccessControl: React.FC = () => {
     const { user: me } = useAuth();
     const [users, setUsers] = useState<AccessUser[]>([]);
@@ -43,6 +52,10 @@ const AccessControl: React.FC = () => {
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState<string>('ALL');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+    const [showCreate, setShowCreate] = useState(false);
+    const [createForm, setCreateForm] = useState<CreateForm>(INITIAL_FORM);
+    const [isSaving, setIsSaving] = useState(false);
+    const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
 
     const load = async () => {
         setIsLoading(true);
@@ -118,6 +131,34 @@ const AccessControl: React.FC = () => {
         }
     };
 
+    const handleCreate = async () => {
+        if (!createForm.name.trim() || !createForm.email.trim()) {
+            toast.error('Nome e e-mail são obrigatórios.');
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const result = await userService.createUser({
+                name: createForm.name.trim(),
+                email: createForm.email.trim(),
+                role: createForm.role,
+                hospital_id: createForm.hospital_id || null,
+            });
+            setShowCreate(false);
+            setCreateForm(INITIAL_FORM);
+            if (result?.temporary_password) {
+                setTempPassword({ name: createForm.name.trim(), password: result.temporary_password });
+            } else {
+                toast.success('Usuário criado com sucesso!');
+            }
+            load();
+        } catch (e: any) {
+            toast.error(e.message || 'Erro ao criar usuário.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -125,10 +166,16 @@ const AccessControl: React.FC = () => {
                     <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Controle de Acessos</h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gerencie todos os usuários, permissões e histórico de acessos do sistema.</p>
                 </div>
-                <button onClick={load} className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary text-sm font-bold text-slate-700 dark:text-slate-200">
-                    <span className="material-symbols-outlined text-[18px]">refresh</span>
-                    Atualizar
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <button onClick={load} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary text-sm font-bold text-slate-700 dark:text-slate-200">
+                        <span className="material-symbols-outlined text-[18px]">refresh</span>
+                        Atualizar
+                    </button>
+                    <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm">
+                        <span className="material-symbols-outlined text-[18px]">person_add</span>
+                        Novo Usuário
+                    </button>
+                </div>
             </div>
 
             {/* Stats */}
@@ -184,6 +231,7 @@ const AccessControl: React.FC = () => {
                             <option value="ALL">Todos os Roles</option>
                             <option value="SUPER_ADMIN">Super Administrador</option>
                             <option value="ADMIN">Administrador</option>
+                            <option value="COMMERCIAL">Comercial</option>
                             <option value="FINANCIAL">Financeiro</option>
                             <option value="RECEPTION">Recepção</option>
                         </select>
@@ -235,6 +283,7 @@ const AccessControl: React.FC = () => {
                                                 >
                                                     <option value="SUPER_ADMIN">Super Admin</option>
                                                     <option value="ADMIN">Administrador</option>
+                                                    <option value="COMMERCIAL">Comercial</option>
                                                     <option value="FINANCIAL">Financeiro</option>
                                                     <option value="RECEPTION">Recepção</option>
                                                 </select>
@@ -308,6 +357,115 @@ const AccessControl: React.FC = () => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+        {/* Modal: Criar Usuário */}
+            {showCreate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
+                            <h2 className="text-lg font-black text-slate-900 dark:text-white">Novo Usuário</h2>
+                            <button onClick={() => { setShowCreate(false); setCreateForm(INITIAL_FORM); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1.5">Nome</label>
+                                <input
+                                    type="text"
+                                    value={createForm.name}
+                                    onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
+                                    placeholder="Nome completo"
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1.5">E-mail</label>
+                                <input
+                                    type="email"
+                                    value={createForm.email}
+                                    onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                                    placeholder="email@exemplo.com"
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1.5">Nível de acesso</label>
+                                <select
+                                    value={createForm.role}
+                                    onChange={e => setCreateForm(f => ({ ...f, role: e.target.value as CreateForm['role'] }))}
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-primary"
+                                >
+                                    <option value="COMMERCIAL">Comercial</option>
+                                    <option value="ADMIN">Administrador</option>
+                                    <option value="FINANCIAL">Financeiro</option>
+                                    <option value="RECEPTION">Recepção</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-1.5">
+                                    Hospital {createForm.role === 'COMMERCIAL' && <span className="text-slate-400 normal-case font-medium">(opcional para Comercial)</span>}
+                                </label>
+                                <select
+                                    value={createForm.hospital_id}
+                                    onChange={e => setCreateForm(f => ({ ...f, hospital_id: e.target.value }))}
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-primary"
+                                >
+                                    <option value="">— Nenhum —</option>
+                                    {hospitals.map(h => (
+                                        <option key={h.id} value={h.id}>{h.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <p className="text-xs text-slate-400">Uma senha temporária será gerada automaticamente. O usuário deverá alterá-la no primeiro acesso.</p>
+                        </div>
+                        <div className="flex gap-3 p-6 pt-0">
+                            <button
+                                onClick={() => { setShowCreate(false); setCreateForm(INITIAL_FORM); }}
+                                className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleCreate}
+                                disabled={isSaving}
+                                className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                            >
+                                {isSaving ? 'Criando...' : 'Criar Usuário'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Senha Temporária */}
+            {tempPassword && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-700 text-center">
+                        <div className="p-6 space-y-4">
+                            <div className="size-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
+                                <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-[28px]">check_circle</span>
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-slate-900 dark:text-white">Usuário criado!</h2>
+                                <p className="text-sm text-slate-500 mt-1">Compartilhe a senha temporária com <strong>{tempPassword.name}</strong>.</p>
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4">
+                                <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Senha temporária</p>
+                                <p className="text-xl font-mono font-black tracking-widest text-slate-900 dark:text-white">{tempPassword.password}</p>
+                            </div>
+                            <p className="text-xs text-slate-400">O usuário será obrigado a alterar a senha no primeiro acesso.</p>
+                        </div>
+                        <div className="p-6 pt-0">
+                            <button
+                                onClick={() => setTempPassword(null)}
+                                className="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity"
+                            >
+                                Entendido
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

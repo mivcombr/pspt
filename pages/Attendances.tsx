@@ -126,11 +126,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     // Hospital Selector State (for Admin)
     const [hospitalsList, setHospitalsList] = useState<any[]>([]);
+    const isFullAccess = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.COMMERCIAL;
     const [selectedHospitalId, setSelectedHospitalId] = useState<string>(
-        (!isEmbedded && user?.role !== UserRole.ADMIN) ? (user?.hospitalId || '') : (hospitalFilter || '')
+        (!isEmbedded && !isFullAccess) ? (user?.hospitalId || '') : (hospitalFilter || '')
     );
     useEffect(() => {
-        if (!isEmbedded && user?.role !== UserRole.ADMIN) {
+        if (!isEmbedded && !isFullAccess) {
             if (user?.hospitalId && user.hospitalId !== selectedHospitalId) {
                 setSelectedHospitalId(user.hospitalId);
             }
@@ -164,7 +165,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             // 2. Admin: the selected hospital from the dropdown (stored in local state)
             let effectiveHospitalId = selectedHospitalId;
 
-            if (!isEmbedded && user?.role !== UserRole.ADMIN) {
+            if (!isEmbedded && !isFullAccess) {
                 effectiveHospitalId = user?.hospitalId || '';
             }
 
@@ -277,7 +278,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     useEffect(() => {
         const fetchHospitals = async () => {
-            if (user?.role === UserRole.ADMIN) {
+            if (isFullAccess) {
                 try {
                     const data = await hospitalService.getAll();
                     setHospitalsList(data);
@@ -759,7 +760,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setIsHistoryOpen(true);
         setIsFetchingHistory(true);
         try {
-            const scopedHospitalId = user?.role !== UserRole.ADMIN ? user?.hospitalId : undefined;
+            const scopedHospitalId = isFullAccess ? undefined : user?.hospitalId;
             const history = await appointmentService.getPatientHistory(name, birthDate, undefined, scopedHospitalId);
             setPatientHistory(history);
         } catch (err) {
@@ -1121,7 +1122,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
                             {/* Interactive Hospital Selector for Admin, Indicator for others */}
                             <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                                {!isEmbedded && user?.role === UserRole.ADMIN ? (
+                                {!isEmbedded && isFullAccess ? (
                                     <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-750 w-full sm:w-auto">
                                         <span className="material-symbols-outlined text-[16px] text-slate-400">domain</span>
                                         <select
@@ -1143,7 +1144,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     )
                                 )}
 
-                                {user?.role === UserRole.ADMIN && selectedHospitalId && (
+                                {isFullAccess && selectedHospitalId && (
                                     <button
                                         onClick={() => {
                                             setBlockForm({ ...blockForm, hospital_id: selectedHospitalId });

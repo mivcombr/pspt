@@ -63,7 +63,7 @@ const Patients: React.FC = () => {
     const [isMerging, setIsMerging] = useState(false);
     const [showMergeConfirm, setShowMergeConfirm] = useState(false);
 
-    const isAdmin = user?.role === UserRole.ADMIN;
+    const isFullAccess = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.COMMERCIAL;
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -71,7 +71,7 @@ const Patients: React.FC = () => {
             const hospitalArr = await hospitalService.getAll();
             setHospitals(hospitalArr);
 
-            const effectiveHospitalId = (!isAdmin) ? user?.hospitalId : (selectedHospital !== 'Todos os Hospitais' ? hospitalArr.find(h => h.name === selectedHospital)?.id : undefined);
+            const effectiveHospitalId = (!isFullAccess) ? user?.hospitalId : (selectedHospital !== 'Todos os Hospitais' ? hospitalArr.find(h => h.name === selectedHospital)?.id : undefined);
 
             const data = await appointmentService.getPatientRecords({
                 hospitalId: effectiveHospitalId,
@@ -123,7 +123,7 @@ const Patients: React.FC = () => {
         setIsHistoryOpen(true);
         setIsFetchingHistory(true);
         try {
-            const scopedHospitalId = !isAdmin ? user?.hospitalId : undefined;
+            const scopedHospitalId = !isFullAccess ? user?.hospitalId : undefined;
             const data = await appointmentService.getPatientHistory(patient.name, patient.birthDate, patient.id, scopedHospitalId);
             setHistory(data);
         } catch (err) {
@@ -407,8 +407,8 @@ const Patients: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Hospital Filter (Admin Only) */}
-                    {isAdmin ? (
+                    {/* Hospital Filter (Full Access) */}
+                    {isFullAccess ? (
                         <div className="relative w-full sm:w-64">
                             <select
                                 value={selectedHospital}

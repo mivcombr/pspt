@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
             .eq('id', caller.id)
             .single();
 
-        if (pError || profile?.role !== 'ADMIN') {
+        if (pError || !['ADMIN', 'SUPER_ADMIN'].includes(profile?.role)) {
             return new Response(JSON.stringify({ error: 'Acesso negado: Administradores apenas' }), { status: 403, headers });
         }
 
