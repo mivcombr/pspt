@@ -274,9 +274,11 @@ const Financials: React.FC = () => {
                 filters.hospitalId = user?.hospitalId;
             }
 
-            if (tempStartDate && tempEndDate) {
+            if (tempStartDate) {
+                // Se só há startDate (usuário clicou uma única data), filtra pelo dia único.
+                // Se há range completo, usa startDate...endDate.
                 filters.startDate = formatDateForInput(tempStartDate);
-                filters.endDate = formatDateForInput(tempEndDate);
+                filters.endDate = formatDateForInput(tempEndDate || tempStartDate);
             }
 
             const data = await appointmentService.getAll(filters);
