@@ -448,7 +448,7 @@ const Patients: React.FC = () => {
                     </div>
 
                     {/* Merge Button (Admin Only) */}
-                    {isAdmin && (
+                    {isFullAccess && (
                         <button
                             type="button"
                             onClick={handleOpenMerge}
@@ -1077,7 +1077,7 @@ const Patients: React.FC = () => {
                                 </div>
                                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 col-span-2 sm:col-span-1 relative group">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hospital Principal</p>
-                                    {isAdmin && isEditingHospital ? (
+                                    {isFullAccess && isEditingHospital ? (
                                         <div className="space-y-2">
                                             <div className="relative">
                                                 <select
@@ -1106,7 +1106,7 @@ const Patients: React.FC = () => {
                                     ) : (
                                         <div className="flex items-center justify-between">
                                             <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{selectedPatient?.hospital_name}</p>
-                                            {isAdmin && (
+                                            {isFullAccess && (
                                                 <button
                                                     onClick={() => setIsEditingHospital(true)}
                                                     className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
