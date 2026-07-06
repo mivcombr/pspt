@@ -73,6 +73,72 @@ const PercentageBadge = ({ current, previous, className = "" }: { current: numbe
     );
 };
 
+const WHATSAPP_CONTACTS = [
+    { city: 'Natal', phone: '(84) 9 9963-4081' },
+    { city: 'Fortaleza', phone: '(85) 99190-1038' },
+    { city: 'Teresina', phone: '(86) 99499-1590' },
+];
+
+const buildWhatsAppMessage = (phone: string) =>
+    `Você pode entrar em contato com a gente pelo whatsapp ${phone} para saber mais.`;
+
+const WhatsAppContacts: React.FC = () => {
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+    const copyToClipboard = async (key: string, text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey(current => (current === key ? null : current)), 2000);
+    };
+
+    return (
+        <Card className="p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-4">
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-600 border border-green-100 dark:border-green-900/30 shrink-0">
+                    <span className="material-symbols-outlined text-[20px]">chat</span>
+                </span>
+                <div>
+                    <h3 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-widest">WhatsApp por Cidade</h3>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">Copie o número ou a mensagem pronta para envio.</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {WHATSAPP_CONTACTS.map(({ city, phone }) => (
+                    <div key={city} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-3 sm:p-4">
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{city}</p>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm mt-0.5">{phone}</p>
+                        <div className="flex gap-2 mt-3">
+                            <button
+                                onClick={() => copyToClipboard(`${city}-phone`, phone)}
+                                className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all ${copiedKey === `${city}-phone` ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:text-primary'}`}
+                            >
+                                <span className="material-symbols-outlined text-[14px]">{copiedKey === `${city}-phone` ? 'check' : 'content_copy'}</span>
+                                {copiedKey === `${city}-phone` ? 'Copiado!' : 'Número'}
+                            </button>
+                            <button
+                                onClick={() => copyToClipboard(`${city}-message`, buildWhatsAppMessage(phone))}
+                                className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all ${copiedKey === `${city}-message` ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:text-primary'}`}
+                            >
+                                <span className="material-symbols-outlined text-[14px]">{copiedKey === `${city}-message` ? 'check' : 'sms'}</span>
+                                {copiedKey === `${city}-message` ? 'Copiado!' : 'Mensagem'}
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </Card>
+    );
+};
+
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
     const [selectedHospitalId, setSelectedHospitalId] = useState<string>(
@@ -338,6 +404,9 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* WhatsApp Contacts (Admin only) */}
+            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && <WhatsAppContacts />}
 
             {/* Row 1: Big KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
