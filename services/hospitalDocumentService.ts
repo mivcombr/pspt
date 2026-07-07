@@ -34,12 +34,7 @@ export const hospitalDocumentService = {
             throw uploadError;
         }
 
-        // 2. Get Public URL
-        const { data: { publicUrl } } = supabase.storage
-            .from('hospital-documents')
-            .getPublicUrl(filePath);
-
-        // 3. Save metadata to Database
+        // 2. Save metadata to Database
         const { data, error: dbError } = await supabase
             .from('hospital_documents')
             .insert({
@@ -88,10 +83,18 @@ export const hospitalDocumentService = {
         logger.info({ action: 'delete', entity: 'hospital_documents', id: documentId }, 'crud');
     },
 
-    getPublicUrl(filePath: string) {
-        const { data: { publicUrl } } = supabase.storage
+    // Gera uma URL assinada de curta duração para visualizar o arquivo.
+    // O bucket é privado; o acesso é controlado pelas policies de storage
+    // (admin ou usuário do mesmo hospital).
+    async getSignedUrl(filePath: string, expiresIn = 60) {
+        const { data, error } = await supabase.storage
             .from('hospital-documents')
-            .getPublicUrl(filePath);
-        return publicUrl;
+            .createSignedUrl(filePath, expiresIn);
+
+        if (error) {
+            logger.error({ action: 'read', entity: 'hospital_documents', error }, 'crud');
+            throw error;
+        }
+        return data.signedUrl;
     }
 };

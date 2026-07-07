@@ -807,15 +807,28 @@ const Hospitals: React.FC = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1">
-                                                <a
-                                                    href={hospitalDocumentService.getPublicUrl(doc.file_path)}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        // Abre a aba já no clique (evita bloqueio de pop-up) e
+                                                        // navega para a URL assinada quando ela estiver pronta.
+                                                        const win = window.open('about:blank', '_blank');
+                                                        if (win) win.opener = null;
+                                                        try {
+                                                            const url = await hospitalDocumentService.getSignedUrl(doc.file_path);
+                                                            if (win) win.location.href = url;
+                                                            else window.location.href = url;
+                                                        } catch (err) {
+                                                            console.error('Error opening document:', err);
+                                                            win?.close();
+                                                            notify.error('Erro ao abrir documento');
+                                                        }
+                                                    }}
                                                     className="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-all"
                                                     title="Visualizar"
                                                 >
                                                     <span className="material-symbols-outlined text-[20px]">visibility</span>
-                                                </a>
+                                                </button>
                                                 <button
                                                     onClick={() => {
                                                         setConfirmModal({
