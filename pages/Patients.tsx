@@ -343,13 +343,13 @@ const Patients: React.FC = () => {
     return (
         <div className="max-w-[1600px] mx-auto space-y-8 pb-8 relative animate-in fade-in duration-500">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
                 <div>
                     <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Pacientes</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Histórico e registros únicos de pacientes.</p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+                <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 w-full xl:w-auto">
                     {isLoading && <LoadingIndicator />}
                     {/* Search */}
                     <div className="w-full sm:w-auto">

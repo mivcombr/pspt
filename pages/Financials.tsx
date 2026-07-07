@@ -856,12 +856,12 @@ const Financials: React.FC = () => {
 
     return (
         <div className="max-w-screen-xl w-full mx-auto space-y-6 sm:space-y-8 pb-8 relative px-4 sm:px-6">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 sm:gap-5">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 sm:gap-5">
                 <div>
                     <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Pagamentos</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Acompanhe registros financeiros e repasses.</p>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full xl:w-auto">
                     {isLoading && <LoadingIndicator />}
                     <button
                         onClick={handleExportReport}
@@ -871,7 +871,7 @@ const Financials: React.FC = () => {
                         <span className="material-symbols-outlined text-[18px]">download</span>
                         {isExporting ? 'Exportando...' : 'Exportar PDF'}
                     </button>
-                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto">
                         {['Este Ano', 'Este Mês', 'Hoje', 'Últimos 7 dias'].map(filter => (
                             <button
                                 key={filter}
@@ -891,7 +891,7 @@ const Financials: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
                 {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="h-44 rounded-[2rem] bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
@@ -981,9 +981,9 @@ const Financials: React.FC = () => {
                                 )}
                             </div>
 
-                            <div className="space-y-1">
-                                <p className={`text-[10px] font-black uppercase tracking-[0.1em] ${card.hero ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
-                                <h3 className={`text-xl sm:text-2xl font-black tracking-tight font-display ${card.hero ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                            <div className="space-y-1 min-w-0">
+                                <p className={`text-[10px] font-black uppercase tracking-[0.1em] truncate ${card.hero ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>{card.label}</p>
+                                <h3 className={`text-lg sm:text-xl xl:text-2xl font-black tracking-tight font-display tabular-nums min-w-0 truncate ${card.hero ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                                     {formatCurrency(card.value)}
                                 </h3>
                             </div>
@@ -1003,7 +1003,7 @@ const Financials: React.FC = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {isLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="h-24 rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
@@ -1020,11 +1020,11 @@ const Financials: React.FC = () => {
                                     <span className="material-symbols-outlined text-[24px]">{item.icon}</span>
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">{item.title}</p>
-                                    <h3 className="text-lg font-black text-slate-900 dark:text-white truncate font-display">{formatCurrency(item.value)}</h3>
+                                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1 truncate">{item.title}</p>
+                                    <h3 className="text-lg font-black text-slate-900 dark:text-white truncate font-display tabular-nums">{formatCurrency(item.value)}</h3>
                                 </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right shrink-0 pl-2">
                                 <div className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                                     {Math.round(item.pct)}%
                                 </div>
@@ -1188,24 +1188,24 @@ const Financials: React.FC = () => {
 
                                         <td className="hidden lg:table-cell px-6 py-5 align-top">
                                             <div className="grid grid-cols-1 gap-1">
-                                                <div className="flex justify-between gap-4 text-[10px]">
-                                                    <span className="font-bold text-slate-400 uppercase">Hospital:</span>
-                                                    <span className="font-black text-slate-600 dark:text-slate-400">{formatCurrency(item.hospital_value)}</span>
+                                                <div className="flex justify-between gap-2 text-[10px]">
+                                                    <span className="font-bold text-slate-400 uppercase truncate">Hospital:</span>
+                                                    <span className="font-black text-slate-600 dark:text-slate-400 shrink-0 tabular-nums">{formatCurrency(item.hospital_value)}</span>
                                                 </div>
-                                                <div className="flex justify-between gap-4 text-[10px]">
-                                                    <span className="font-bold text-slate-400 uppercase">Programa:</span>
-                                                    <span className="font-black text-slate-600 dark:text-slate-400">{formatCurrency(item.repasse_value)}</span>
+                                                <div className="flex justify-between gap-2 text-[10px]">
+                                                    <span className="font-bold text-slate-400 uppercase truncate">Programa:</span>
+                                                    <span className="font-black text-slate-600 dark:text-slate-400 shrink-0 tabular-nums">{formatCurrency(item.repasse_value)}</span>
                                                 </div>
                                                 {isAdmin && (
-                                                    <div className="flex justify-between gap-4 text-[10px]">
-                                                        <div className="flex items-center gap-1 has-tooltip">
-                                                            <span className="font-bold text-slate-400 uppercase">Adicional:</span>
-                                                            <span className="material-symbols-outlined text-[12px] text-slate-300">info</span>
+                                                    <div className="flex justify-between gap-2 text-[10px]">
+                                                        <div className="flex items-center gap-1 has-tooltip min-w-0">
+                                                            <span className="font-bold text-slate-400 uppercase truncate">Adicional:</span>
+                                                            <span className="material-symbols-outlined text-[12px] text-slate-300 shrink-0">info</span>
                                                             <div className="tooltip-content shadow-2xl w-48 !whitespace-normal">
                                                                 Diferença de parcelamento
                                                             </div>
                                                         </div>
-                                                        <span className="font-black text-slate-600 dark:text-slate-400">{formatCurrency(item.financial_additional || 0)}</span>
+                                                        <span className="font-black text-slate-600 dark:text-slate-400 shrink-0 tabular-nums">{formatCurrency(item.financial_additional || 0)}</span>
                                                     </div>
                                                 )}
                                             </div>

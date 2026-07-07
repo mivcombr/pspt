@@ -1014,13 +1014,13 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 <Card noPadding className="h-auto sm:h-[350px] sm:shrink-0 flex flex-col overflow-visible">
                     <div className="flex flex-col gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-700">
                         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 sm:flex-wrap">
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2">
                                     <span className="material-symbols-outlined text-[16px]">calendar_view_week</span>
                                     Visão Semanal
                                 </h3>
 
-                                <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                                <div className="flex flex-col sm:flex-row sm:flex-wrap items-center gap-3 w-full">
                                     {/* Filter Tabs */}
                                     <div className="flex w-full sm:w-auto bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-sm card-shadow border border-slate-200 dark:border-slate-700 overflow-x-auto sm:overflow-visible whitespace-nowrap scrollbar-hide">
                                         {['Todos', 'Consultas', 'Exames', 'Cirurgias'].map((filter) => (
@@ -1253,12 +1253,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
                 {/* BOTTOM: LIST (Flexible height) */}
                 <Card noPadding overflow="visible" className={`flex flex-col ${isEmbedded ? '' : 'flex-1 min-h-[500px]'}`}>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-6 border-b border-slate-200 dark:border-slate-700 gap-4">
-                        <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-3 text-lg text-left">
+                    <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between px-6 py-6 border-b border-slate-200 dark:border-slate-700 gap-4">
+                        <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-3 text-lg text-left min-w-0">
                             <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 shrink-0">
                                 <span className="material-symbols-outlined">list_alt</span>
                             </div>
-                            <span className="leading-tight">Detalhes do Dia: <br className="sm:hidden" /><span className="text-primary">{getFormattedDate(selectedDate)}</span></span>
+                            <span className="leading-tight min-w-0">Detalhes do Dia: <br className="sm:hidden" /><span className="text-primary">{getFormattedDate(selectedDate)}</span></span>
                         </h3>
                         <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg shrink-0">
@@ -1334,19 +1334,19 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                             <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6">
                                                 {/* Line 1: Main Info */}
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-3 mb-1">
-                                                        <div className="lg:hidden">
+                                                    <div className="flex items-center gap-3 mb-1 min-w-0">
+                                                        <div className="lg:hidden shrink-0">
                                                             <Badge status={apt.status} />
                                                         </div>
                                                         <h4
-                                                            className="font-bold text-slate-900 dark:text-white text-base sm:text-lg cursor-pointer hover:text-primary transition-colors flex items-center gap-2"
+                                                            className="font-bold text-slate-900 dark:text-white text-base sm:text-lg cursor-pointer hover:text-primary transition-colors flex items-center gap-2 min-w-0"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 handleOpenPatientHistory(apt.patient, apt.patientBirthDate || '', apt.patientPhone || '');
                                                             }}
                                                         >
-                                                            {apt.patient}
-                                                            <span className="material-symbols-outlined text-[16px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">history</span>
+                                                            <span className="truncate">{apt.patient}</span>
+                                                            <span className="material-symbols-outlined text-[16px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">history</span>
                                                         </h4>
                                                     </div>
 

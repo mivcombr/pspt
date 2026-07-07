@@ -111,25 +111,25 @@ const WhatsAppContacts: React.FC = () => {
                     <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">Copie o número ou a mensagem pronta para envio.</p>
                 </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {WHATSAPP_CONTACTS.map(({ city, phone }) => (
-                    <div key={city} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-3 sm:p-4">
-                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{city}</p>
-                        <p className="font-bold text-slate-900 dark:text-white text-sm mt-0.5">{phone}</p>
-                        <div className="flex gap-2 mt-3">
+                    <div key={city} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-3 sm:p-4 min-w-0">
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate">{city}</p>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm mt-0.5 truncate">{phone}</p>
+                        <div className="flex flex-wrap gap-2 mt-3">
                             <button
                                 onClick={() => copyToClipboard(`${city}-phone`, phone)}
-                                className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all ${copiedKey === `${city}-phone` ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:text-primary'}`}
+                                className={`flex-1 min-w-0 basis-24 inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl text-[11px] font-bold transition-all ${copiedKey === `${city}-phone` ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:text-primary'}`}
                             >
-                                <span className="material-symbols-outlined text-[14px]">{copiedKey === `${city}-phone` ? 'check' : 'content_copy'}</span>
-                                {copiedKey === `${city}-phone` ? 'Copiado!' : 'Número'}
+                                <span className="material-symbols-outlined text-[14px] shrink-0">{copiedKey === `${city}-phone` ? 'check' : 'content_copy'}</span>
+                                <span className="truncate">{copiedKey === `${city}-phone` ? 'Copiado!' : 'Número'}</span>
                             </button>
                             <button
                                 onClick={() => copyToClipboard(`${city}-message`, buildWhatsAppMessage(phone))}
-                                className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all ${copiedKey === `${city}-message` ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:text-primary'}`}
+                                className={`flex-1 min-w-0 basis-24 inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl text-[11px] font-bold transition-all ${copiedKey === `${city}-message` ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:text-primary'}`}
                             >
-                                <span className="material-symbols-outlined text-[14px]">{copiedKey === `${city}-message` ? 'check' : 'sms'}</span>
-                                {copiedKey === `${city}-message` ? 'Copiado!' : 'Mensagem'}
+                                <span className="material-symbols-outlined text-[14px] shrink-0">{copiedKey === `${city}-message` ? 'check' : 'sms'}</span>
+                                <span className="truncate">{copiedKey === `${city}-message` ? 'Copiado!' : 'Mensagem'}</span>
                             </button>
                         </div>
                     </div>
@@ -434,7 +434,7 @@ const Dashboard: React.FC = () => {
                                         Faturamento Total
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display">
+                                        <h3 className="text-xl sm:text-2xl xl:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display tabular-nums min-w-0">
                                             {formatCurrency(dashboardData.totals.revenue)}
                                         </h3>
                                         <PercentageBadge
@@ -460,7 +460,7 @@ const Dashboard: React.FC = () => {
                                         Repasse ao programa
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3">
-                                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display">
+                                        <h3 className="text-xl sm:text-2xl xl:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display tabular-nums min-w-0">
                                             {formatCurrency(dashboardData.totals.repasse)}
                                         </h3>
                                         <PercentageBadge
@@ -759,16 +759,16 @@ const Dashboard: React.FC = () => {
                         ) : (
                             sortedByRevenue.map((p: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300`}>
+                                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                                        <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300 shrink-0`}>
                                             {p.code}
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-slate-900 dark:text-white text-sm">{p.name}</p>
-                                            <p className="text-xs text-slate-500 font-medium">{p.location}</p>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{p.name}</p>
+                                            <p className="text-xs text-slate-500 font-medium truncate">{p.location}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-4 shrink-0 pl-2">
                                         <div className="flex flex-col items-end">
                                             <span className="font-bold text-slate-900 dark:text-white text-sm">
                                                 {formatCurrency(p.totalRevenue)}
@@ -811,16 +811,16 @@ const Dashboard: React.FC = () => {
                         ) : (
                             sortedByRepasse.map((p: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 hover:shadow-md transition-all duration-300">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300`}>
+                                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                                        <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300 shrink-0`}>
                                             {p.code}
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-slate-900 dark:text-white text-sm">{p.name}</p>
-                                            <p className="text-xs text-slate-500 font-medium">{p.location}</p>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{p.name}</p>
+                                            <p className="text-xs text-slate-500 font-medium truncate">{p.location}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-4 shrink-0 pl-2">
                                         <div className="flex flex-col items-end">
                                             <span className="font-bold text-slate-900 dark:text-white text-sm">
                                                 {formatCurrency(p.totalRepasse)}

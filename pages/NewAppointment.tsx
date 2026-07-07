@@ -698,13 +698,13 @@ const NewAppointment: React.FC = () => {
               {/* REST OF THE FIELDS - DEPENDENT ON LOCAL */}
               <div className={`space-y-6 transition-all duration-500 ${!formData.hospitalId ? 'opacity-40 pointer-events-none grayscale' : 'opacity-100'}`}>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                   <div className="flex flex-col">
                     <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Tipo de Procedimento</p>
                     <div className="flex h-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700">
                       {['Consulta', 'Exame', 'Cirurgia'].map(type => (
-                        <label key={type} className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 text-xs font-black uppercase tracking-widest transition-all ${formData.procedureType === type ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
-                          <span>{type}</span>
+                        <label key={type} className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-1 text-[11px] font-black uppercase tracking-tight transition-all ${formData.procedureType === type ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
+                          <span className="truncate">{type}</span>
                           <input
                             type="radio"
                             name="procedureType"
@@ -735,7 +735,7 @@ const NewAppointment: React.FC = () => {
                   </label>
                 </div>
 
-                <div className={`grid grid-cols-1 md:grid-cols-3 gap-4`}>
+                <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4`}>
                   <label className="flex flex-col">
                     <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Profissional de Saúde</p>
                     <div className="relative">

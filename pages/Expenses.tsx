@@ -634,7 +634,7 @@ const Expenses: React.FC = () => {
             </div>
 
             {/* --- KPIs --- */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
                {isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
                      <div key={i} className="h-[6.5rem] sm:h-28 rounded-3xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
@@ -642,42 +642,42 @@ const Expenses: React.FC = () => {
                ) : (
                   <>
                      <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow card-hover flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center shrink-0 text-primary">
                            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">trending_down</span>
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saída Total</p>
-                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display">{formatCurrency(totalOutflow)}</h3>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-xl xl:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display tabular-nums truncate">{formatCurrency(totalOutflow)}</h3>
                         </div>
                      </div>
 
                      <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow card-hover flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center shrink-0 text-primary">
                            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">receipt_long</span>
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Operacionais</p>
-                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display">{formatCurrency(totalOperatingExpenses)}</h3>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-xl xl:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display tabular-nums truncate">{formatCurrency(totalOperatingExpenses)}</h3>
                         </div>
                      </div>
 
                      <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow card-hover flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-primary">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center shrink-0 text-primary">
                            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">pie_chart</span>
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rateios</p>
-                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display">{formatCurrency(totalWithdrawals)}</h3>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-xl xl:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display tabular-nums truncate">{formatCurrency(totalWithdrawals)}</h3>
                         </div>
                      </div>
 
                      <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow card-hover flex items-center gap-3 sm:gap-4 h-[6.5rem] sm:h-28">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center text-amber-500">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-slate-800 flex items-center justify-center shrink-0 text-amber-500">
                            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">schedule</span>
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                            <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pagamentos Pendentes</p>
-                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display">{pendingCount}</h3>
+                           <h3 className="text-[clamp(1rem,4.5vw,1.4rem)] sm:text-xl xl:text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-display tabular-nums truncate">{pendingCount}</h3>
                         </div>
                      </div>
                   </>
@@ -800,11 +800,11 @@ const Expenses: React.FC = () => {
                </div>
 
                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden flex flex-col">
-                  <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-purple-50 dark:bg-purple-900/20 flex items-center justify-between">
-                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Rateios & Retiradas</h3>
+                  <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-purple-50 dark:bg-purple-900/20 flex items-center justify-between gap-2">
+                     <h3 className="text-lg font-bold text-slate-900 dark:text-white truncate min-w-0">Rateios & Retiradas</h3>
                      <button
                         onClick={handleOpenNewWithdrawal}
-                        className="px-3 py-2 rounded-xl text-xs font-bold bg-white/80 dark:bg-slate-900 text-purple-600 hover:bg-white transition-colors flex items-center gap-1"
+                        className="px-3 py-2 rounded-xl text-xs font-bold bg-white/80 dark:bg-slate-900 text-purple-600 hover:bg-white transition-colors flex items-center gap-1 shrink-0"
                      >
                         <span className="material-symbols-outlined text-[16px]">add</span>
                         Adicionar
