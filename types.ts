@@ -38,6 +38,7 @@ export interface Appointment {
   hospitalId?: string;
   status: 'Agendado' | 'Atendido' | 'Cancelado' | 'Falhou';
   paymentStatus: 'Pago' | 'Pendente' | 'Não realizado';
+  paymentPaidAt?: string | null;
   cost: number;
   payments: PaymentPart[];
   notes?: string;

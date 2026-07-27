@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Appointment, PaymentPart, UserRole } from '../types';
-import { APP_TIME_ZONE, formatCurrency, parseCurrency, formatPhoneMask, formatPhone, isValidPhone } from '../utils/formatters';
+import { APP_TIME_ZONE, formatCurrency, formatDate, parseCurrency, formatPhoneMask, formatPhone, isValidPhone } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -193,6 +193,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 hospitalId: apt.hospital_id,
                 status: apt.status,
                 paymentStatus: apt.payment_status,
+                paymentPaidAt: apt.payment_paid_at,
                 cost: Number(apt.total_cost),
                 payments: apt.payments || [],
                 notes: apt.notes || ''
@@ -1383,12 +1384,39 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Valor</span>
                                                         <div className="flex flex-col items-end">
                                                             <span className="font-black text-slate-900 dark:text-white text-base leading-none">{formatCurrency(apt.cost)}</span>
-                                                            <div className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter mt-1 px-1.5 py-0.5 rounded-md ${apt.paymentStatus === 'Pago'
-                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                                                }`}>
-                                                                <span className="material-symbols-outlined text-[10px] leading-none">{apt.paymentStatus === 'Pago' ? 'check_circle' : 'pending'}</span>
-                                                                {apt.paymentStatus}
+                                                            <div className="relative group/pay">
+                                                                <div className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter mt-1 px-1.5 py-0.5 rounded-md ${apt.paymentStatus === 'Pago'
+                                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-help'
+                                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                                    }`}>
+                                                                    <span className="material-symbols-outlined text-[10px] leading-none">{apt.paymentStatus === 'Pago' ? 'check_circle' : 'pending'}</span>
+                                                                    {apt.paymentStatus}
+                                                                </div>
+                                                                {apt.paymentStatus === 'Pago' && (
+                                                                    <div className="invisible opacity-0 group-hover/pay:visible group-hover/pay:opacity-100 transition-opacity absolute bottom-full right-0 mb-2 z-50 w-60 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl text-left">
+                                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Resumo do Pagamento</p>
+                                                                        <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
+                                                                            <span className="text-slate-500 dark:text-slate-400">Data</span>
+                                                                            <span className="font-bold text-slate-900 dark:text-white">{apt.paymentPaidAt ? formatDate(apt.paymentPaidAt) : '—'}</span>
+                                                                        </div>
+                                                                        {apt.payments.length > 0 ? (
+                                                                            <>
+                                                                                {apt.payments.map((p) => (
+                                                                                    <div key={p.id} className="flex items-center justify-between gap-3 text-xs mb-1.5">
+                                                                                        <span className="text-slate-500 dark:text-slate-400 truncate">{p.method}{p.installments && p.installments > 1 ? ` (${p.installments}x)` : ''}</span>
+                                                                                        <span className="font-bold text-slate-900 dark:text-white shrink-0">{formatCurrency(Number(p.value))}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                                <div className="flex items-center justify-between gap-3 text-xs pt-1.5 border-t border-slate-100 dark:border-slate-700">
+                                                                                    <span className="font-bold text-slate-500 dark:text-slate-400">Total pago</span>
+                                                                                    <span className="font-black text-green-600 dark:text-green-400">{formatCurrency(apt.payments.reduce((sum, p) => sum + Number(p.value), 0))}</span>
+                                                                                </div>
+                                                                            </>
+                                                                        ) : (
+                                                                            <p className="text-xs text-slate-400">Sem detalhes de forma de pagamento.</p>
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
