@@ -31,6 +31,7 @@ const Financials: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('Todos Pagamentos');
     const [repasseStatusFilter, setRepasseStatusFilter] = useState('Todos Acertos');
+    const [procedureStatusFilter, setProcedureStatusFilter] = useState('Todos Procedimentos');
 
     // Sort State
     type SortKey = 'patient_name' | 'date' | 'total_cost' | 'net_value' | 'payment_status' | 'repasse_status';
@@ -401,8 +402,9 @@ const Financials: React.FC = () => {
 
             const matchesPayment = statusFilter === 'Todos Pagamentos' || normalizedPaymentStatus === statusFilter;
             const matchesRepasse = repasseStatusFilter === 'Todos Acertos' || normalizedRepasseStatus === repasseStatusFilter;
+            const matchesProcedure = procedureStatusFilter === 'Todos Procedimentos' || (a.status || 'Agendado') === procedureStatusFilter;
 
-            return matchesSearch && matchesPayment && matchesRepasse;
+            return matchesSearch && matchesPayment && matchesRepasse && matchesProcedure;
         });
 
         const statusOrder: Record<string, number> = { 'Pago': 0, 'Pendente': 1, 'Não realizado': 2 };
@@ -442,7 +444,7 @@ const Financials: React.FC = () => {
         });
 
         return filtered;
-    }, [appointments, searchTerm, statusFilter, repasseStatusFilter, sortKey, sortDirection]);
+    }, [appointments, searchTerm, statusFilter, repasseStatusFilter, procedureStatusFilter, sortKey, sortDirection]);
     const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const currentData = filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -1135,12 +1137,27 @@ const Financials: React.FC = () => {
                             <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">currency_exchange</span>
                         </div>
 
-                        {(searchTerm || statusFilter !== 'Todos Pagamentos' || repasseStatusFilter !== 'Todos Acertos' || (isAdmin && selectedHospital !== 'Todos os Hospitais')) && (
+                        <div className="relative w-full sm:flex-none sm:w-44">
+                            <select
+                                value={procedureStatusFilter}
+                                onChange={(e) => setProcedureStatusFilter(e.target.value)}
+                                className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <option value="Todos Procedimentos">Status Proc.</option>
+                                <option value="Atendido">Realizado</option>
+                                <option value="Agendado">Agendado</option>
+                                <option value="Falhou">Falhou</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">event_available</span>
+                        </div>
+
+                        {(searchTerm || statusFilter !== 'Todos Pagamentos' || repasseStatusFilter !== 'Todos Acertos' || procedureStatusFilter !== 'Todos Procedimentos' || (isAdmin && selectedHospital !== 'Todos os Hospitais')) && (
                             <button
                                 onClick={() => {
                                     setSearchTerm('');
                                     setStatusFilter('Todos Pagamentos');
                                     setRepasseStatusFilter('Todos Acertos');
+                                    setProcedureStatusFilter('Todos Procedimentos');
                                     if (isAdmin) setSelectedHospital('Todos os Hospitais');
                                 }}
                                 className="h-12 px-4 rounded-2xl bg-red-50 text-primary hover:bg-red-100 transition-colors flex items-center gap-2 text-xs font-bold w-full sm:w-auto justify-center"
