@@ -625,6 +625,45 @@ const Financials: React.FC = () => {
         }
     };
 
+    const renderProcedureDate = (item: any) => {
+        const config: Record<string, { label: string; icon: string; badge: string; date: string }> = {
+            'Atendido': {
+                label: 'Realizado',
+                icon: 'event_available',
+                badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
+                date: 'text-slate-700 dark:text-slate-200'
+            },
+            'Agendado': {
+                label: 'Agendado',
+                icon: 'event_upcoming',
+                badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+                date: 'text-slate-400 italic'
+            },
+            'Falhou': {
+                label: 'Falhou',
+                icon: 'event_busy',
+                badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
+                date: 'text-slate-400 italic'
+            },
+            'Cancelado': {
+                label: 'Cancelado',
+                icon: 'event_busy',
+                badge: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+                date: 'text-slate-400 italic'
+            }
+        };
+        const info = config[item.status] || config['Agendado'];
+        return (
+            <div className="inline-flex flex-col items-center gap-1">
+                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${info.badge}`}>
+                    <span className="material-symbols-outlined text-[12px]">{info.icon}</span>
+                    {info.label}
+                </span>
+                <span className={`text-[10px] font-black tabular-nums ${info.date}`}>{formatDate(item.date)}</span>
+            </div>
+        );
+    };
+
     const isAdmin = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN;
 
     const handleCalendarNav = (direction: number) => {
@@ -1123,8 +1162,9 @@ const Financials: React.FC = () => {
                                 <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('patient_name')}>
                                     <span className="inline-flex items-center gap-1">Paciente / Procedimento {sortKey === 'patient_name' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
                                 </th>
-                                <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('date')}>
-                                    <span className="inline-flex items-center gap-1">Unidade / Data {sortKey === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
+                                <th className="px-6 py-4">Unidade</th>
+                                <th className="px-6 py-4 text-center cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('date')}>
+                                    <span className="inline-flex items-center gap-1 justify-center">Data Procedimento {sortKey === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
                                 </th>
                                 <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => handleSort('total_cost')}>
                                     <span className="inline-flex items-center gap-1">Pagamento {sortKey === 'total_cost' && (sortDirection === 'asc' ? '↑' : '↓')}</span>
@@ -1148,6 +1188,7 @@ const Financials: React.FC = () => {
                                     <tr key={i} className="animate-pulse">
                                         <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded" /></td>
                                         <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-28 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+                                        <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded mx-auto" /></td>
                                         <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>
                                         <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded" /></td>
                                         {isAdmin && <td className="hidden lg:table-cell px-6 py-5"><div className="h-4 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>}
@@ -1175,8 +1216,11 @@ const Financials: React.FC = () => {
                                         <td className="hidden lg:table-cell px-6 py-5 align-top">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">{item.hospital?.name}</span>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase mt-1 opacity-70 italic">{formatDate(item.date)}</span>
                                             </div>
+                                        </td>
+
+                                        <td className="hidden lg:table-cell px-6 py-5 align-top text-center">
+                                            <div className="scale-90 origin-center">{renderProcedureDate(item)}</div>
                                         </td>
 
                                         <td className="hidden lg:table-cell px-6 py-5 align-top">
@@ -1222,7 +1266,12 @@ const Financials: React.FC = () => {
                                         )}
 
                                         <td className="hidden lg:table-cell px-6 py-5 align-top text-center border-l border-slate-50 dark:border-slate-800/10">
-                                            <div className="scale-90 origin-center">{getStatusBadge(item.payment_status, 'payment')}</div>
+                                            <div className="flex flex-col items-center scale-90 origin-center">
+                                                {getStatusBadge(item.payment_status, 'payment')}
+                                                {item.payment_status === 'Pago' && item.payment_paid_at && (
+                                                    <span className="text-[9px] font-bold text-slate-400 mt-1">{formatDate(item.payment_paid_at)}</span>
+                                                )}
+                                            </div>
                                         </td>
 
                                         <td className="hidden lg:table-cell px-6 py-5 align-top text-center">
@@ -1259,7 +1308,7 @@ const Financials: React.FC = () => {
                                         </td>
 
                                         {/* Mobile / Tablet View (Card) */}
-                                        <td colSpan={isAdmin ? 8 : 7} className="lg:hidden p-4">
+                                        <td colSpan={isAdmin ? 9 : 8} className="lg:hidden p-4">
                                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-700/50">
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div className="flex flex-col">
@@ -1291,7 +1340,7 @@ const Financials: React.FC = () => {
                                                     <div>
                                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Unidade / Data</p>
                                                         <p className="text-xs font-bold text-slate-700 dark:text-slate-300 leading-tight">{item.hospital?.name}</p>
-                                                        <p className="text-[10px] text-slate-400 italic mt-0.5">{formatDate(item.date)}</p>
+                                                        <div className="mt-1.5 scale-90 origin-left">{renderProcedureDate(item)}</div>
                                                     </div>
                                                     <div>
                                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Pagamento</p>
@@ -1340,9 +1389,15 @@ const Financials: React.FC = () => {
                                                     </div>
                                                     <div className="flex flex-col items-end gap-1 scale-75 origin-right">
                                                         {getStatusBadge(item.payment_status, 'payment')}
+                                                        {item.payment_status === 'Pago' && item.payment_paid_at && (
+                                                            <span className="text-[9px] font-bold text-slate-400 -mt-0.5">{formatDate(item.payment_paid_at)}</span>
+                                                        )}
                                                         {getStatusBadge(
                                                             item.payment_status === 'Não realizado' ? 'Não realizado' : (item.repasse_status || 'Pendente'),
                                                             'repasse'
+                                                        )}
+                                                        {item.repasse_status === 'Pago' && item.repasse_paid_at && (
+                                                            <span className="text-[9px] font-bold text-slate-400 -mt-0.5">{formatDate(item.repasse_paid_at)}</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1352,7 +1407,7 @@ const Financials: React.FC = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={isAdmin ? 8 : 7} className="px-6 py-20 text-center">
+                                    <td colSpan={isAdmin ? 9 : 8} className="px-6 py-20 text-center">
                                         <div className="flex flex-col items-center gap-3">
                                             <div className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300">
                                                 <span className="material-symbols-outlined text-4xl">payments</span>

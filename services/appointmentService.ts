@@ -76,9 +76,23 @@ export const appointmentService = {
             console.warn('Could not fetch previous state for audit:', e);
         }
 
+        // Carimba automaticamente a data de recebimento/acerto quando o status muda para 'Pago'
+        // e limpa quando deixa de ser 'Pago' (a menos que o chamador informe o campo explicitamente).
+        const payload = { ...updates };
+        if (payload.payment_status !== undefined
+            && payload.payment_status !== previousState.payment_status
+            && payload.payment_paid_at === undefined) {
+            payload.payment_paid_at = payload.payment_status === 'Pago' ? new Date().toISOString() : null;
+        }
+        if (payload.repasse_status !== undefined
+            && payload.repasse_status !== previousState.repasse_status
+            && payload.repasse_paid_at === undefined) {
+            payload.repasse_paid_at = payload.repasse_status === 'Pago' ? new Date().toISOString() : null;
+        }
+
         const { data, error } = await supabase
             .from('appointments')
-            .update(updates)
+            .update(payload)
             .eq('id', id)
             .select()
             .single();
@@ -93,9 +107,9 @@ export const appointmentService = {
             const { data: { user } } = await supabase.auth.getUser();
             const changes: any = {};
 
-            Object.keys(updates).forEach(key => {
+            Object.keys(payload).forEach(key => {
                 const oldValue = previousState[key];
-                const newValue = updates[key];
+                const newValue = payload[key];
 
                 // Simple equality check
                 if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
@@ -119,7 +133,7 @@ export const appointmentService = {
             console.error('Failed to log audit:', auditErr);
         }
 
-        logger.info({ action: 'update', entity: 'appointments', id, fields: Object.keys(updates || {}) }, 'crud');
+        logger.info({ action: 'update', entity: 'appointments', id, fields: Object.keys(payload || {}) }, 'crud');
         return data;
     },
 
