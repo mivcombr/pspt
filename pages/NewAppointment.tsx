@@ -11,6 +11,7 @@ import { procedureService } from '../services/procedureService';
 import { doctorService } from '../services/doctorService';
 import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
 import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
+import { BlockedDatePicker } from '../components/ui/BlockedDatePicker';
 import { formatPhoneMask, isValidPhone } from '../utils/formatters';
 
 // Doctors list removed - dynamic fetching implemented
@@ -762,16 +763,15 @@ const NewAppointment: React.FC = () => {
                       <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">keyboard_arrow_down</span>
                     </div>
                   </label>
-                  <label className="flex flex-col">
+                  <div className="flex flex-col">
                     <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Data do Agendamento</p>
-                    <input
-                      type="date"
-                      name="date"
+                    <BlockedDatePicker
                       value={formData.date}
-                      onChange={handleInputChange}
-                      className="form-input w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                      onChange={(date) => setFormData(prev => ({ ...prev, date }))}
+                      blocks={scheduleBlocks}
+                      disabled={!formData.hospitalId}
                     />
-                  </label>
+                  </div>
                   <label className="flex flex-col text-slate-600 dark:text-slate-300">
                     <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Horário</p>
                     <input
