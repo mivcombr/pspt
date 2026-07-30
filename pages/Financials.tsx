@@ -1075,100 +1075,96 @@ const Financials: React.FC = () => {
                 )}
             </div>
 
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-col lg:flex-row gap-4 items-center justify-between">
-                <div className="flex flex-col xl:flex-row items-center gap-3 sm:gap-4 w-full flex-1">
-                    <div className="relative w-full xl:max-w-md">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                        <input
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full h-12 pl-12 pr-4 rounded-2xl border-none bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm font-medium text-slate-700 dark:text-white placeholder-slate-400 transition-all"
-                            placeholder="Buscar por paciente ou procedimento..."
-                        />
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:flex-wrap items-center gap-2 w-full xl:w-auto">
-                        {isAdmin ? (
-                            <div className="relative w-full sm:flex-none sm:w-56">
-                                <select
-                                    value={selectedHospital}
-                                    onChange={(e) => setSelectedHospital(e.target.value)}
-                                    className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                >
-                                    <option>Todos os Hospitais</option>
-                                    {hospitals.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}
-                                </select>
-                                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[20px]">expand_more</span>
-                            </div>
-                        ) : (
-                            <div className="relative w-full sm:flex-none sm:w-56">
-                                <div className="w-full h-12 px-4 flex items-center rounded-2xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-400 cursor-not-allowed">
-                                    <span className="material-symbols-outlined text-[18px] mr-2">lock</span>
-                                    <span className="truncate">{user?.hospitalName}</span>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="relative w-full sm:flex-none sm:w-44">
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <option value="Todos Pagamentos">Status Pag.</option>
-                                <option value="Pago">Pago</option>
-                                <option value="Pendente">Pendente</option>
-                                <option value="Não realizado">Não realizado</option>
-                            </select>
-                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">payments</span>
-                        </div>
-
-                        <div className="relative w-full sm:flex-none sm:w-44">
-                            <select
-                                value={repasseStatusFilter}
-                                onChange={(e) => setRepasseStatusFilter(e.target.value)}
-                                className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <option value="Todos Acertos">Status Acerto</option>
-                                <option value="Pago">Pago</option>
-                                <option value="Pendente">Pendente</option>
-                                <option value="Não realizado">Não realizado</option>
-                            </select>
-                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">currency_exchange</span>
-                        </div>
-
-                        <div className="relative w-full sm:flex-none sm:w-44">
-                            <select
-                                value={procedureStatusFilter}
-                                onChange={(e) => setProcedureStatusFilter(e.target.value)}
-                                className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <option value="Todos Procedimentos">Status Proc.</option>
-                                <option value="Atendido">Realizado</option>
-                                <option value="Agendado">Agendado</option>
-                                <option value="Falhou">Falhou</option>
-                            </select>
-                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">event_available</span>
-                        </div>
-
-                        {(searchTerm || statusFilter !== 'Todos Pagamentos' || repasseStatusFilter !== 'Todos Acertos' || procedureStatusFilter !== 'Todos Procedimentos' || (isAdmin && selectedHospital !== 'Todos os Hospitais')) && (
-                            <button
-                                onClick={() => {
-                                    setSearchTerm('');
-                                    setStatusFilter('Todos Pagamentos');
-                                    setRepasseStatusFilter('Todos Acertos');
-                                    setProcedureStatusFilter('Todos Procedimentos');
-                                    if (isAdmin) setSelectedHospital('Todos os Hospitais');
-                                }}
-                                className="h-12 px-4 rounded-2xl bg-red-50 text-primary hover:bg-red-100 transition-colors flex items-center gap-2 text-xs font-bold w-full sm:w-auto justify-center"
-                            >
-                                <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
-                                Limpar
-                            </button>
-                        )}
-                    </div>
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm card-shadow flex flex-wrap items-center gap-2">
+                <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                    <input
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full h-12 pl-12 pr-4 rounded-2xl border-none bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm font-medium text-slate-700 dark:text-white placeholder-slate-400 transition-all"
+                        placeholder="Buscar paciente ou procedimento..."
+                    />
                 </div>
 
+                {isAdmin ? (
+                    <div className="relative w-full sm:w-48">
+                        <select
+                            value={selectedHospital}
+                            onChange={(e) => setSelectedHospital(e.target.value)}
+                            className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors truncate"
+                        >
+                            <option>Todos os Hospitais</option>
+                            {hospitals.map(h => <option key={h.id} value={h.name}>{h.name}</option>)}
+                        </select>
+                        <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[20px]">expand_more</span>
+                    </div>
+                ) : (
+                    <div className="relative w-full sm:w-48">
+                        <div className="w-full h-12 px-4 flex items-center rounded-2xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold text-slate-400 cursor-not-allowed">
+                            <span className="material-symbols-outlined text-[18px] mr-2">lock</span>
+                            <span className="truncate">{user?.hospitalName}</span>
+                        </div>
+                    </div>
+                )}
+
+                <div className="relative w-full sm:w-40">
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <option value="Todos Pagamentos">Status Pag.</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Não realizado">Não realizado</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">payments</span>
+                </div>
+
+                <div className="relative w-full sm:w-40">
+                    <select
+                        value={repasseStatusFilter}
+                        onChange={(e) => setRepasseStatusFilter(e.target.value)}
+                        className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <option value="Todos Acertos">Status Acerto</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Não realizado">Não realizado</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">currency_exchange</span>
+                </div>
+
+                <div className="relative w-full sm:w-40">
+                    <select
+                        value={procedureStatusFilter}
+                        onChange={(e) => setProcedureStatusFilter(e.target.value)}
+                        className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <option value="Todos Procedimentos">Status Proc.</option>
+                        <option value="Atendido">Realizado</option>
+                        <option value="Agendado">Agendado</option>
+                        <option value="Falhou">Falhou</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">event_available</span>
+                </div>
+
+                {(searchTerm || statusFilter !== 'Todos Pagamentos' || repasseStatusFilter !== 'Todos Acertos' || procedureStatusFilter !== 'Todos Procedimentos' || (isAdmin && selectedHospital !== 'Todos os Hospitais')) && (
+                    <button
+                        onClick={() => {
+                            setSearchTerm('');
+                            setStatusFilter('Todos Pagamentos');
+                            setRepasseStatusFilter('Todos Acertos');
+                            setProcedureStatusFilter('Todos Procedimentos');
+                            if (isAdmin) setSelectedHospital('Todos os Hospitais');
+                        }}
+                        className="h-12 px-4 rounded-2xl bg-red-50 text-primary hover:bg-red-100 transition-colors flex items-center gap-2 text-xs font-bold w-full sm:w-auto justify-center"
+                        title="Limpar filtros"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
+                        Limpar
+                    </button>
+                )}
             </div>
 
             <div className="rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm card-shadow flex flex-col">
