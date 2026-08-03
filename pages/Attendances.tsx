@@ -231,8 +231,23 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 effectiveHospitalId = user?.hospitalId || '';
             }
 
+            // Busca só o mês da data selecionada (±7 dias para cobrir semanas que
+            // cruzam a virada do mês). A tela só exibe o dia/semana selecionados,
+            // então baixar o histórico inteiro só deixava o carregamento lento.
+            const base = new Date(selectedDate + 'T12:00:00');
+            const windowStart = new Date(base.getFullYear(), base.getMonth(), 1);
+            windowStart.setDate(windowStart.getDate() - 7);
+            const windowEnd = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+            windowEnd.setDate(windowEnd.getDate() + 7);
+            const toISODate = (d: Date) =>
+                `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
             const [appointmentsData, proceduresData] = await Promise.all([
-                appointmentService.getAll({ hospitalId: effectiveHospitalId }),
+                appointmentService.getAll({
+                    hospitalId: effectiveHospitalId,
+                    startDate: toISODate(windowStart),
+                    endDate: toISODate(windowEnd)
+                }),
                 procedureService.getAll(effectiveHospitalId || undefined)
             ]);
 
@@ -268,10 +283,13 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         }
     };
 
+    // Refaz a busca quando muda o hospital ou o mês da data selecionada
+    // (a janela de dados carregada cobre um mês por vez).
+    const selectedMonthKey = selectedDate.slice(0, 7);
     useEffect(() => {
         fetchData();
         if (selectedHospitalId) fetchBlocks();
-    }, [selectedHospitalId]);
+    }, [selectedHospitalId, selectedMonthKey]);
 
     const fetchBlocks = async () => {
         if (!selectedHospitalId) {
