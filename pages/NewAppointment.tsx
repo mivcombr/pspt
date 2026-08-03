@@ -356,6 +356,11 @@ const NewAppointment: React.FC = () => {
       return;
     }
 
+    if (!formData.doctor) {
+      notify.warning('Por favor, selecione o médico do agendamento.');
+      return;
+    }
+
     const selectedHospitalId = selectedPatient?.hospitalId || selectedPatient?.hospital_id;
     if (selectedHospitalId && formData.hospitalId !== selectedHospitalId) {
       notify.warning('O hospital do agendamento deve ser o mesmo do paciente.');
@@ -738,7 +743,7 @@ const NewAppointment: React.FC = () => {
 
                 <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4`}>
                   <label className="flex flex-col">
-                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Profissional de Saúde</p>
+                    <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Profissional de Saúde <span className="text-red-500">*</span></p>
                     <div className="relative">
                       <select
                         name="doctor"

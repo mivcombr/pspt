@@ -15,6 +15,7 @@ import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
 import { procedureService, Procedure } from '../services/procedureService';
 import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
+import { doctorService, Doctor } from '../services/doctorService';
 import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
 
 interface AttendancesProps {
@@ -127,6 +128,11 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const [isEditingProcedure, setIsEditingProcedure] = useState(false);
     const [procedureInputValue, setProcedureInputValue] = useState('');
     const [procedureTypeInputValue, setProcedureTypeInputValue] = useState('Consulta');
+
+    // Provider (Doctor) Editing State
+    const [isEditingProvider, setIsEditingProvider] = useState(false);
+    const [providerInputValue, setProviderInputValue] = useState('');
+    const [modalDoctors, setModalDoctors] = useState<Doctor[]>([]);
 
     // Date/Time Editing State
     const [isEditingDateTime, setIsEditingDateTime] = useState(false);
@@ -495,6 +501,20 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setIsEditingCost(false);
         setCostInputValue(apt.cost.toFixed(2).replace('.', ','));
 
+        // Reset Provider Edit State + busca os médicos do hospital do agendamento
+        setIsEditingProvider(false);
+        setProviderInputValue(apt.provider || '');
+        if (apt.hospitalId) {
+            doctorService.getByHospital(apt.hospitalId)
+                .then(setModalDoctors)
+                .catch((err) => {
+                    console.error('Error fetching doctors for appointment:', err);
+                    setModalDoctors([]);
+                });
+        } else {
+            setModalDoctors([]);
+        }
+
         // Reset Procedure Edit State
         setIsEditingProcedure(false);
         setProcedureInputValue(apt.procedure);
@@ -616,6 +636,17 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         notify.success('Procedimento atualizado!');
     };
 
+    const saveNewProvider = () => {
+        if (!currentAppointment) return;
+        if (!providerInputValue) {
+            notify.warning('Selecione o médico.');
+            return;
+        }
+        setCurrentAppointment({ ...currentAppointment, provider: providerInputValue });
+        setIsEditingProvider(false);
+        notify.success('Profissional atualizado!');
+    };
+
     const saveNewDateTime = () => {
         if (!currentAppointment) return;
         if (!dateInputValue || !timeInputValue) {
@@ -733,6 +764,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 total_cost: currentAppointment.cost,
                 type: currentAppointment.type,
                 procedure: currentAppointment.procedure,
+                provider: currentAppointment.provider,
                 notes: notesInputValue,
                 date: currentAppointment.date,
                 time: currentAppointment.time
@@ -1725,8 +1757,50 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                         )}
                                     </div>
 
-                                    {/* Status Selector - Full width on mobile, spans both columns */}
-                                    <div className="md:col-span-2 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative">
+                                    {/* Provider (Doctor) */}
+                                    <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative group">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Profissional</p>
+                                        {isEditingProvider ? (
+                                            <div className="flex items-center gap-2">
+                                                <select
+                                                    value={providerInputValue}
+                                                    onChange={(e) => setProviderInputValue(e.target.value)}
+                                                    autoFocus
+                                                    className="w-full h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 focus:outline-none"
+                                                >
+                                                    <option value="">Selecione o médico</option>
+                                                    {currentAppointment.provider && !modalDoctors.some((d) => d.name === currentAppointment.provider) && (
+                                                        <option value={currentAppointment.provider}>{currentAppointment.provider}</option>
+                                                    )}
+                                                    {modalDoctors.map((d) => (
+                                                        <option key={d.id} value={d.name}>
+                                                            {d.name}{d.specialty ? ` (${d.specialty})` : ''}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <button onClick={saveNewProvider} className="p-1.5 bg-green-500 text-white rounded-lg"><span className="material-symbols-outlined text-[18px]">check</span></button>
+                                                <button onClick={() => setIsEditingProvider(false)} className="p-1.5 bg-red-100 text-red-500 rounded-lg"><span className="material-symbols-outlined text-[18px]">close</span></button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex justify-between items-center">
+                                                <p className="text-lg font-black text-slate-800 dark:text-white leading-tight">
+                                                    {currentAppointment.provider || <span className="text-slate-300 italic font-bold">Não informado</span>}
+                                                </p>
+                                                <button
+                                                    onClick={() => {
+                                                        setProviderInputValue(currentAppointment.provider || '');
+                                                        setIsEditingProvider(true);
+                                                    }}
+                                                    className="text-slate-300 hover:text-primary transition-colors"
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">edit</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Status Selector */}
+                                    <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status do Atendimento</p>
                                         <div className="flex items-center">
                                             <select
