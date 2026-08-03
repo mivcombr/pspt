@@ -211,14 +211,22 @@ export const appointmentService = {
     },
 
     async delete(id: string) {
-        const { error } = await supabase
+        // .select() faz o DELETE retornar as linhas afetadas: quando a RLS
+        // bloqueia, o Supabase não retorna erro, apenas 0 linhas.
+        const { data, error } = await supabase
             .from('appointments')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .select('id');
 
         if (error) {
             logger.error({ action: 'delete', entity: 'appointments', id, error }, 'crud');
             throw error;
+        }
+        if (!data || data.length === 0) {
+            const notDeleted = new Error('Agendamento não foi excluído (sem permissão ou já removido).');
+            logger.error({ action: 'delete', entity: 'appointments', id, error: notDeleted.message }, 'crud');
+            throw notDeleted;
         }
         logger.info({ action: 'delete', entity: 'appointments', id }, 'crud');
     },
