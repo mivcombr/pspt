@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setMustChangePassword(false);
   }, []);
 
-  const fetchProfile = useCallback(async (userId: string, authUserEmail?: string) => {
+  const fetchProfile = useCallback(async (userId: string, authUserEmail?: string, userMetadata?: Record<string, any>) => {
     // Prevent concurrent fetches
     if (isFetchingRef.current) {
       console.log('[Auth] fetchProfile skipped — already fetching.');
@@ -78,9 +78,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           throw new Error('Seu perfil não foi encontrado. Por favor, entre em contato com o administrador.');
         }
 
-        // Check if user must change their password (temporary password flow)
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser?.user_metadata?.must_change_password === true) {
+        // Check if user must change their password (temporary password flow).
+        // Metadata comes from the session already in memory — no extra network call
+        // (getUser() here also contended for the auth lock during token refresh).
+        if (userMetadata?.must_change_password === true) {
           console.log('[Auth] User must change password on first login');
           setMustChangePassword(true);
         }
@@ -126,7 +127,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Force re-fetch even if user exists
       userRef.current = null;
       setUser(null);
-      await fetchProfile(session.user.id, session.user.email);
+      await fetchProfile(session.user.id, session.user.email, session.user.user_metadata);
       setIsLoading(false);
     }
   }, [fetchProfile]);
@@ -146,7 +147,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ]);
         const { data: { session } } = sessionResult;
         if (session && active) {
-          await fetchProfile(session.user.id, session.user.email);
+          await fetchProfile(session.user.id, session.user.email, session.user.user_metadata);
         }
       } catch (err) {
         console.error('[Auth] Init error:', err);
@@ -157,77 +158,62 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     initialize();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // IMPORTANT: this callback must stay synchronous and cheap. supabase-js invokes
+    // it while holding the cross-tab auth lock; any await on a Supabase call here
+    // blocks every query in the app (and other tabs) until it finishes.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[Auth] State change:', event, !!session);
 
-      try {
-        if (event === 'SIGNED_OUT') {
-          userRef.current = null;
-          setUser(null);
-          setMustChangePassword(false);
-          return;
-        }
-
-        if (event === 'TOKEN_REFRESHED') {
-          // Token refreshed successfully — session is still valid, no action needed.
-          console.log('[Auth] Token refreshed. User present:', !!userRef.current);
-          return;
-        }
-
-        // Handle password recovery flow — don't load full profile
-        if (event === 'PASSWORD_RECOVERY') {
-          console.log('[Auth] Password recovery event detected');
-          setIsLoading(false);
-          return;
-        }
-
-        // When user updates their password, check if must_change_password was cleared
-        if (event === 'USER_UPDATED' && session) {
-          if (session.user?.user_metadata?.must_change_password === false || !session.user?.user_metadata?.must_change_password) {
-            setMustChangePassword(false);
-          }
-        }
-
-        // For SIGNED_IN, INITIAL_SESSION, USER_UPDATED — only fetch profile if we don't have one
-        if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED')) {
-          if (!userRef.current) {
-            await fetchProfile(session.user.id, session.user.email);
-          }
-        }
-      } catch (err) {
-        console.error('[Auth] Error in onAuthStateChange handler:', err);
-      } finally {
+      if (event === 'SIGNED_OUT') {
+        userRef.current = null;
+        setUser(null);
+        setMustChangePassword(false);
         setIsLoading(false);
+        return;
       }
+
+      if (event === 'TOKEN_REFRESHED') {
+        // Token refreshed successfully — session is still valid, no action needed.
+        console.log('[Auth] Token refreshed. User present:', !!userRef.current);
+        return;
+      }
+
+      // Handle password recovery flow — don't load full profile
+      if (event === 'PASSWORD_RECOVERY') {
+        console.log('[Auth] Password recovery event detected');
+        setIsLoading(false);
+        return;
+      }
+
+      // When user updates their password, check if must_change_password was cleared
+      if (event === 'USER_UPDATED' && session) {
+        if (session.user?.user_metadata?.must_change_password === false || !session.user?.user_metadata?.must_change_password) {
+          setMustChangePassword(false);
+        }
+      }
+
+      // For SIGNED_IN, INITIAL_SESSION, USER_UPDATED — only fetch profile if we don't have one.
+      // setTimeout defers the fetch until after the auth lock is released (Supabase-recommended pattern).
+      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') && !userRef.current) {
+        const { id, email, user_metadata } = session.user;
+        setTimeout(() => {
+          fetchProfile(id, email, user_metadata)
+            .catch(err => console.error('[Auth] Error fetching profile after auth event:', err))
+            .finally(() => setIsLoading(false));
+        }, 0);
+        return;
+      }
+
+      setIsLoading(false);
     });
 
-    // Periodic keep-alive: check session health every 4 minutes.
-    // Browsers throttle timers in background tabs, so this is a safety net.
-    const keepAliveInterval = setInterval(async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const now = Math.floor(Date.now() / 1000);
-          const expiresAt = session.expires_at ?? 0;
-          if (expiresAt - now < 300) {
-            console.log('[Auth] Keep-alive: session near expiry, refreshing...');
-            const { data: { session: newSession }, error } = await supabase.auth.refreshSession();
-            if (error) {
-              console.warn('[Auth] Keep-alive refresh failed:', error.message);
-            } else if (newSession) {
-              console.log('[Auth] Keep-alive: refreshed, expires:', new Date((newSession.expires_at ?? 0) * 1000).toLocaleString());
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[Auth] Keep-alive error:', err);
-      }
-    }, 4 * 60 * 1000);
+    // NOTE: keep-alive manual removido — o autoRefreshToken do supabase-js já
+    // renova a sessão periodicamente e ao voltar o foco da aba. Refreshes
+    // paralelos disputavam o lock de auth e travavam as queries no refoco.
 
     return () => {
       active = false;
       subscription.unsubscribe();
-      clearInterval(keepAliveInterval);
     };
   }, [fetchProfile]);
 
