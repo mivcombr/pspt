@@ -42,6 +42,7 @@ export interface Appointment {
   cost: number;
   payments: PaymentPart[];
   notes?: string;
+  createdById?: string;
 }
 
 export interface Hospital {

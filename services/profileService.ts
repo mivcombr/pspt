@@ -28,6 +28,23 @@ export const profileService = {
         return data;
     },
 
+    // Nomes de um conjunto de usuários. A RLS de profiles só libera a leitura de
+    // outros perfis para admin/comercial, então o chamador precisa checar o papel.
+    async getNamesByIds(ids: string[]) {
+        if (ids.length === 0) return [];
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .in('id', ids);
+
+        if (error) {
+            logger.error({ action: 'read', entity: 'profiles', error }, 'crud');
+            throw error;
+        }
+        return data || [];
+    },
+
     async update(id: string, updates: any) {
         const { data, error } = await supabase
             .from('profiles')

@@ -17,6 +17,7 @@ import { procedureService, Procedure } from '../services/procedureService';
 import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
 import { doctorService, Doctor } from '../services/doctorService';
 import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
+import { profileService } from '../services/profileService';
 
 interface AttendancesProps {
     isEmbedded?: boolean;
@@ -81,6 +82,55 @@ const PaymentSummaryBadge: React.FC<{ apt: Appointment }> = ({ apt }) => {
     );
 };
 
+// Cores por status do atendimento. O card inteiro (e o bloco da visão semanal)
+// assume a cor do status, em vez de sinalizá-lo só por uma barra lateral.
+const STATUS_THEME: Record<string, {
+    card: string;
+    weekly: string;
+    chip: string;
+    dot: string;
+    activePill: string;
+}> = {
+    Agendado: {
+        card: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/60 hover:border-blue-300 dark:hover:border-blue-800',
+        weekly: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/60',
+        chip: 'bg-white/80 dark:bg-slate-900/50 border-blue-100 dark:border-blue-900/50',
+        dot: 'bg-blue-500',
+        activePill: 'bg-blue-500 text-white shadow-sm',
+    },
+    Atendido: {
+        card: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/60 hover:border-green-300 dark:hover:border-green-800',
+        weekly: 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900/60',
+        chip: 'bg-white/80 dark:bg-slate-900/50 border-green-100 dark:border-green-900/50',
+        dot: 'bg-green-500',
+        activePill: 'bg-green-600 text-white shadow-sm',
+    },
+    Falhou: {
+        card: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/60 hover:border-red-300 dark:hover:border-red-800',
+        weekly: 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900/60',
+        chip: 'bg-white/80 dark:bg-slate-900/50 border-red-100 dark:border-red-900/50',
+        dot: 'bg-red-500',
+        activePill: 'bg-red-500 text-white shadow-sm',
+    },
+    Cancelado: {
+        card: 'bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 hover:border-slate-400',
+        weekly: 'bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700',
+        chip: 'bg-white/80 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700',
+        dot: 'bg-slate-400',
+        activePill: 'bg-slate-500 text-white shadow-sm',
+    },
+};
+
+const DEFAULT_STATUS_THEME = {
+    card: 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-primary/20',
+    weekly: 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700',
+    chip: 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700',
+    dot: 'bg-slate-300',
+    activePill: 'bg-slate-900 text-white dark:bg-primary shadow-sm',
+};
+
+const getStatusTheme = (status: string) => STATUS_THEME[status] || DEFAULT_STATUS_THEME;
+
 // Helper to get dates for the current week based on a reference date
 const getWeekDays = (refDateStr: string) => {
     const refDate = new Date(refDateStr + 'T12:00:00');
@@ -107,6 +157,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [procedures, setProcedures] = useState<Procedure[]>([]);
     const [activeFilter, setActiveFilter] = useState('Todos');
+    const [statusFilter, setStatusFilter] = useState('Todos');
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -210,6 +261,58 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         }
     }, [hospitalFilter, isEmbedded, selectedHospitalId, user?.hospitalId, user?.role]);
 
+    // Autor do agendamento: informação restrita a administradores.
+    // A RLS de profiles só libera outros perfis para admin, então nem buscamos
+    // os nomes quando o usuário logado não é admin.
+    const isAdminUser = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN;
+    const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
+    const requestedCreatorIdsRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        if (!isAdminUser) return;
+
+        const uniqueIds = new Set<string>();
+        appointments.forEach(apt => {
+            if (apt.createdById) uniqueIds.add(apt.createdById);
+        });
+        const missing: string[] = [];
+        uniqueIds.forEach(id => {
+            if (!requestedCreatorIdsRef.current.has(id)) missing.push(id);
+        });
+
+        if (missing.length === 0) return;
+        missing.forEach(id => requestedCreatorIdsRef.current.add(id));
+
+        profileService.getNamesByIds(missing)
+            .then(profiles => {
+                setCreatorNames(prev => {
+                    const next = { ...prev };
+                    profiles.forEach(p => { next[p.id] = p.name || ''; });
+                    return next;
+                });
+            })
+            .catch(err => console.error('Error fetching appointment creators:', err));
+    }, [appointments, isAdminUser]);
+
+    const getCreatorLabel = (apt: Appointment) => {
+        if (!apt.createdById) return 'Não identificado';
+        const name = creatorNames[apt.createdById];
+        if (name === undefined) return 'Carregando...';
+        return name || 'Usuário removido';
+    };
+
+    // Agenda semanal em tela cheia
+    const [isWeekModalOpen, setIsWeekModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (!isWeekModalOpen) return;
+        const closeOnEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setIsWeekModalOpen(false);
+        };
+        document.addEventListener('keydown', closeOnEsc);
+        return () => document.removeEventListener('keydown', closeOnEsc);
+    }, [isWeekModalOpen]);
+
     // Schedule Blocks State
     const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
     const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([]);
@@ -276,7 +379,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 paymentPaidAt: apt.payment_paid_at,
                 cost: Number(apt.total_cost),
                 payments: apt.payments || [],
-                notes: apt.notes || ''
+                notes: apt.notes || '',
+                createdById: apt.user_id || undefined
             }));
 
             setAppointments(mappedData);
@@ -960,24 +1064,15 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     const renderStatus = (status: string) => <Badge status={status} />;
 
-    const getStatusColorBorder = (status: string) => {
-        switch (status) {
-            case 'Agendado': return 'border-l-blue-500 bg-white dark:bg-slate-800';
-            case 'Atendido': return 'border-l-green-500 bg-green-50/30 dark:bg-green-900/10';
-            case 'Falhou': return 'border-l-red-500 bg-red-50/30 dark:bg-red-900/10 opacity-75';
-            case 'Cancelado': return 'border-l-slate-400 bg-slate-50/50 dark:bg-slate-800 opacity-60';
-            default: return 'border-l-slate-300';
-        }
-    };
-
     // FILTER LOGIC
     const checkHospitalFilter = (apt: Appointment) => {
         if (!hospitalFilter || hospitalFilter === 'Todos os Parceiros') return true;
         return apt.hospital === hospitalFilter;
     };
 
-    // Filter List Data (Daily View)
-    const filteredData = appointments.filter(apt => {
+    // Filter List Data (Daily View) — antes do filtro de status, para que os
+    // contadores das pílulas mostrem o total de cada status do dia.
+    const dayData = appointments.filter(apt => {
         if (apt.date !== selectedDate) return false;
         if (!checkHospitalFilter(apt)) return false; // Partner Filter
 
@@ -988,6 +1083,24 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         return true;
     }).sort((a, b) => a.time.localeCompare(b.time));
 
+    const statusCounts = useMemo(() => {
+        return dayData.reduce<Record<string, number>>((acc, apt) => {
+            acc[apt.status] = (acc[apt.status] || 0) + 1;
+            return acc;
+        }, {});
+    }, [dayData]);
+
+    // Só mostra "Cancelado" quando existir algum no dia — evita poluir o filtro.
+    const statusFilterOptions = useMemo(() => {
+        const base = ['Agendado', 'Atendido', 'Falhou'];
+        if (statusCounts['Cancelado']) base.push('Cancelado');
+        return base;
+    }, [statusCounts]);
+
+    const filteredData = statusFilter === 'Todos'
+        ? dayData
+        : dayData.filter(apt => apt.status === statusFilter);
+
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
     const paginatedData = filteredData.slice(
         (currentPage - 1) * itemsPerPage,
@@ -996,7 +1109,15 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeFilter, hospitalFilter, selectedDate, itemsPerPage]);
+    }, [activeFilter, statusFilter, hospitalFilter, selectedDate, itemsPerPage]);
+
+    // Volta para "Todos" se o status selecionado não existe mais no dia,
+    // evitando uma lista vazia sem motivo aparente ao trocar de data.
+    useEffect(() => {
+        if (statusFilter !== 'Todos' && !statusCounts[statusFilter]) {
+            setStatusFilter('Todos');
+        }
+    }, [selectedDate, statusCounts, statusFilter]);
 
     // Calendar Week Data
     const currentWeekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate]);
@@ -1014,6 +1135,116 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
         return filteredDayData;
     };
+
+    // Grade da semana. Usada no card da página e, em versão ampliada, no modal
+    // de tela cheia — onde cabem mais informações por agendamento.
+    const renderWeekGrid = (fullScreen = false) => (
+        <div className={fullScreen
+            ? 'flex-1 flex flex-col min-h-0'
+            : 'flex-none sm:flex-1 flex flex-col min-h-0 overflow-x-auto overflow-y-visible sm:overflow-y-hidden lg:overflow-x-hidden scrollbar-hide'}>
+            {/* Calendar Header */}
+            <div className={`grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 ${fullScreen ? '' : 'min-w-[700px] lg:min-w-0'}`}>
+                {currentWeekDays.map((dateStr) => {
+                    const { weekDay, dayNum } = getDayLabel(dateStr);
+                    const isSelected = dateStr === selectedDate;
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+                    return (
+                        <div
+                            key={dateStr}
+                            onClick={() => setSelectedDate(dateStr)}
+                            className={`${fullScreen ? 'py-4' : 'py-3'} px-2 text-center border-r border-slate-200 dark:border-slate-700 last:border-0 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${isSelected ? 'bg-slate-50 dark:bg-slate-800' : ''}`}
+                        >
+                            <p className={`font-bold uppercase tracking-wider mb-1 ${fullScreen ? 'text-xs' : 'text-[10px]'} ${isToday ? 'text-primary' : 'text-slate-400'}`}>{weekDay}</p>
+                            <div className={`font-black ${fullScreen ? 'text-2xl' : 'text-xl'} ${isToday ? 'text-primary' : (isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400')} flex flex-col justify-center items-center`}>
+                                {dayNum}
+                                {isToday && <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1"></div>}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Calendar Grid Content */}
+            {/* Em tela cheia a rolagem é única, do modal inteiro: as colunas crescem
+                com o conteúdo em vez de rolarem cada uma por si. */}
+            <div className={fullScreen
+                ? 'flex-1 min-h-0 overflow-y-auto bg-slate-50/30 dark:bg-slate-900/50'
+                : 'flex-none sm:flex-1 overflow-visible sm:overflow-y-auto overflow-x-auto lg:overflow-x-hidden bg-slate-50/30 dark:bg-slate-900/50 scrollbar-hide'}>
+                <div className={`grid grid-cols-7 divide-x divide-slate-200 dark:divide-slate-700 ${fullScreen ? 'min-h-full' : 'h-auto sm:h-full min-w-[700px] lg:min-w-0'}`}>
+                    {currentWeekDays.map((dateStr) => {
+                        const dayAppointments = getAppointmentsForDay(dateStr);
+                        const isSelected = dateStr === selectedDate;
+                        const dayBlocks = scheduleBlocks.filter(b => {
+                            if (b.block_type === 'SPECIFIC_DAY') return b.date === dateStr;
+                            return b.day_of_week === new Date(dateStr + 'T12:00:00').getDay();
+                        });
+                        const fullDayBlock = dayBlocks.find(b => !b.start_time);
+                        const hasPartialBlocks = dayBlocks.some(b => b.start_time);
+
+                        return (
+                            <div
+                                key={dateStr}
+                                onClick={() => setSelectedDate(dateStr)}
+                                className={`border-r border-slate-200 dark:border-slate-700 last:border-0 p-2 space-y-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors relative ${isSelected ? 'bg-white dark:bg-slate-800/50' : ''} ${fullDayBlock ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}`}
+                            >
+                                {fullDayBlock && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
+                                        <span className={`material-symbols-outlined text-amber-500 ${fullScreen ? 'text-[36px]' : 'text-[24px]'}`}>block</span>
+                                        <span className={`font-black text-amber-600 dark:text-amber-400 uppercase tracking-tighter mt-1 ${fullScreen ? 'text-[11px]' : 'text-[8px]'}`}>{fullDayBlock.reason || 'Bloqueado'}</span>
+                                    </div>
+                                )}
+                                {hasPartialBlocks && !fullDayBlock && (
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                        <span className={`font-black text-amber-600 uppercase tracking-widest ${fullScreen ? 'text-[10px]' : 'text-[8px]'}`}>Horários Bloqueados</span>
+                                    </div>
+                                )}
+                                {dayAppointments.length === 0 && !fullDayBlock && (
+                                    <div className="h-full flex items-center justify-center opacity-0 hover:opacity-100">
+                                        <span className="material-symbols-outlined text-slate-300 text-sm">add</span>
+                                    </div>
+                                )}
+                                {dayAppointments.map((apt) => (
+                                    <div
+                                        key={apt.id}
+                                        // Clicking an item in calendar selects the date AND opens modal
+                                        onClick={(e) => { e.stopPropagation(); openPaymentModal(apt); setSelectedDate(dateStr); }}
+                                        className={`rounded-xl border shadow-sm hover:scale-[1.02] transition-transform ${fullScreen ? 'p-3 text-xs' : 'p-2 text-[10px]'} ${getStatusTheme(apt.status).weekly}`}
+                                    >
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className={`font-bold truncate text-slate-600 dark:text-slate-300 border px-1.5 rounded ${getStatusTheme(apt.status).chip}`}>{apt.time}</span>
+                                            {apt.status === 'Atendido' && <span className="material-symbols-outlined text-[12px] text-green-500">check_circle</span>}
+                                            {fullScreen && apt.status === 'Falhou' && <span className="material-symbols-outlined text-[12px] text-red-500">cancel</span>}
+                                        </div>
+                                        <div className="font-bold truncate text-slate-900 dark:text-white leading-tight">{apt.patient}</div>
+                                        {fullScreen && (
+                                            <div className="mt-1.5 space-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                                <div className="flex items-center gap-1 truncate">
+                                                    <span className="material-symbols-outlined text-[13px] shrink-0">medical_services</span>
+                                                    <span className="truncate">{apt.procedure}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 truncate">
+                                                    <span className="material-symbols-outlined text-[13px] shrink-0">stethoscope</span>
+                                                    <span className="truncate">{apt.provider || 'Sem médico'}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1 pt-0.5">
+                                                    <span className="font-black text-slate-700 dark:text-slate-200">{formatCurrency(apt.cost)}</span>
+                                                    <span className={`font-black uppercase tracking-tighter text-[9px] px-1.5 py-0.5 rounded ${apt.paymentStatus === 'Pago'
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                        }`}>{apt.paymentStatus}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className={`w-full max-w-[1600px] mx-auto space-y-6 pt-4 pb-12 ${isEmbedded ? '' : 'min-h-[calc(100vh-100px)]'}`}>
@@ -1125,10 +1356,20 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                     <div className="flex flex-col gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-700">
                         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 sm:flex-wrap">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-[16px]">calendar_view_week</span>
-                                    Visão Semanal
-                                </h3>
+                                <div className="flex items-center gap-3">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-[16px]">calendar_view_week</span>
+                                        Visão Semanal
+                                    </h3>
+                                    <button
+                                        onClick={() => { setIsDatePickerOpen(false); setIsWeekModalOpen(true); }}
+                                        title="Abrir a agenda da semana em tela cheia"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10 transition-all shrink-0"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">open_in_full</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Ver agenda semanal</span>
+                                    </button>
+                                </div>
 
                                 <div className="flex flex-col sm:flex-row sm:flex-wrap items-center gap-3 w-full">
                                     {/* Filter Tabs */}
@@ -1280,96 +1521,49 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                         </div>
                     </div>
 
-                    <div className="flex-none sm:flex-1 flex flex-col min-h-0 overflow-x-auto overflow-y-visible sm:overflow-y-hidden lg:overflow-x-hidden scrollbar-hide">
-                        {/* Calendar Header */}
-                        <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 min-w-[700px] lg:min-w-0">
-                            {currentWeekDays.map((dateStr) => {
-                                const { weekDay, dayNum } = getDayLabel(dateStr);
-                                const isSelected = dateStr === selectedDate;
-                                const isToday = dateStr === new Date().toISOString().split('T')[0];
-                                return (
-                                    <div
-                                        key={dateStr}
-                                        onClick={() => setSelectedDate(dateStr)}
-                                        className={`py-3 px-2 text-center border-r border-slate-200 dark:border-slate-700 last:border-0 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${isSelected ? 'bg-slate-50 dark:bg-slate-800' : ''}`}
-                                    >
-                                        <p className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${isToday ? 'text-primary' : 'text-slate-400'}`}>{weekDay}</p>
-                                        <div className={`text-xl font-black ${isToday ? 'text-primary' : (isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400')} flex flex-col justify-center items-center`}>
-                                            {dayNum}
-                                            {isToday && <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1"></div>}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Calendar Grid Content */}
-                        <div className="flex-none sm:flex-1 overflow-visible sm:overflow-y-auto overflow-x-auto lg:overflow-x-hidden bg-slate-50/30 dark:bg-slate-900/50 scrollbar-hide">
-                            <div className="grid grid-cols-7 h-auto sm:h-full min-w-[700px] lg:min-w-0 divide-x divide-slate-200 dark:divide-slate-700">
-                                {currentWeekDays.map((dateStr) => {
-                                    const dayAppointments = getAppointmentsForDay(dateStr);
-                                    const isSelected = dateStr === selectedDate;
-                                    const dayBlocks = scheduleBlocks.filter(b => {
-                                        if (b.block_type === 'SPECIFIC_DAY') return b.date === dateStr;
-                                        return b.day_of_week === new Date(dateStr + 'T12:00:00').getDay();
-                                    });
-                                    const fullDayBlock = dayBlocks.find(b => !b.start_time);
-                                    const hasPartialBlocks = dayBlocks.some(b => b.start_time);
-
-                                    return (
-                                        <div
-                                            key={dateStr}
-                                            onClick={() => setSelectedDate(dateStr)}
-                                            className={`border-r border-slate-200 dark:border-slate-700 last:border-0 p-2 space-y-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors relative ${isSelected ? 'bg-white dark:bg-slate-800/50' : ''} ${fullDayBlock ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}`}
-                                        >
-                                            {fullDayBlock && (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
-                                                    <span className="material-symbols-outlined text-amber-500 text-[24px]">block</span>
-                                                    <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-tighter mt-1">{fullDayBlock.reason || 'Bloqueado'}</span>
-                                                </div>
-                                            )}
-                                            {hasPartialBlocks && !fullDayBlock && (
-                                                <div className="flex items-center gap-1 mb-1">
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                                                    <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Horários Bloqueados</span>
-                                                </div>
-                                            )}
-                                            {dayAppointments.length === 0 && !fullDayBlock && (
-                                                <div className="h-full flex items-center justify-center opacity-0 hover:opacity-100">
-                                                    <span className="material-symbols-outlined text-slate-300 text-sm">add</span>
-                                                </div>
-                                            )}
-                                            {dayAppointments.map((apt) => (
-                                                <div
-                                                    key={apt.id}
-                                                    // Clicking an item in calendar selects the date AND opens modal
-                                                    onClick={(e) => { e.stopPropagation(); openPaymentModal(apt); setSelectedDate(dateStr); }}
-                                                    className={`p-2 rounded-xl border-l-4 text-[10px] shadow-sm hover:scale-[1.02] transition-transform bg-white dark:bg-slate-900 border-y border-r border-slate-200 dark:border-slate-700 ${getStatusColorBorder(apt.status)}`}
-                                                >
-                                                    <div className="flex justify-between mb-1">
-                                                        <span className="font-bold truncate text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 rounded">{apt.time}</span>
-                                                        {apt.status === 'Atendido' && <span className="material-symbols-outlined text-[12px] text-green-500">check_circle</span>}
-                                                    </div>
-                                                    <div className="font-bold truncate text-slate-900 dark:text-white leading-tight">{apt.patient}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
+                    {renderWeekGrid()}
                 </Card>
 
                 {/* BOTTOM: LIST (Flexible height) */}
                 <Card noPadding overflow="visible" className={`flex flex-col ${isEmbedded ? '' : 'flex-1 min-h-[500px]'}`}>
                     <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between px-6 py-6 border-b border-slate-200 dark:border-slate-700 gap-4">
-                        <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-3 text-lg text-left min-w-0">
-                            <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 shrink-0">
-                                <span className="material-symbols-outlined">list_alt</span>
+                        <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-5 min-w-0">
+                            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-3 text-lg text-left min-w-0">
+                                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 shrink-0">
+                                    <span className="material-symbols-outlined">list_alt</span>
+                                </div>
+                                <span className="leading-tight min-w-0">Detalhes do Dia: <br className="sm:hidden" /><span className="text-primary">{getFormattedDate(selectedDate)}</span></span>
+                            </h3>
+
+                            {/* Filtro visual por status */}
+                            <div className="flex items-center gap-1 p-1 bg-slate-100/80 dark:bg-slate-800/60 rounded-2xl overflow-x-auto scrollbar-hide max-w-full">
+                                {['Todos', ...statusFilterOptions].map((option) => {
+                                    const theme = option === 'Todos' ? DEFAULT_STATUS_THEME : getStatusTheme(option);
+                                    const count = option === 'Todos' ? dayData.length : (statusCounts[option] || 0);
+                                    const isActive = statusFilter === option;
+                                    return (
+                                        <button
+                                            key={option}
+                                            onClick={() => setStatusFilter(option)}
+                                            title={option === 'Todos' ? 'Exibir todos os agendamentos' : `Exibir apenas: ${option}`}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all shrink-0 ${isActive
+                                                ? theme.activePill
+                                                : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900/60'
+                                                }`}
+                                        >
+                                            <span className={`h-2 w-2 rounded-full ${isActive ? 'bg-white/80' : theme.dot}`} />
+                                            {option}
+                                            <span className={`px-1.5 rounded-md text-[10px] ${isActive
+                                                ? 'bg-white/25'
+                                                : 'bg-white dark:bg-slate-900/60 text-slate-500 dark:text-slate-400'
+                                                }`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            <span className="leading-tight min-w-0">Detalhes do Dia: <br className="sm:hidden" /><span className="text-primary">{getFormattedDate(selectedDate)}</span></span>
-                        </h3>
+                        </div>
                         <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg shrink-0">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exibir</span>
@@ -1433,14 +1627,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     {paginatedData.map((apt) => (
                                         <div
                                             key={apt.id}
-                                            className="group bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300 relative overflow-hidden"
+                                            className={`group rounded-2xl p-4 sm:p-5 border shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden ${getStatusTheme(apt.status).card}`}
                                         >
-                                            {/* Left Status Bar */}
-                                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${apt.status === 'Agendado' ? 'bg-blue-500' :
-                                                apt.status === 'Atendido' ? 'bg-green-500' :
-                                                    apt.status === 'Falhou' ? 'bg-red-500' : 'bg-slate-400'
-                                                }`} />
-
                                             <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6">
                                                 {/* Line 1: Main Info */}
                                                 <div className="flex-1 min-w-0">
@@ -1464,7 +1652,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                         <div className="flex items-center gap-1.5 font-medium">
                                                             <span className="material-symbols-outlined text-[16px]">medical_services</span>
                                                             <span className="text-slate-900 dark:text-slate-200 font-bold">{apt.procedure}</span>
-                                                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px] font-black uppercase text-slate-400">{apt.type}</span>
+                                                            <span className={`border px-2 py-0.5 rounded text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 ${getStatusTheme(apt.status).chip}`}>{apt.type}</span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
                                                             <span className="material-symbols-outlined text-[16px]">domain</span>
@@ -1474,6 +1662,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                             <span className="material-symbols-outlined text-[16px]">stethoscope</span>
                                                             <span>{apt.provider}</span>
                                                         </div>
+                                                        {isAdminUser && (
+                                                            <div className="flex items-center gap-1.5" title="Usuário que registrou este agendamento">
+                                                                <span className="material-symbols-outlined text-[16px]">badge</span>
+                                                                <span>Agendado por <span className="font-bold text-slate-600 dark:text-slate-300">{getCreatorLabel(apt)}</span></span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -1484,7 +1678,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Entrada/Hora</span>
                                                         <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
                                                             <span className="material-symbols-outlined text-[16px] lg:hidden">schedule</span>
-                                                            <span className="font-bold text-sm bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-100 dark:border-slate-700">{apt.time}</span>
+                                                            <span className={`font-bold text-sm px-2.5 py-1 rounded-lg border ${getStatusTheme(apt.status).chip}`}>{apt.time}</span>
                                                         </div>
                                                     </div>
 
@@ -1531,7 +1725,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 icon="edit"
-                                                                className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 px-4 rounded-xl text-xs"
+                                                                className="bg-white/80 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 px-4 rounded-xl text-xs"
                                                             >
                                                                 Editar
                                                             </Button>
@@ -1614,6 +1808,80 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
             </div>
 
+            {/* --- AGENDA SEMANAL EM TELA CHEIA --- */}
+            {/* Camada abaixo do modal de atendimento (z-50) de propósito: ao clicar
+                num agendamento aqui, a ficha abre por cima e, ao fechá-la, o usuário
+                continua na agenda da semana. */}
+            {isWeekModalOpen && (
+                <div className="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-6 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full h-full max-w-[1800px] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700">
+
+                        {/* Cabeçalho */}
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 border-b border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 shrink-0">
+                                    <span className="material-symbols-outlined">calendar_view_week</span>
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">Agenda Semanal</h2>
+                                    <p className="text-xs font-bold text-slate-400 truncate">
+                                        {getWeekRangeLabel(selectedDate)}
+                                        {selectedHospitalId
+                                            ? ` • ${hospitalsList.find(h => h.id === selectedHospitalId)?.name || ''}`
+                                            : ' • Todos os parceiros'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                                {/* Filtro por tipo */}
+                                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+                                    {['Todos', 'Consultas', 'Exames', 'Cirurgias'].map((filter) => (
+                                        <button
+                                            key={filter}
+                                            onClick={() => setActiveFilter(filter)}
+                                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${activeFilter === filter
+                                                ? 'bg-slate-900 text-white shadow-sm dark:bg-primary'
+                                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                                }`}
+                                        >
+                                            {filter}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Navegação de semana */}
+                                <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1">
+                                    <button onClick={() => navigateDate(-7)} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-xl text-slate-500" title="Semana anterior">
+                                        <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                                        className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:text-primary"
+                                    >
+                                        Hoje
+                                    </button>
+                                    <button onClick={() => navigateDate(7)} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-xl text-slate-500" title="Próxima semana">
+                                        <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={() => setIsWeekModalOpen(false)}
+                                    className="p-2 text-slate-300 hover:text-slate-600 dark:hover:text-white transition-colors"
+                                    title="Fechar"
+                                >
+                                    <span className="material-symbols-outlined text-[28px]">close</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Grade da semana ocupando toda a altura */}
+                        {renderWeekGrid(true)}
+                    </div>
+                </div>
+            )}
+
             {/* --- PAYMENT MODAL --- */}
             {
                 isModalOpen && currentAppointment && (
@@ -1654,6 +1922,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                             </span>
                                         )}
                                     </p>
+                                    {isAdminUser && (
+                                        <p className="text-xs font-bold text-slate-400 mt-1.5 flex items-center gap-1.5">
+                                            <span className="material-symbols-outlined text-[14px]">badge</span>
+                                            Agendado por <span className="text-slate-600 dark:text-slate-300">{getCreatorLabel(currentAppointment)}</span>
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {/* History Icon Button */}
