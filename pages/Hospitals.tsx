@@ -54,6 +54,9 @@ const Hospitals: React.FC = () => {
     const [userForm, setUserForm] = useState({ name: '', email: '', role: 'RECEPTION' as 'RECEPTION' | 'FINANCIAL' });
     const [isEditingUser, setIsEditingUser] = useState(false);
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    // Nível que o usuário tinha ao abrir a edição, para só pedir a troca de role
+    // (operação privilegiada, via Edge Function) quando ele de fato mudar.
+    const [editingUserRole, setEditingUserRole] = useState<string | null>(null);
     const [isUserFormOpen, setIsUserFormOpen] = useState(false);
     const [isDoctorFormOpen, setIsDoctorFormOpen] = useState(false);
 
@@ -102,6 +105,7 @@ const Hospitals: React.FC = () => {
         setIsUserFormOpen(false);
         setIsEditingUser(false);
         setEditingUserId(null);
+        setEditingUserRole(null);
         setUserForm({ name: '', email: '', role: 'RECEPTION' });
         setIsDoctorFormOpen(false);
         setDoctorForm({ name: '', specialty: '', crm: '' });
@@ -266,7 +270,7 @@ const Hospitals: React.FC = () => {
             if (isEditingUser && editingUserId) {
                 await userService.updateUser(editingUserId, {
                     name: userForm.name,
-                    role: userForm.role,
+                    ...(userForm.role !== editingUserRole ? { role: userForm.role } : {}),
                 });
                 notify.dismiss(loadingToast);
                 notify.success('Usuário atualizado com sucesso!');
@@ -295,6 +299,7 @@ const Hospitals: React.FC = () => {
             setUserForm({ name: '', email: '', role: 'RECEPTION' });
             setIsEditingUser(false);
             setEditingUserId(null);
+            setEditingUserRole(null);
             setIsUserFormOpen(false);
             fetchHospitalDetails(selectedHospital.id);
         } catch (err: any) {
@@ -551,6 +556,7 @@ const Hospitals: React.FC = () => {
                                             <button
                                                 onClick={() => {
                                                     setEditingUserId(u.id);
+                                                    setEditingUserRole(u.role);
                                                     setIsEditingUser(true);
                                                     setIsUserFormOpen(true);
                                                     setUserForm({
@@ -590,6 +596,7 @@ const Hospitals: React.FC = () => {
                                                 onClick={() => {
                                                     setIsEditingUser(false);
                                                     setEditingUserId(null);
+                                                    setEditingUserRole(null);
                                                     setIsUserFormOpen(false);
                                                     setUserForm({ name: '', email: '', role: 'RECEPTION' });
                                                 }}

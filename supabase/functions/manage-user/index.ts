@@ -17,7 +17,7 @@ function getCorsHeaders(req: Request) {
  * manage-user: ações administrativas sobre um usuário existente
  * Body: { user_id, action: 'ACTIVATE'|'DEACTIVATE'|'SET_ROLE'|'SET_HOSPITAL', value? }
  * - ACTIVATE/DEACTIVATE: qualquer ADMIN ou SUPER_ADMIN, mas só SUPER_ADMIN pode mexer em ADMIN/SUPER_ADMIN
- * - SET_ROLE: apenas SUPER_ADMIN
+ * - SET_ROLE: ADMIN ou SUPER_ADMIN, mas conceder ADMIN/SUPER_ADMIN é exclusivo do SUPER_ADMIN
  * - SET_HOSPITAL: ADMIN ou SUPER_ADMIN
  */
 Deno.serve(async (req) => {
@@ -83,11 +83,15 @@ Deno.serve(async (req) => {
                 metadata = { from: target.is_active };
                 break;
             case 'SET_ROLE':
-                if (profile.role !== 'SUPER_ADMIN') {
-                    return new Response(JSON.stringify({ error: 'Apenas Super Administradores podem alterar roles.' }), { status: 403, headers });
-                }
-                if (!['SUPER_ADMIN', 'ADMIN', 'RECEPTION', 'FINANCIAL'].includes(value)) {
+                if (!['SUPER_ADMIN', 'ADMIN', 'COMMERCIAL', 'RECEPTION', 'FINANCIAL'].includes(value)) {
                     return new Response(JSON.stringify({ error: 'Role inválido' }), { status: 400, headers });
+                }
+                // ADMIN gerencia os níveis dos usuários comuns. Conceder ADMIN/SUPER_ADMIN
+                // continua exclusivo do SUPER_ADMIN, para que um ADMIN não consiga criar
+                // outro par seu (nem se promover — auto-alteração já é barrada acima).
+                // Alterar quem JÁ é ADMIN/SUPER_ADMIN também já foi barrado antes daqui.
+                if (['ADMIN', 'SUPER_ADMIN'].includes(value) && profile.role !== 'SUPER_ADMIN') {
+                    return new Response(JSON.stringify({ error: 'Apenas Super Administradores podem conceder o nível ADMIN ou SUPER_ADMIN.' }), { status: 403, headers });
                 }
                 updates = { role: value };
                 metadata = { from: target.role, to: value };

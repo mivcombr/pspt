@@ -73,6 +73,30 @@ const invokeFunctionWithSession = async <T,>(name: string, body: Record<string, 
     return { data, error: null };
 };
 
+/**
+ * Ações administrativas sobre um perfil (nível, hospital, ativo/inativo).
+ *
+ * Estes campos NÃO são atualizáveis direto da tabela: o hardening de 2026-07-06
+ * revogou UPDATE em `profiles` do role `authenticated`, deixando apenas
+ * `GRANT UPDATE (name, avatar_url)`. Sem isso, a policy `profiles_update`
+ * (que libera `id = auth.uid()`) permitiria a qualquer usuário se auto-promover.
+ * A Edge Function valida o solicitante com service_role e registra em audit log.
+ */
+const manageUserAction = async (userId: string, action: string, value?: string | null) => {
+    try {
+        const { data } = await invokeFunctionWithSession('manage-user', {
+            user_id: userId,
+            action,
+            value,
+        });
+        logger.info({ action: 'manage', entity: 'profiles', user_id: userId, manage_action: action }, 'crud');
+        return data;
+    } catch (error: any) {
+        logger.error({ action: 'manage', entity: 'profiles', user_id: userId, manage_action: action, error: error.message }, 'crud');
+        throw error;
+    }
+};
+
 export const userService = {
     /**
      * Create a new user (requires admin privileges)
@@ -106,12 +130,25 @@ export const userService = {
     },
 
     /**
-     * Update user profile
+     * Update user profile.
+     * `role` e `hospital_id` são privilegiados e seguem pela Edge Function;
+     * o restante (name) vai direto na tabela.
      */
     async updateUser(userId: string, updates: Partial<CreateUserPayload>) {
+        const { role, hospital_id, ...profileFields } = updates;
+
+        if (role !== undefined) {
+            await manageUserAction(userId, 'SET_ROLE', role);
+        }
+        if (hospital_id !== undefined) {
+            await manageUserAction(userId, 'SET_HOSPITAL', hospital_id);
+        }
+
+        if (Object.keys(profileFields).length === 0) return null;
+
         const { data, error } = await supabase
             .from('profiles')
-            .update(updates)
+            .update(profileFields)
             .eq('id', userId)
             .select()
             .single();
@@ -173,48 +210,7 @@ export const userService = {
     /**
      * Manage user: activate, deactivate, set role, set hospital
      */
-    async manageUser(userId: string, action: string, value?: string | null) {
-        let updates: Record<string, any> = {};
-
-        switch (action) {
-            case 'ACTIVATE':
-                updates = { is_active: true };
-                break;
-            case 'DEACTIVATE':
-                updates = { is_active: false };
-                break;
-            case 'SET_ROLE':
-                updates = { role: value };
-                break;
-            case 'SET_HOSPITAL':
-                updates = { hospital_id: value || null };
-                break;
-            default:
-                throw new Error(`Ação desconhecida: ${action}`);
-        }
-
-        const { data, error } = await supabase
-            .from('profiles')
-            .update(updates)
-            .eq('id', userId)
-            .select()
-            .single();
-
-        if (error) {
-            logger.error({ action: 'manage', entity: 'profiles', user_id: userId, error }, 'crud');
-            throw error;
-        }
-
-        // Log to audit
-        const { data: { user: me } } = await supabase.auth.getUser();
-        await supabase.from('access_audit_log').insert({
-            actor_id: me?.id,
-            actor_email: me?.email,
-            target_id: userId,
-            action,
-            metadata: { value },
-        });
-
-        return data;
-    },
+    // A Edge Function aplica a mudança com service_role, valida a permissão do
+    // solicitante e grava o access_audit_log — por isso não há insert de auditoria aqui.
+    manageUser: manageUserAction,
 };
