@@ -1111,13 +1111,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setCurrentPage(1);
     }, [activeFilter, statusFilter, hospitalFilter, selectedDate, itemsPerPage]);
 
-    // Volta para "Todos" se o status selecionado não existe mais no dia,
-    // evitando uma lista vazia sem motivo aparente ao trocar de data.
+    // Cada dia começa em "Todos". O filtro não é zerado quando o status fica
+    // sem registros no dia atual: nesse caso a lista mostra o vazio explícito,
+    // em vez de voltar para "Todos" e parecer que o filtro foi ignorado.
     useEffect(() => {
-        if (statusFilter !== 'Todos' && !statusCounts[statusFilter]) {
-            setStatusFilter('Todos');
-        }
-    }, [selectedDate, statusCounts, statusFilter]);
+        setStatusFilter('Todos');
+    }, [selectedDate]);
 
     // Calendar Week Data
     const currentWeekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate]);
@@ -1541,21 +1540,33 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     const theme = option === 'Todos' ? DEFAULT_STATUS_THEME : getStatusTheme(option);
                                     const count = option === 'Todos' ? dayData.length : (statusCounts[option] || 0);
                                     const isActive = statusFilter === option;
+                                    // Sem registros no dia não há o que filtrar: o botão fica
+                                    // desabilitado em vez de cair silenciosamente em "Todos".
+                                    const isDisabled = count === 0 && !isActive;
                                     return (
                                         <button
                                             key={option}
                                             onClick={() => setStatusFilter(option)}
-                                            title={option === 'Todos' ? 'Exibir todos os agendamentos' : `Exibir apenas: ${option}`}
+                                            disabled={isDisabled}
+                                            title={
+                                                isDisabled
+                                                    ? `Nenhum agendamento com status ${option} neste dia`
+                                                    : option === 'Todos' ? 'Exibir todos os agendamentos' : `Exibir apenas: ${option}`
+                                            }
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all shrink-0 ${isActive
                                                 ? theme.activePill
-                                                : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900/60'
+                                                : isDisabled
+                                                    ? 'text-slate-300 dark:text-slate-600 opacity-60 cursor-not-allowed'
+                                                    : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900/60'
                                                 }`}
                                         >
-                                            <span className={`h-2 w-2 rounded-full ${isActive ? 'bg-white/80' : theme.dot}`} />
+                                            <span className={`h-2 w-2 rounded-full ${isActive ? 'bg-white/80' : isDisabled ? 'bg-slate-300 dark:bg-slate-600' : theme.dot}`} />
                                             {option}
                                             <span className={`px-1.5 rounded-md text-[10px] ${isActive
                                                 ? 'bg-white/25'
-                                                : 'bg-white dark:bg-slate-900/60 text-slate-500 dark:text-slate-400'
+                                                : isDisabled
+                                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
+                                                    : 'bg-white dark:bg-slate-900/60 text-slate-500 dark:text-slate-400'
                                                 }`}>
                                                 {count}
                                             </span>
@@ -1617,7 +1628,19 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center">
                                         <span className="material-symbols-outlined text-3xl opacity-50">event_busy</span>
                                     </div>
-                                    <p className="font-medium">Nenhum agendamento para este dia.</p>
+                                    <p className="font-medium">
+                                        {statusFilter === 'Todos'
+                                            ? 'Nenhum agendamento para este dia.'
+                                            : `Nenhum agendamento com status ${statusFilter} neste dia.`}
+                                    </p>
+                                    {statusFilter !== 'Todos' && dayData.length > 0 && (
+                                        <button
+                                            onClick={() => setStatusFilter('Todos')}
+                                            className="text-xs font-bold text-primary hover:underline"
+                                        >
+                                            Ver todos os {dayData.length} agendamentos
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ) : (
