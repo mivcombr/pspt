@@ -52,3 +52,49 @@ export interface Hospital {
   state: string;
   status: 'Ativo' | 'Inativo';
 }
+
+export type ProspectStage =
+  | 'novo'
+  | 'contato'
+  | 'reuniao'
+  | 'proposta'
+  | 'negociacao'
+  | 'fechado'
+  | 'perdido';
+
+export type ProspectPriority = 'Baixa' | 'Média' | 'Alta';
+
+export interface Prospect {
+  id: string;
+  name: string;
+  stage: ProspectStage;
+  position: number;
+  segment?: string | null;
+  contact_name?: string | null;
+  contact_role?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  city?: string | null;
+  state?: string | null;
+  source?: string | null;
+  priority: ProspectPriority;
+  estimated_value?: number | null;
+  owner_id?: string | null;
+  next_action?: string | null;
+  next_action_at?: string | null; // YYYY-MM-DD
+  notes?: string | null;
+  lost_reason?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProspectActivity {
+  id: string;
+  prospect_id: string;
+  type: 'nota' | 'ligacao' | 'reuniao' | 'email' | 'whatsapp' | 'estagio';
+  content: string;
+  author_id?: string | null;
+  author_name?: string | null;
+  created_at: string;
+}

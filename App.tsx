@@ -16,6 +16,7 @@ import ChangePassword from './pages/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AccessControl from './pages/AccessControl';
+import Prospects from './pages/Prospects';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -147,6 +148,16 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.FINANCIAL]}>
               <Financials />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Super Admin Only: Prospecção de Parceiros */}
+        <Route
+          path="/prospects"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN]}>
+              <Prospects />
             </ProtectedRoute>
           }
         />
