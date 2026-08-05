@@ -522,6 +522,163 @@ export const appointmentService = {
         return { chartData, totals, prevTotals, partnerBreakdown };
     },
 
+    // Métricas de agendamento por tipo/status e por vendedor (quem criou o
+    // agendamento). "Vendedor" = perfil com papel ADMIN/SUPER_ADMIN/COMMERCIAL;
+    // os demais papéis são somados numa linha agregada para o total fechar.
+    async getSchedulingMetrics(filters: { startDate: string; endDate: string; hospitalId?: string }) {
+        const toDateStr = (d: Date) =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        const start = new Date(filters.startDate + 'T00:00:00');
+        const end = new Date(filters.endDate + 'T00:00:00');
+
+        // Quando o intervalo é exatamente um mês fechado, o período anterior é o
+        // mês calendário anterior (e não uma janela do mesmo tamanho em dias).
+        const isFullMonth =
+            start.getDate() === 1 &&
+            end.getFullYear() === start.getFullYear() &&
+            end.getMonth() === start.getMonth() &&
+            end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+
+        let prevStart: Date;
+        let prevEnd: Date;
+        if (isFullMonth) {
+            prevStart = new Date(start.getFullYear(), start.getMonth() - 1, 1);
+            prevEnd = new Date(start.getFullYear(), start.getMonth(), 0);
+        } else {
+            prevEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate() - 1);
+            const days = Math.round((end.getTime() - start.getTime()) / 86400000);
+            prevStart = new Date(prevEnd.getFullYear(), prevEnd.getMonth(), prevEnd.getDate() - days);
+        }
+
+        const select = 'type, status, total_cost, user_id, date';
+
+        let currQuery = supabase
+            .from('appointments')
+            .select(select)
+            .gte('date', filters.startDate)
+            .lte('date', filters.endDate);
+
+        let prevQuery = supabase
+            .from('appointments')
+            .select(select)
+            .gte('date', toDateStr(prevStart))
+            .lte('date', toDateStr(prevEnd));
+
+        if (filters.hospitalId && filters.hospitalId !== 'Todos os Parceiros' && filters.hospitalId !== 'Todos os Hospitais') {
+            currQuery = currQuery.eq('hospital_id', filters.hospitalId);
+            prevQuery = prevQuery.eq('hospital_id', filters.hospitalId);
+        }
+
+        const [currRes, prevRes, profilesRes] = await Promise.all([
+            currQuery,
+            prevQuery,
+            supabase.from('profiles').select('id, name, role')
+        ]);
+
+        if (currRes.error) {
+            logger.error({ action: 'read', entity: 'appointments', error: currRes.error }, 'crud');
+            throw currRes.error;
+        }
+        if (profilesRes.error) {
+            logger.error({ action: 'read', entity: 'profiles', error: profilesRes.error }, 'crud');
+        }
+
+        const SELLER_ROLES = ['ADMIN', 'SUPER_ADMIN', 'COMMERCIAL'];
+        const profileById: Record<string, { name: string; role: string }> = {};
+        (profilesRes.data || []).forEach((p: any) => {
+            profileById[p.id] = { name: p.name || 'Sem nome', role: p.role };
+        });
+
+        const emptyBucket = () => ({ agendado: 0, atendido: 0, falhou: 0, total: 0, revenue: 0 });
+        const emptySeller = (id: string, name: string, role: string, isSeller: boolean) => ({
+            id,
+            name,
+            role,
+            isSeller,
+            consultas: emptyBucket(),
+            cirurgias: emptyBucket(),
+            totalAgendado: 0,
+            totalAtendido: 0,
+            totalFalhou: 0,
+            revenue: 0,
+            prevRevenue: 0,
+            prevAtendido: 0
+        });
+
+        const addToBucket = (bucket: any, status: string, revenue: number) => {
+            bucket.total++;
+            if (status === 'Agendado') bucket.agendado++;
+            else if (status === 'Atendido') {
+                bucket.atendido++;
+                bucket.revenue += revenue;
+            } else if (status === 'Falhou') bucket.falhou++;
+        };
+
+        const byType = { CONSULTA: emptyBucket(), CIRURGIA: emptyBucket() };
+        const prevByType = { CONSULTA: emptyBucket(), CIRURGIA: emptyBucket() };
+        const sellerMap: Record<string, any> = {};
+
+        const OTHERS_ID = '__outros__';
+
+        const collect = (rows: any[], isCurrent: boolean) => {
+            rows.forEach(row => {
+                const type = row.type === 'CONSULTA' || row.type === 'CIRURGIA' ? row.type : null;
+                if (!type) return; // exames e registros sem tipo ficam fora do painel comercial
+
+                const revenue = Number(row.total_cost) || 0;
+                const status = row.status;
+
+                addToBucket(isCurrent ? byType[type] : prevByType[type], status, revenue);
+
+                const profile = row.user_id ? profileById[row.user_id] : undefined;
+                const isSeller = !!profile && SELLER_ROLES.includes(profile.role);
+                const key = isSeller ? row.user_id : OTHERS_ID;
+
+                if (!sellerMap[key]) {
+                    sellerMap[key] = isSeller
+                        ? emptySeller(row.user_id, profile!.name, profile!.role, true)
+                        : emptySeller(OTHERS_ID, 'Outros perfis', 'OUTROS', false);
+                }
+                const seller = sellerMap[key];
+
+                if (isCurrent) {
+                    addToBucket(type === 'CONSULTA' ? seller.consultas : seller.cirurgias, status, revenue);
+                    if (status === 'Agendado') seller.totalAgendado++;
+                    else if (status === 'Atendido') {
+                        seller.totalAtendido++;
+                        seller.revenue += revenue;
+                    } else if (status === 'Falhou') seller.totalFalhou++;
+                } else if (status === 'Atendido') {
+                    seller.prevAtendido++;
+                    seller.prevRevenue += revenue;
+                }
+            });
+        };
+
+        collect(currRes.data || [], true);
+        collect(prevRes.data || [], false);
+
+        const allRows = Object.values(sellerMap);
+        const sellers = allRows
+            .filter((s: any) => s.isSeller)
+            .sort((a: any, b: any) => b.revenue - a.revenue || b.totalAtendido - a.totalAtendido);
+        const others = allRows.find((s: any) => !s.isSeller) || null;
+
+        return {
+            byType,
+            prevByType,
+            sellers,
+            others,
+            period: {
+                start: filters.startDate,
+                end: filters.endDate,
+                prevStart: toDateStr(prevStart),
+                prevEnd: toDateStr(prevEnd)
+            }
+        };
+    },
+
     async getProviders() {
         const { data, error } = await supabase
             .from('appointments')

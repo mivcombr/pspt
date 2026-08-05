@@ -1,58 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList, BarChart, Bar, Cell, Legend } from 'recharts';
-import { APP_TIME_ZONE, formatCurrency, formatNumber, formatCurrencyNoDecimals } from '../utils/formatters';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts';
+import { APP_TIME_ZONE, formatCurrency, formatNumber, formatCurrencyNoDecimals, formatDate } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
 import { useAuth } from '../contexts/AuthContext';
-
-const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#64748b', '#14b8a6'];
-
-const renderCustomLabel = (props: any) => {
-    const { x, y, value, stroke } = props;
-    if (value === 0) return null;
-    return (
-        <text x={x} y={y} dy={-10} fill={stroke} fontSize={10} textAnchor="middle" fontWeight="bold">
-            {formatCurrencyNoDecimals(value)}
-        </text>
-    );
-};
-
-const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-
-    const revenue = payload.find((item: any) => item.dataKey === 'revenue');
-    const repasse = payload.find((item: any) => item.dataKey === 'repasse');
-    const hospital = payload.find((item: any) => item.dataKey === 'hospital');
-    const expenses = payload.find((item: any) => item.dataKey === 'expenses');
-
-    return (
-        <div className="rounded-2xl bg-white/95 backdrop-blur px-4 py-3 shadow-lg border border-slate-100">
-            <p className="text-xs font-semibold text-slate-500">{label}</p>
-            {revenue ? (
-                <p className="text-lg font-extrabold text-slate-900 mt-1">
-                    {formatCurrency(revenue.value as number)}
-                </p>
-            ) : null}
-            {repasse ? (
-                <p className="text-xs font-semibold text-blue-600 mt-1">
-                    Repasse: {formatCurrency(repasse.value as number)}
-                </p>
-            ) : null}
-            {hospital ? (
-                <p className="text-xs font-semibold text-amber-600 mt-1">
-                    Hospital: {formatCurrency(hospital.value as number)}
-                </p>
-            ) : null}
-            {expenses ? (
-                <p className="text-xs font-semibold text-red-600 mt-1">
-                    Despesas: {formatCurrency(expenses.value as number)}
-                </p>
-            ) : null}
-        </div>
-    );
-};
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -72,6 +25,40 @@ const PercentageBadge = ({ current, previous, className = "" }: { current: numbe
         </div>
     );
 };
+
+// --- Métricas de agendamento ---
+const EMPTY_BUCKET = { agendado: 0, atendido: 0, falhou: 0, total: 0, revenue: 0 };
+
+const ROLE_LABELS: Record<string, string> = {
+    SUPER_ADMIN: 'Super Admin',
+    ADMIN: 'Admin',
+    COMMERCIAL: 'Comercial',
+    OUTROS: 'Recepção / Financeiro'
+};
+
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+const isFullMonthRange = (start: Date, end: Date) =>
+    start.getDate() === 1 &&
+    end.getFullYear() === start.getFullYear() &&
+    end.getMonth() === start.getMonth() &&
+    end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+
+// Rótulo amigável: "Agosto de 2026" quando o intervalo é um mês fechado,
+// senão o intervalo completo em dd/mm/aaaa.
+const describeRange = (start: Date, end: Date) =>
+    isFullMonthRange(start, end)
+        ? `${MONTH_NAMES[start.getMonth()]} de ${start.getFullYear()}`
+        : `${formatDate(start)} – ${formatDate(end)}`;
+
+const getInitials = (name: string) =>
+    (name || '?')
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map(part => part[0]?.toUpperCase() || '')
+        .join('') || '?';
 
 const WHATSAPP_CONTACTS = [
     { city: 'Natal', phone: '(84) 9 9963-4081' },
@@ -144,9 +131,6 @@ const Dashboard: React.FC = () => {
     const [selectedHospitalId, setSelectedHospitalId] = useState<string>(
         (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? '' : (user?.hospitalId || '')
     );
-    const currentYear = new Date().getFullYear();
-    const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-    const yearOptions = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString());
 
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [dashboardData, setDashboardData] = useState<any>({
@@ -154,6 +138,13 @@ const Dashboard: React.FC = () => {
         totals: { revenue: 0, repasse: 0, hospital: 0, expenses: 0, consultas: 0, exames: 0, cirurgias: 0 },
         prevTotals: { revenue: 0, repasse: 0, hospital: 0, expenses: 0, consultas: 0, exames: 0, cirurgias: 0 },
         partnerBreakdown: []
+    });
+    const [schedulingData, setSchedulingData] = useState<any>({
+        byType: { CONSULTA: null, CIRURGIA: null },
+        prevByType: { CONSULTA: null, CIRURGIA: null },
+        sellers: [],
+        others: null,
+        period: null
     });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -192,12 +183,20 @@ const Dashboard: React.FC = () => {
 
                 // If the range is "Este Ano", we use the full year but the chart is already logic-based
                 // However, for the KPIs, we follow the selected filters exactly
-                const data = await appointmentService.getDashboardData({
-                    startDate: startDateStr,
-                    endDate: endDateStr,
-                    hospitalId: selectedHospitalId || undefined
-                });
+                const [data, scheduling] = await Promise.all([
+                    appointmentService.getDashboardData({
+                        startDate: startDateStr,
+                        endDate: endDateStr,
+                        hospitalId: selectedHospitalId || undefined
+                    }),
+                    appointmentService.getSchedulingMetrics({
+                        startDate: startDateStr,
+                        endDate: endDateStr,
+                        hospitalId: selectedHospitalId || undefined
+                    })
+                ]);
                 setDashboardData(data);
+                setSchedulingData(scheduling);
             } catch (err: any) {
                 console.error('Error fetching dashboard data:', err);
                 setError('Erro ao carregar dados do servidor.');
@@ -333,6 +332,51 @@ const Dashboard: React.FC = () => {
         setIsCalendarOpen(false);
     };
 
+    // Navegação por mês fechado: permite chegar a qualquer mês passado sem
+    // depender do calendário personalizado.
+    const applyMonth = (year: number, month: number) => {
+        const start = new Date(year, month, 1);
+        const end = new Date(year, month + 1, 0);
+        const today = new Date();
+        const prevRef = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+        setTempStartDate(start);
+        setTempEndDate(end);
+        setViewDate(end);
+        setIsCalendarOpen(false);
+
+        if (start.getFullYear() === today.getFullYear() && start.getMonth() === today.getMonth()) {
+            setActiveDateFilter('Este Mês');
+        } else if (start.getFullYear() === prevRef.getFullYear() && start.getMonth() === prevRef.getMonth()) {
+            setActiveDateFilter('Mês Passado');
+        } else {
+            setActiveDateFilter('Mês');
+        }
+    };
+
+    const shiftMonth = (delta: number) => {
+        const base = tempStartDate || new Date();
+        applyMonth(base.getFullYear(), base.getMonth() + delta);
+    };
+
+    const monthStepperLabel = useMemo(() => {
+        const base = tempStartDate || new Date();
+        return `${MONTH_SHORT[base.getMonth()]} ${base.getFullYear()}`;
+    }, [tempStartDate]);
+
+    const periodLabel = useMemo(() => {
+        if (!tempStartDate || !tempEndDate) return '';
+        return describeRange(tempStartDate, tempEndDate);
+    }, [tempStartDate, tempEndDate]);
+
+    // O período de comparação vem do próprio serviço, para o rótulo não divergir
+    // do cálculo usado nos indicadores.
+    const comparisonLabel = useMemo(() => {
+        const period = schedulingData?.period;
+        if (!period?.prevStart || !period?.prevEnd) return '';
+        return describeRange(new Date(period.prevStart + 'T00:00:00'), new Date(period.prevEnd + 'T00:00:00'));
+    }, [schedulingData?.period]);
+
     const sortedByRevenue = useMemo(() => {
         return [...(dashboardData?.partnerBreakdown || [])].sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
     }, [dashboardData?.partnerBreakdown]);
@@ -341,10 +385,31 @@ const Dashboard: React.FC = () => {
         return [...(dashboardData?.partnerBreakdown || [])].sort((a: any, b: any) => b.totalRepasse - a.totalRepasse);
     }, [dashboardData?.partnerBreakdown]);
 
-    const repassePercentage = useMemo(() => {
-        if (!dashboardData.totals.revenue || dashboardData.totals.revenue === 0) return 0;
-        return (dashboardData.totals.repasse / dashboardData.totals.revenue) * 100;
-    }, [dashboardData.totals.revenue, dashboardData.totals.repasse]);
+    // Vendedores ordenados por faturamento realizado, com a linha agregada dos
+    // demais perfis sempre por último para o total da tabela fechar.
+    const sellerRows = useMemo(() => {
+        const rows = [...(schedulingData?.sellers || [])];
+        if (schedulingData?.others) rows.push(schedulingData.others);
+        return rows;
+    }, [schedulingData?.sellers, schedulingData?.others]);
+
+    const sellerTotals = useMemo(() => {
+        const acc = {
+            consultas: { agendado: 0, atendido: 0, falhou: 0 },
+            cirurgias: { agendado: 0, atendido: 0, falhou: 0 },
+            revenue: 0,
+            prevRevenue: 0
+        };
+        sellerRows.forEach((s: any) => {
+            (['agendado', 'atendido', 'falhou'] as const).forEach(status => {
+                acc.consultas[status] += s.consultas[status];
+                acc.cirurgias[status] += s.cirurgias[status];
+            });
+            acc.revenue += s.revenue;
+            acc.prevRevenue += s.prevRevenue;
+        });
+        return acc;
+    }, [sellerRows]);
 
     return (
         <div className="max-w-screen-xl w-full mx-auto space-y-5 sm:space-y-6 relative pb-8 px-4 sm:px-6">
@@ -353,7 +418,17 @@ const Dashboard: React.FC = () => {
             <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 pb-2">
                 <div>
                     <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Dashboard</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Visão consolidada financeira e operacional.</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/5 text-primary border border-primary/10 text-xs font-black uppercase tracking-wider">
+                            <span className="material-symbols-outlined text-[16px]">calendar_month</span>
+                            {periodLabel}
+                        </span>
+                        {comparisonLabel && (
+                            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
+                                comparado com {comparisonLabel}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center flex-wrap w-full xl:w-auto">
@@ -377,6 +452,27 @@ const Dashboard: React.FC = () => {
                             <span className="text-sm font-black text-slate-700 dark:text-slate-300">{user?.hospitalName}</span>
                         </div>
                     )}
+
+                    {/* Navegação mês a mês */}
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 card-shadow w-full sm:w-auto justify-center shrink-0">
+                        <button
+                            onClick={() => shiftMonth(-1)}
+                            aria-label="Mês anterior"
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-primary hover:bg-primary/5 transition-all"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                        </button>
+                        <span className="px-2 text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider whitespace-nowrap min-w-[84px] text-center tabular-nums">
+                            {monthStepperLabel}
+                        </span>
+                        <button
+                            onClick={() => shiftMonth(1)}
+                            aria-label="Próximo mês"
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-primary hover:bg-primary/5 transition-all"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                        </button>
+                    </div>
 
                     {/* Date Filters (Same as Expenses) */}
                     <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
@@ -405,328 +501,212 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* WhatsApp Contacts (Admin only) */}
-            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && <WhatsAppContacts />}
-
-            {/* Row 1: Big KPIs */}
+            {/* Row 1: Agendamentos por tipo (Consultas e Cirurgias) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 {isLoading ? (
                     Array.from({ length: 2 }).map((_, i) => (
-                        <Card key={i} className="p-6 animate-pulse">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-                                <div className="space-y-2">
-                                    <div className="h-3 w-32 bg-slate-100 dark:bg-slate-800 rounded" />
-                                    <div className="h-6 w-48 bg-slate-100 dark:bg-slate-800 rounded" />
-                                </div>
-                            </div>
-                        </Card>
-                    ))
-                ) : (
-                    <>
-                        <Card className="p-5 sm:p-6 group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/20">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/10 transition-colors group-hover:bg-primary group-hover:text-white group-hover:border-primary">
-                                    <span className="material-symbols-outlined text-[28px]">attach_money</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
-                                        Faturamento Total
-                                    </p>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <h3 className="text-xl sm:text-2xl xl:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display tabular-nums min-w-0">
-                                            {formatCurrency(dashboardData.totals.revenue)}
-                                        </h3>
-                                        <PercentageBadge
-                                            current={dashboardData.totals.revenue}
-                                            previous={dashboardData.prevTotals.revenue}
-                                            className="scale-110 shadow-sm"
-                                        />
-                                    </div>
-                                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1">
-                                        vs. período anterior
-                                    </p>
-                                </div>
-                            </div>
-                        </Card>
-
-                        <Card className="p-5 sm:p-6 group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary/20">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/10 transition-colors group-hover:bg-primary group-hover:text-white group-hover:border-primary">
-                                    <span className="material-symbols-outlined text-[28px]">payments</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
-                                        Repasse ao programa
-                                    </p>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <h3 className="text-xl sm:text-2xl xl:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display tabular-nums min-w-0">
-                                            {formatCurrency(dashboardData.totals.repasse)}
-                                        </h3>
-                                        <PercentageBadge
-                                            current={dashboardData.totals.repasse}
-                                            previous={dashboardData.prevTotals.repasse}
-                                            className="scale-110 shadow-sm"
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between text-[10px] font-bold mt-1">
-                                        <span className="text-slate-400 dark:text-slate-500">vs. período anterior</span>
-                                        <span className="text-primary bg-primary/5 px-1.5 py-0.5 rounded-md">{repassePercentage.toFixed(1)}% do faturamento</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                    </>
-                )}
-            </div>
-
-            {/* Row 2: Detailed Service KPIs - CLEAN STYLE */}
-            <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
-                {isLoading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-32 rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
+                        <div key={i} className="h-44 rounded-3xl bg-slate-100 dark:bg-slate-800/60 animate-pulse border border-slate-200 dark:border-slate-700" />
                     ))
                 ) : (
                     [
-                        { title: 'Consultas', count: dashboardData.totals.consultas, countPrev: dashboardData.prevTotals?.consultas || 0, value: formatCurrency(dashboardData.totals.consultas_revenue || 0), valueRaw: dashboardData.totals.consultas_revenue || 0, valuePrev: dashboardData.prevTotals?.consultas_revenue || 0, icon: 'event_note' },
-                        { title: 'Exames', count: dashboardData.totals.exames, countPrev: dashboardData.prevTotals?.exames || 0, value: formatCurrency(dashboardData.totals.exames_revenue || 0), valueRaw: dashboardData.totals.exames_revenue || 0, valuePrev: dashboardData.prevTotals?.exames_revenue || 0, icon: 'biotech' },
-                        { title: 'Cirurgias', count: dashboardData.totals.cirurgias, countPrev: dashboardData.prevTotals?.cirurgias || 0, value: formatCurrency(dashboardData.totals.cirurgias_revenue || 0), valueRaw: dashboardData.totals.cirurgias_revenue || 0, valuePrev: dashboardData.prevTotals?.cirurgias_revenue || 0, icon: 'medical_services' }
-                    ].map((item, i) => (
-                        <div
-                            key={i}
-                            className={`bg-white dark:bg-slate-900 rounded-3xl p-5 card-shadow border border-slate-200 dark:border-slate-700 card-hover transition-all duration-300 animate-card-entrance stagger-${i + 1}`}
-                        >
-                            <div className="flex items-center gap-3 mb-5">
-                                <div className="size-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700/50">
-                                    <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-                                </div>
-                                <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-widest">{item.title}</h4>
-                            </div>
+                        { key: 'CONSULTA', title: 'Consultas', icon: 'event_note' },
+                        { key: 'CIRURGIA', title: 'Cirurgias', icon: 'medical_services' }
+                    ].map((item, i) => {
+                        const curr = schedulingData.byType?.[item.key] || EMPTY_BUCKET;
+                        const prev = schedulingData.prevByType?.[item.key] || EMPTY_BUCKET;
 
-                            <div className="space-y-4">
-                                <div className="flex items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-0.5">Faturamento</p>
-                                        <p className="font-black text-slate-900 dark:text-white text-lg tracking-tight leading-none font-display">{item.value}</p>
+                        return (
+                            <div
+                                key={item.key}
+                                className={`bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 card-shadow border border-slate-200 dark:border-slate-700 card-hover transition-all duration-300 animate-card-entrance stagger-${i + 1}`}
+                            >
+                                <div className="flex items-center justify-between gap-3 mb-5">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="size-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700/50 shrink-0">
+                                            <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-widest truncate">{item.title}</h4>
+                                            <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                                                {formatNumber(curr.total)} agendamentos no período
+                                            </p>
+                                        </div>
                                     </div>
-                                    <PercentageBadge current={item.valueRaw} previous={item.valuePrev} />
+                                    <PercentageBadge current={curr.total} previous={prev.total} />
                                 </div>
-                                <div className="flex items-end justify-between pt-1">
+
+                                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                                    {[
+                                        { label: 'Agendado', value: curr.agendado, prevValue: prev.agendado, tone: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/70 dark:bg-blue-500/10' },
+                                        { label: 'Realizado', value: curr.atendido, prevValue: prev.atendido, tone: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/70 dark:bg-emerald-500/10' },
+                                        { label: 'Falhou', value: curr.falhou, prevValue: prev.falhou, tone: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50/70 dark:bg-rose-500/10' }
+                                    ].map(status => (
+                                        <div key={status.label} className={`rounded-2xl p-3 border border-slate-100 dark:border-slate-700/50 ${status.bg}`}>
+                                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1 truncate">{status.label}</p>
+                                            <p className={`font-black text-xl leading-none font-display tabular-nums ${status.tone}`}>{formatNumber(status.value)}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1.5 tabular-nums">
+                                                {formatNumber(status.prevValue)} no anterior
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex items-end justify-between border-t border-slate-100 dark:border-slate-800 mt-4 pt-3">
                                     <div>
-                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-0.5">Atendimentos</p>
-                                        <p className="font-black text-slate-700 dark:text-slate-300 text-sm leading-none">{formatNumber(item.count)} <span className="text-[10px] font-medium opacity-50">un.</span></p>
+                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-0.5">Faturamento realizado</p>
+                                        <p className="font-black text-slate-900 dark:text-white text-lg tracking-tight leading-none font-display">{formatCurrency(curr.revenue)}</p>
                                     </div>
-                                    <PercentageBadge current={item.count} previous={item.countPrev} />
+                                    <PercentageBadge current={curr.revenue} previous={prev.revenue} />
                                 </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
-            {/* Row 3: Chart & Summary Block */}
-            {isLoading ? (
-                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden flex flex-col animate-pulse">
-                    <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded" />
-                        <div className="h-9 w-24 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            {/* Row 2: Agendamentos por vendedor */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden">
+                <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
+                            <span className="material-symbols-outlined text-slate-400">badge</span>
+                            Agendamentos por vendedor
+                        </h3>
+                        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">
+                            Consultas e cirurgias por quem registrou o agendamento (perfis Admin e Comercial). Valor em R$ considera apenas os realizados.
+                        </p>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-12">
-                        <div className="lg:col-span-8 p-6 h-[400px]">
-                            <div className="h-full w-full rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                    {comparisonLabel && (
+                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                            {periodLabel} vs. {comparisonLabel}
                         </div>
-                        <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 p-8 space-y-6 bg-slate-50/30 dark:bg-slate-800/20">
-                            <div className="h-3 w-28 bg-slate-100 dark:bg-slate-800 rounded" />
-                            <div className="h-8 w-40 bg-slate-100 dark:bg-slate-800 rounded" />
-                            <div className="h-3 w-28 bg-slate-100 dark:bg-slate-800 rounded mt-6" />
-                            <div className="h-8 w-40 bg-slate-100 dark:bg-slate-800 rounded" />
-                        </div>
-                    </div>
+                    )}
                 </div>
-            ) : (
-                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm card-shadow overflow-hidden flex flex-col">
-                    {/* Block Header */}
-                    <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
-                                <span className="material-symbols-outlined text-slate-400">monitoring</span>
-                                Evolução da Receita
-                            </h3>
-                            <div className="flex gap-3 sm:gap-4 mt-2 flex-wrap">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Faturamento</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Repasse</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Hospital</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Despesas</span>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Year Selector */}
-                        <div className="relative w-full sm:w-auto">
-                            <select
-                                value={selectedYear}
-                                onChange={(e) => setSelectedYear(e.target.value)}
-                                className="w-full sm:w-auto appearance-none bg-slate-50 dark:bg-slate-800 border-none text-slate-700 dark:text-slate-200 py-2 pl-4 pr-10 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer hover:bg-slate-100 transition-colors"
-                            >
-                                {yearOptions.map((year) => (
-                                    <option key={year} value={year}>{year}</option>
-                                ))}
-                            </select>
-                            <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">expand_more</span>
-                        </div>
+                {isLoading ? (
+                    <div className="p-4 sm:p-6 space-y-3">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="h-14 rounded-2xl bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
+                        ))}
                     </div>
-
-                    {/* Block Content */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12">
-                        <div className="order-2 lg:order-1 lg:col-span-8 p-4 sm:p-6 h-[320px] sm:h-[400px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={dashboardData.chartData} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.25} />
-                                            <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid vertical={false} strokeDasharray="4 6" stroke="#e2e8f0" />
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                                        dy={15}
-                                    />
-                                    <YAxis
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }}
-                                        tickFormatter={(value) => formatCurrencyNoDecimals(value)}
-                                    />
-                                    <Tooltip
-                                        content={<ChartTooltip />}
-                                        cursor={{ stroke: '#e2e8f0', strokeDasharray: '4 6' }}
-                                    />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="revenue"
-                                        stroke="#22c55e"
-                                        strokeWidth={3}
-                                        fill="url(#revenueGradient)"
-                                        dot={false}
-                                        activeDot={{ r: 7, fill: '#22c55e', strokeWidth: 0 }}
-                                        animationDuration={500}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="revenue"
-                                        stroke="#22c55e"
-                                        strokeWidth={3}
-                                        dot={false}
-                                        activeDot={{ r: 7, fill: '#22c55e', strokeWidth: 0 }}
-                                        animationDuration={500}
-                                    >
-                                        <LabelList content={renderCustomLabel} />
-                                    </Line>
-                                    <Line
-                                        type="monotone"
-                                        dataKey="repasse"
-                                        stroke="#3b82f6"
-                                        strokeWidth={2}
-                                        strokeDasharray="6 6"
-                                        dot={false}
-                                        activeDot={{ r: 6, fill: '#3b82f6', strokeWidth: 0 }}
-                                        animationDuration={500}
-                                    >
-                                        <LabelList content={renderCustomLabel} />
-                                    </Line>
-                                    <Line
-                                        type="monotone"
-                                        dataKey="hospital"
-                                        stroke="#f59e0b"
-                                        strokeWidth={2}
-                                        dot={false}
-                                        activeDot={{ r: 6, fill: '#f59e0b', strokeWidth: 0 }}
-                                        animationDuration={500}
-                                    >
-                                        <LabelList content={renderCustomLabel} />
-                                    </Line>
-                                    <Line
-                                        type="monotone"
-                                        dataKey="expenses"
-                                        stroke="#ef4444"
-                                        strokeWidth={2}
-                                        strokeDasharray="4 4"
-                                        dot={false}
-                                        activeDot={{ r: 6, fill: '#ef4444', strokeWidth: 0 }}
-                                        animationDuration={500}
-                                    >
-                                        <LabelList content={renderCustomLabel} />
-                                    </Line>
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
-
-                        <div className="order-1 lg:order-2 lg:col-span-4 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 p-4 sm:p-6 bg-slate-50/30 dark:bg-slate-800/20">
-                            <div className="grid grid-cols-2 sm:flex sm:flex-col gap-3 sm:gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border border-emerald-100 dark:border-emerald-900/30 shadow-sm shrink-0">
-                                        <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-                                    </span>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider truncate">Total Faturado</p>
-                                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
-                                            {formatCurrency(dashboardData.totals.revenue)}
-                                        </h4>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 border border-blue-100 dark:border-blue-900/30 shadow-sm shrink-0">
-                                        <span className="material-symbols-outlined text-[16px]">outbound</span>
-                                    </span>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider truncate">Total Repassado</p>
-                                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
-                                            {formatCurrency(dashboardData.totals.repasse)}
-                                        </h4>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 border border-amber-100 dark:border-amber-900/30 shadow-sm shrink-0">
-                                        <span className="material-symbols-outlined text-[16px]">domain</span>
-                                    </span>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider truncate">Total Hospital</p>
-                                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
-                                            {formatCurrency(dashboardData.totals.hospital || 0)}
-                                        </h4>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 border border-red-100 dark:border-red-900/30 shadow-sm shrink-0">
-                                        <span className="material-symbols-outlined text-[16px]">receipt_long</span>
-                                    </span>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider truncate">Total Despesas</p>
-                                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
-                                            {formatCurrency(dashboardData.totals.expenses || 0)}
-                                        </h4>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                ) : sellerRows.length === 0 ? (
+                    <div className="p-10 text-center">
+                        <p className="text-sm font-bold text-slate-400 dark:text-slate-500">Nenhum agendamento de consulta ou cirurgia no período.</p>
                     </div>
-                </div>
-            )}
+                ) : (
+                    <>
+                        {/* Tabela (telas médias e maiores) */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[860px]">
+                                <thead>
+                                    <tr className="bg-slate-50/70 dark:bg-slate-800/40">
+                                        <th rowSpan={2} className="px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 align-bottom">Vendedor</th>
+                                        <th colSpan={3} className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-l border-slate-200 dark:border-slate-700">Consultas</th>
+                                        <th colSpan={3} className="px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-l border-slate-200 dark:border-slate-700">Cirurgias</th>
+                                        <th rowSpan={2} className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 align-bottom border-l border-slate-200 dark:border-slate-700">R$ realizado</th>
+                                    </tr>
+                                    <tr className="bg-slate-50/70 dark:bg-slate-800/40">
+                                        {['Agend.', 'Realiz.', 'Falhou', 'Agend.', 'Realiz.', 'Falhou'].map((label, idx) => (
+                                            <th
+                                                key={`${label}-${idx}`}
+                                                className={`px-3 pb-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 ${idx % 3 === 0 ? 'border-l border-slate-200 dark:border-slate-700' : ''}`}
+                                            >
+                                                {label}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sellerRows.map((s: any) => (
+                                        <tr
+                                            key={s.id}
+                                            className={`border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors ${s.isSeller ? '' : 'bg-slate-50/40 dark:bg-slate-800/20'}`}
+                                        >
+                                            <td className="px-5 py-3">
+                                                <div className="flex items-center gap-3 min-w-0 max-w-[260px]">
+                                                    <div className="size-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[11px] font-black text-slate-600 dark:text-slate-300 shrink-0">
+                                                        {getInitials(s.name)}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{s.name}</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{ROLE_LABELS[s.role] || s.role}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            {[s.consultas, s.cirurgias].map((bucket: any, bIdx: number) => (
+                                                <React.Fragment key={bIdx}>
+                                                    <td className="px-3 py-3 text-center text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums border-l border-slate-100 dark:border-slate-800">{formatNumber(bucket.agendado)}</td>
+                                                    <td className="px-3 py-3 text-center text-sm font-black text-emerald-600 dark:text-emerald-400 tabular-nums">{formatNumber(bucket.atendido)}</td>
+                                                    <td className="px-3 py-3 text-center text-sm font-bold text-rose-600 dark:text-rose-400 tabular-nums">{formatNumber(bucket.falhou)}</td>
+                                                </React.Fragment>
+                                            ))}
+                                            <td className="px-4 py-3 text-right border-l border-slate-100 dark:border-slate-800">
+                                                <div className="flex flex-col items-end gap-0.5">
+                                                    <span className="font-black text-slate-900 dark:text-white text-sm tabular-nums">{formatCurrency(s.revenue)}</span>
+                                                    <PercentageBadge current={s.revenue} previous={s.prevRevenue} />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40">
+                                        <td className="px-5 py-3 text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Total</td>
+                                        {[sellerTotals.consultas, sellerTotals.cirurgias].map((bucket: any, bIdx: number) => (
+                                            <React.Fragment key={bIdx}>
+                                                <td className="px-3 py-3 text-center text-sm font-black text-slate-700 dark:text-slate-300 tabular-nums border-l border-slate-200 dark:border-slate-700">{formatNumber(bucket.agendado)}</td>
+                                                <td className="px-3 py-3 text-center text-sm font-black text-slate-700 dark:text-slate-300 tabular-nums">{formatNumber(bucket.atendido)}</td>
+                                                <td className="px-3 py-3 text-center text-sm font-black text-slate-700 dark:text-slate-300 tabular-nums">{formatNumber(bucket.falhou)}</td>
+                                            </React.Fragment>
+                                        ))}
+                                        <td className="px-4 py-3 text-right border-l border-slate-200 dark:border-slate-700">
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                <span className="font-black text-slate-900 dark:text-white text-sm tabular-nums">{formatCurrency(sellerTotals.revenue)}</span>
+                                                <PercentageBadge current={sellerTotals.revenue} previous={sellerTotals.prevRevenue} />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        {/* Cards (mobile) */}
+                        <div className="md:hidden p-4 space-y-3 bg-slate-50/30 dark:bg-slate-900/50">
+                            {sellerRows.map((s: any) => (
+                                <div key={s.id} className="rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 p-4">
+                                    <div className="flex items-center justify-between gap-3 mb-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="size-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[11px] font-black text-slate-600 dark:text-slate-300 shrink-0">
+                                                {getInitials(s.name)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{s.name}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{ROLE_LABELS[s.role] || s.role}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end shrink-0">
+                                            <span className="font-black text-slate-900 dark:text-white text-sm tabular-nums">{formatCurrency(s.revenue)}</span>
+                                            <PercentageBadge current={s.revenue} previous={s.prevRevenue} className="mt-0.5" />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[{ label: 'Consultas', bucket: s.consultas }, { label: 'Cirurgias', bucket: s.cirurgias }].map(col => (
+                                            <div key={col.label} className="rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50 p-2.5">
+                                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">{col.label}</p>
+                                                <div className="flex items-center gap-2 text-[11px] font-bold tabular-nums">
+                                                    <span className="text-blue-600 dark:text-blue-400">{formatNumber(col.bucket.agendado)} ag.</span>
+                                                    <span className="text-emerald-600 dark:text-emerald-400">{formatNumber(col.bucket.atendido)} rl.</span>
+                                                    <span className="text-rose-600 dark:text-rose-400">{formatNumber(col.bucket.falhou)} fl.</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
 
             {/* Row 4: Lists Blocks */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
@@ -834,6 +814,9 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* WhatsApp Contacts (Admin only) */}
+            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && <WhatsAppContacts />}
 
             {/* --- CUSTOM CALENDAR MODAL --- */}
             {isCalendarOpen && (
