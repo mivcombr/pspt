@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 import { Appointment } from '../types';
 import { APP_TIME_ZONE } from '../utils/formatters';
+import { profileService } from './profileService';
 
 export const appointmentService = {
     async getAll(filters?: { date?: string; hospitalId?: string; startDate?: string; endDate?: string }) {
@@ -172,35 +173,44 @@ export const appointmentService = {
 
     async getAuditLogs(appointmentId: string) {
         try {
-            // Try to fetch with user relation first
+            // appointment_audit_logs.changed_by referencia auth.users, não
+            // profiles — então o embed do PostgREST (profiles!changed_by) não
+            // resolve e todo log ficava sem autor. Os nomes vêm numa 2ª consulta.
             const { data, error } = await supabase
                 .from('appointment_audit_logs')
-                .select(`
-                    *,
-                    user:profiles!changed_by(name, email)
-                `)
+                .select('*')
                 .eq('appointment_id', appointmentId)
                 .order('changed_at', { ascending: false });
 
             if (error) {
-                // If error with relation, try without it
-                console.warn('Error fetching audit logs with user relation:', error);
+                console.error('Error fetching audit logs:', error);
                 logger.error({ action: 'read', entity: 'appointment_audit_logs', appointment_id: appointmentId, error }, 'crud');
-                const { data: dataWithoutUser, error: errorWithoutUser } = await supabase
-                    .from('appointment_audit_logs')
-                    .select('*')
-                    .eq('appointment_id', appointmentId)
-                    .order('changed_at', { ascending: false });
-
-                if (errorWithoutUser) {
-                    console.error('Error fetching audit logs:', errorWithoutUser);
-                    logger.error({ action: 'read', entity: 'appointment_audit_logs', appointment_id: appointmentId, error: errorWithoutUser }, 'crud');
-                    return [];
-                }
-                return dataWithoutUser || [];
+                return [];
             }
 
-            return data || [];
+            const logs = data || [];
+            const authorIds = [...new Set(
+                logs.map((l: any) => l.changed_by).filter(Boolean)
+            )] as string[];
+
+            if (authorIds.length === 0) return logs;
+
+            // A RLS de profiles só libera outros perfis para admin/comercial.
+            // Quando bloqueia, o histórico continua abrindo — só sem o nome.
+            const profilesById: Record<string, { name?: string; email?: string }> = {};
+            try {
+                const profiles = await profileService.getBasicByIds(authorIds);
+                profiles.forEach((p: any) => {
+                    profilesById[p.id] = { name: p.name, email: p.email };
+                });
+            } catch (profileErr) {
+                console.warn('Could not resolve audit log authors:', profileErr);
+            }
+
+            return logs.map((l: any) => ({
+                ...l,
+                user: l.changed_by ? profilesById[l.changed_by] || null : null
+            }));
         } catch (err) {
             console.error('Unexpected error in getAuditLogs:', err);
             logger.error({ action: 'read', entity: 'appointment_audit_logs', appointment_id: appointmentId, error: err }, 'crud');

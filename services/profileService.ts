@@ -45,6 +45,23 @@ export const profileService = {
         return data || [];
     },
 
+    // Nome + e-mail de um conjunto de usuários, para identificar autores de
+    // registros (auditoria). Mesma restrição de RLS do getNamesByIds.
+    async getBasicByIds(ids: string[]) {
+        if (ids.length === 0) return [];
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, name, email')
+            .in('id', ids);
+
+        if (error) {
+            logger.error({ action: 'read', entity: 'profiles', error }, 'crud');
+            throw error;
+        }
+        return data || [];
+    },
+
     async update(id: string, updates: any) {
         const { data, error } = await supabase
             .from('profiles')

@@ -2560,8 +2560,11 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                 <span>
                                                     {(() => {
                                                         const user = Array.isArray(log.user) ? log.user[0] : log.user;
-                                                        const label = user?.name || user?.email || 'Usuário';
-                                                        return user?.email && user?.name ? `${label} (${user.email})` : label;
+                                                        if (user?.name && user?.email) return `${user.name} (${user.email})`;
+                                                        if (user?.name || user?.email) return user.name || user.email;
+                                                        // Sem changed_by = alteração automática; com changed_by mas sem
+                                                        // perfil = usuário removido ou fora do alcance da RLS.
+                                                        return log.changed_by ? 'Usuário não identificado' : 'Sistema';
                                                     })()}
                                                 </span>
                                             </div>
