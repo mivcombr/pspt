@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { appointmentService } from '../services/appointmentService';
@@ -55,22 +55,6 @@ const Financials: React.FC = () => {
     const [history, setHistory] = useState<any[]>([]);
     const [isFetchingHistory, setIsFetchingHistory] = useState(false);
 
-    const [totals, setTotals] = useState({
-        revenue: 0,
-        repasse: 0,
-        hospital: 0,
-        pending: 0,
-        pendingRepasse: 0,
-        paid: 0,
-        failed: 0,
-        hospitalPaid: 0,
-        hospitalPending: 0,
-        hospitalFailed: 0,
-        repassePaid: 0,
-        repassePending: 0,
-        repasseFailed: 0
-    });
-
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({
@@ -114,11 +98,6 @@ const Financials: React.FC = () => {
         payments: [] as any[]
     });
 
-    const [categoryTotals, setCategoryTotals] = useState({
-        exames: { value: 0, pct: '0%' },
-        cirurgias: { value: 0, pct: '0%' },
-        consultas: { value: 0, pct: '0%' }
-    });
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
 
@@ -150,15 +129,24 @@ const Financials: React.FC = () => {
     const buildReportHtml = () => {
         const rows = filteredTransactions.map((item) => {
             const payments = (item.payments || []).map((p: any) => p.method).join(' / ') || '-';
+            const paidDates = [...new Set(
+                (item.payments || [])
+                    .map((p: any) => p.paid_at || item.date)
+                    .filter((d: string) => d && d >= periodStart && d <= periodEnd)
+            )].sort().map((d: any) => formatDate(d)).join(' / ') || '-';
+            const p = getPeriodValues(item);
             return `
                 <tr>
                     <td>${item.patient_name || '-'}</td>
                     <td>${item.procedure || '-'}</td>
                     <td>${item.hospital?.name || '-'}</td>
                     <td>${formatDate(item.date)}</td>
+                    <td>${paidDates}</td>
                     <td>${payments}</td>
                     <td>${item.payment_status || '-'}</td>
                     <td>${item.repasse_status || 'Pendente'}</td>
+                    <td>${formatCurrency(p.received)}</td>
+                    <td>${formatCurrency(p.pendingHere)}</td>
                     <td>${formatCurrency(Number(item.hospital_value || 0))}</td>
                     <td>${formatCurrency(Number(item.repasse_value || 0))}</td>
                 </tr>
@@ -187,9 +175,10 @@ const Financials: React.FC = () => {
                 </head>
                 <body>
                     <h1>Relatório Financeiro - Pagamentos</h1>
-                    <div class="meta"><strong>Período:</strong> ${formatReportRange()} • <strong>Gerado em:</strong> ${formatDate(new Date())}</div>
+                    <div class="meta"><strong>Período:</strong> ${formatReportRange()} • <strong>Gerado em:</strong> ${formatDate(new Date())}<br/>Valores em regime de caixa: o recebido conta pela data do pagamento (inclusive parcial); o saldo em aberto, pela data do procedimento.</div>
                     <div class="summary">
                         <div class="summary-item"><span>Faturamento Total</span><strong>${formatCurrency(filteredTotals.revenue)}</strong></div>
+                        <div class="summary-item"><span>Recebido no Período</span><strong>${formatCurrency(filteredTotals.paid)}</strong></div>
                         <div class="summary-item"><span>Faturamento Hospital</span><strong>${formatCurrency(filteredTotals.hospital)}</strong></div>
                         <div class="summary-item"><span>Total do Programa</span><strong>${formatCurrency(filteredTotals.repasse)}</strong></div>
                         <div class="summary-item"><span>A Receber</span><strong>${formatCurrency(filteredTotals.pending)}</strong></div>
@@ -202,16 +191,19 @@ const Financials: React.FC = () => {
                                 <th>Paciente</th>
                                 <th>Procedimento</th>
                                 <th>Hospital</th>
-                                <th>Data</th>
+                                <th>Data Procedimento</th>
+                                <th>Data Pagamento</th>
                                 <th>Pagamento</th>
                                 <th>Status Pag.</th>
                                 <th>Status Acerto</th>
+                                <th>Recebido no Período</th>
+                                <th>Em Aberto</th>
                                 <th>Hospital</th>
                                 <th>Programa</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${rows || '<tr><td colspan="9">Nenhum registro para o período selecionado.</td></tr>'}
+                            ${rows || '<tr><td colspan="12">Nenhum registro para o período selecionado.</td></tr>'}
                         </tbody>
                     </table>
                 </body>
@@ -282,71 +274,13 @@ const Financials: React.FC = () => {
                 filters.endDate = formatDateForInput(tempEndDate || tempStartDate);
             }
 
-            const data = await appointmentService.getAll(filters);
+            // Regime de caixa: o dinheiro que entrou conta pela data de cada
+            // pagamento (inclusive parciais); o saldo em aberto conta pela data
+            // do procedimento.
+            const data = filters.startDate
+                ? await appointmentService.getFinancialPeriod(filters)
+                : await appointmentService.getAll(filters);
             setAppointments(data);
-
-            const stats = data.reduce((acc, curr) => {
-                const cost = Number(curr.total_cost);
-                const hospitalValue = Number(curr.hospital_value);
-                const repasseValue = Number(curr.repasse_value);
-
-                // Status Normalization (first, to exclude losses from totals)
-                const paymentStatus = curr.payment_status === 'Não realizado' || curr.payment_status === 'Nao realizado' ? 'Não realizado' : (curr.payment_status || 'Pendente');
-                const repasseStatus = paymentStatus === 'Não realizado' ? 'Não realizado' : (curr.repasse_status === 'Não realizado' || curr.repasse_status === 'Nao realizado' ? 'Não realizado' : (curr.repasse_status || 'Pendente'));
-
-                // Totals: only PAGO + PENDENTE (Não realizado is a loss, not revenue)
-                if (paymentStatus !== 'Não realizado') {
-                    acc.revenue += cost;
-                    acc.hospital += hospitalValue;
-                }
-                if (repasseStatus !== 'Não realizado') {
-                    acc.repasse += repasseValue;
-                }
-
-                // Revenue / Hospital Breakdown
-                if (paymentStatus === 'Pago') {
-                    acc.paid += cost;
-                    acc.hospitalPaid += hospitalValue;
-                } else if (paymentStatus === 'Pendente') {
-                    acc.pending += cost;
-                    acc.hospitalPending += hospitalValue;
-                } else if (paymentStatus === 'Não realizado') {
-                    acc.failed += cost;
-                    acc.hospitalFailed += hospitalValue;
-                }
-
-                // Repasse Breakdown
-                if (repasseStatus === 'Pago') {
-                    acc.repassePaid += repasseValue;
-                } else if (repasseStatus === 'Pendente') {
-                    acc.repassePending += repasseValue;
-                    acc.pendingRepasse += repasseValue;
-                } else if (repasseStatus === 'Não realizado') {
-                    acc.repasseFailed += repasseValue;
-                }
-
-                // Category breakdown: also exclude losses
-                if (paymentStatus !== 'Não realizado') {
-                    if (curr.type === 'EXAME') acc.exames += cost;
-                    else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
-                    else if (curr.type === 'CONSULTA') acc.consultas += cost;
-                }
-
-                return acc;
-            }, {
-                revenue: 0, repasse: 0, hospital: 0, pending: 0, pendingRepasse: 0, paid: 0, failed: 0,
-                hospitalPaid: 0, hospitalPending: 0, hospitalFailed: 0,
-                repassePaid: 0, repassePending: 0, repasseFailed: 0,
-                exames: 0, cirurgias: 0, consultas: 0
-            });
-
-            setTotals(stats);
-            setCategoryTotals({
-                exames: { value: stats.exames, pct: stats.revenue ? `${(stats.exames / stats.revenue * 100).toFixed(0)}%` : '0%' },
-                cirurgias: { value: stats.cirurgias, pct: stats.revenue ? `${(stats.cirurgias / stats.revenue * 100).toFixed(0)}%` : '0%' },
-                consultas: { value: stats.consultas, pct: stats.revenue ? `${(stats.consultas / stats.revenue * 100).toFixed(0)}%` : '0%' }
-            });
-
         } catch (err) {
             console.error('Error fetching financials:', err);
         } finally {
@@ -407,7 +341,7 @@ const Financials: React.FC = () => {
             return matchesSearch && matchesPayment && matchesRepasse && matchesProcedure;
         });
 
-        const statusOrder: Record<string, number> = { 'Pago': 0, 'Pendente': 1, 'Não realizado': 2 };
+        const statusOrder: Record<string, number> = { 'Pago': 0, 'Parcial': 1, 'Pendente': 2, 'Não realizado': 3 };
 
         filtered.sort((a, b) => {
             let cmp = 0;
@@ -449,52 +383,115 @@ const Financials: React.FC = () => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const currentData = filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+    const periodStart = formatDateForInput(tempStartDate);
+    const periodEnd = formatDateForInput(tempEndDate || tempStartDate);
+
+    /**
+     * Quanto de um atendimento pertence ao período selecionado (regime de caixa).
+     *
+     * Em pagamento parcial o dinheiro fica com o hospital: o repasse ao programa
+     * só é devido depois da quitação total. Por isso a entrada NÃO é rateada
+     * proporcionalmente — ela é toda do hospital, e o repasse inteiro é
+     * reconhecido de uma vez no período em que o paciente quitou.
+     *
+     * Ex.: R$ 1.500 (R$ 500 de repasse). Paga R$ 1.000 em julho e R$ 500 em
+     * 20/08 → julho: hospital 1.000, programa 0. Agosto: recebe 500, quita e o
+     * repasse de 500 vence → programa 500, hospital 0.
+     */
+    const getPeriodValues = useCallback((item: any) => {
+        const cost = Number(item.total_cost) || 0;
+        const repasseValue = Number(item.repasse_value) || 0;
+        const payments = item.payments || [];
+
+        const isFailed = item.payment_status === 'Não realizado' || item.payment_status === 'Nao realizado';
+        const procedureInPeriod = !!item.date && item.date >= periodStart && item.date <= periodEnd;
+
+        let paidTotal = 0;
+        let receivedInPeriod = 0;
+        let lastPaidAt = '';
+        payments.forEach((p: any) => {
+            const value = Number(p.value) || 0;
+            paidTotal += value;
+            // Pagamentos antigos sem data caem na data do procedimento.
+            const when = p.paid_at || item.date;
+            if (when && when >= periodStart && when <= periodEnd) {
+                receivedInPeriod += value;
+            }
+            if (when && when > lastPaidAt) lastPaidAt = when;
+        });
+
+        const outstanding = Math.max(0, cost - paidTotal);
+        // Quitado = o paciente pagou tudo. A data da quitação é a do último pagamento.
+        const isSettled = cost > 0 && paidTotal >= cost - 0.005;
+        const settledInPeriod = isSettled && lastPaidAt >= periodStart && lastPaidAt <= periodEnd;
+
+        const received = isFailed ? 0 : receivedInPeriod;
+        const pendingHere = !isFailed && procedureInPeriod ? outstanding : 0;
+        const failedHere = isFailed && procedureInPeriod ? cost : 0;
+
+        // Repasse vence na quitação; antes disso fica como previsto (em aberto).
+        const repasseDue = !isFailed && settledInPeriod ? repasseValue : 0;
+        const repasseFuture = !isFailed && !isSettled && procedureInPeriod ? repasseValue : 0;
+        const repasseLost = isFailed && procedureInPeriod ? repasseValue : 0;
+
+        return {
+            cost,
+            isFailed,
+            isSettled,
+            paidTotal,
+            outstanding,
+            procedureInPeriod,
+            received,
+            pendingHere,
+            failedHere,
+            repasseDue,
+            repasseFuture,
+            repasseLost,
+            // O que sobra para o hospital depois de separar a parte do programa.
+            hospitalReceived: received - repasseDue,
+            hospitalPending: pendingHere - repasseFuture,
+            hospitalLost: failedHere - repasseLost
+        };
+    }, [periodStart, periodEnd]);
+
     const filteredTotals = useMemo(() => {
         return filteredTransactions.reduce((acc, curr) => {
-            const cost = Number(curr.total_cost);
-            const hospitalValue = Number(curr.hospital_value);
-            const repasseValue = Number(curr.repasse_value);
+            const p = getPeriodValues(curr);
+            const repasseSettled = curr.repasse_status === 'Pago';
 
-            // Status Normalization (first, to exclude losses from totals)
-            const paymentStatus = curr.payment_status === 'Não realizado' || curr.payment_status === 'Nao realizado' ? 'Não realizado' : (curr.payment_status || 'Pendente');
-            const repasseStatus = paymentStatus === 'Não realizado' ? 'Não realizado' : (curr.repasse_status === 'Não realizado' || curr.repasse_status === 'Nao realizado' ? 'Não realizado' : (curr.repasse_status || 'Pendente'));
+            // Valor do atendimento que pertence a este período: o que entrou em
+            // caixa aqui + o saldo em aberto (esse conta na data do procedimento).
+            const periodValue = p.received + p.pendingHere;
 
-            // Totals: only PAGO + PENDENTE (Não realizado is a loss, not revenue)
-            if (paymentStatus !== 'Não realizado') {
-                acc.revenue += cost;
-                acc.hospital += hospitalValue;
-            }
-            if (repasseStatus !== 'Não realizado') {
-                acc.repasse += repasseValue;
-            }
+            acc.revenue += periodValue;
+            acc.paid += p.received;
+            acc.pending += p.pendingHere;
+            acc.failed += p.failedHere;
 
-            // Revenue / Hospital Breakdown
-            if (paymentStatus === 'Pago') {
-                acc.paid += cost;
-                acc.hospitalPaid += hospitalValue;
-            } else if (paymentStatus === 'Pendente') {
-                acc.pending += cost;
-                acc.hospitalPending += hospitalValue;
-            } else if (paymentStatus === 'Não realizado') {
-                acc.failed += cost;
-                acc.hospitalFailed += hospitalValue;
-            }
+            // Hospital: fica com todo o dinheiro recebido até a quitação.
+            acc.hospital += p.hospitalReceived + p.hospitalPending;
+            acc.hospitalPaid += p.hospitalReceived;
+            acc.hospitalPending += p.hospitalPending;
+            acc.hospitalFailed += p.hospitalLost;
 
-            // Repasse Breakdown (Total do Programa card)
-            if (repasseStatus === 'Pago') {
-                acc.repassePaid += repasseValue;
-            } else if (repasseStatus === 'Pendente') {
-                acc.repassePending += repasseValue;
-                acc.pendingRepasse += repasseValue; // Used for "Saldo a Receber" highlight cards
-            } else if (repasseStatus === 'Não realizado') {
-                acc.repasseFailed += repasseValue;
+            // Programa: o repasse só é devido na quitação total do paciente.
+            acc.repasse += p.repasseDue + p.repasseFuture;
+            acc.repasseFailed += p.repasseLost;
+            if (repasseSettled) {
+                acc.repassePaid += p.repasseDue;
+            } else {
+                acc.repassePending += p.repasseDue;
+                // "Repasse a Realizar": já quitado pelo paciente e ainda não
+                // transferido pelo hospital. O que não foi quitado ainda não vence.
+                acc.pendingRepasse += p.repasseDue;
             }
+            acc.repassePending += p.repasseFuture;
 
             // Category breakdown: also exclude losses
-            if (paymentStatus !== 'Não realizado') {
-                if (curr.type === 'EXAME') acc.exames += cost;
-                else if (curr.type === 'CIRURGIA') acc.cirurgias += cost;
-                else if (curr.type === 'CONSULTA') acc.consultas += cost;
+            if (!p.isFailed) {
+                if (curr.type === 'EXAME') acc.exames += periodValue;
+                else if (curr.type === 'CIRURGIA') acc.cirurgias += periodValue;
+                else if (curr.type === 'CONSULTA') acc.consultas += periodValue;
             }
 
             return acc;
@@ -504,7 +501,7 @@ const Financials: React.FC = () => {
             repassePaid: 0, repassePending: 0, repasseFailed: 0,
             exames: 0, cirurgias: 0, consultas: 0
         });
-    }, [filteredTransactions]);
+    }, [filteredTransactions, getPeriodValues]);
 
     const hospitalAdditionalTotals = useMemo(() => {
         const map = new Map<string, number>();
@@ -561,7 +558,10 @@ const Financials: React.FC = () => {
                         <div className="space-y-2">
                             {payments.map((p: any, i: number) => (
                                 <div key={i} className="flex justify-between items-center gap-8">
-                                    <span className="font-bold text-slate-300">{p.method}</span>
+                                    <span className="font-bold text-slate-300">
+                                        {p.method}
+                                        {p.paid_at && <span className="text-slate-400 font-medium"> · {formatDate(p.paid_at)}</span>}
+                                    </span>
                                     <span className="font-black text-white">{formatCurrency(p.value)}</span>
                                 </div>
                             ))}
@@ -587,15 +587,47 @@ const Financials: React.FC = () => {
         );
     };
 
+    /**
+     * Mostra quanto do atendimento pertence ao período quando ele está dividido
+     * entre meses — caso do pagamento parcial (recebeu parte agora, o resto fica
+     * em aberto) ou do pagamento antecipado (recebeu antes do procedimento).
+     */
+    const renderPeriodValue = (item: any) => {
+        const p = getPeriodValues(item);
+        const periodValue = p.received + p.pendingHere;
+        const isSplit = p.cost > 0 && Math.abs(periodValue - p.cost) > 0.005;
+        if (!isSplit) return null;
+
+        return (
+            <div className="flex flex-col gap-0.5 mt-0.5">
+                {p.received > 0.005 && (
+                    <span className="text-[9px] font-bold text-green-600 dark:text-green-400">
+                        {formatCurrency(p.received)} recebido no período
+                    </span>
+                )}
+                {p.pendingHere > 0.005 && (
+                    <span className="text-[9px] font-bold text-amber-600 dark:text-amber-500">
+                        {formatCurrency(p.pendingHere)} em aberto
+                    </span>
+                )}
+                {p.received <= 0.005 && p.pendingHere <= 0.005 && (
+                    <span className="text-[9px] font-bold text-slate-400">Recebido em outro período</span>
+                )}
+            </div>
+        );
+    };
+
     const getStatusBadge = (status: string, type: 'payment' | 'repasse' = 'payment') => {
         const labels = {
             payment: {
                 Pago: 'Pagamento Recebido',
+                Parcial: 'Pagamento Parcial',
                 Pendente: 'Pagamento Pendente',
                 'Não realizado': 'Não realizado'
             },
             repasse: {
                 Pago: 'Acerto Realizado',
+                Parcial: 'Acerto Parcial',
                 Pendente: 'Acerto Pendente',
                 'Não realizado': 'Não realizado'
             }
@@ -607,6 +639,12 @@ const Financials: React.FC = () => {
             case 'Pago':
                 return (
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
+                        {label}
+                    </span>
+                );
+            case 'Parcial':
+                return (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
                         {label}
                     </span>
                 );
@@ -707,8 +745,19 @@ const Financials: React.FC = () => {
         }
     };
 
+    /**
+     * O acerto com o programa só pode ser fechado depois que o paciente quitou
+     * o valor todo — até lá o dinheiro parcial fica com o hospital.
+     */
+    const canSettleRepasse = (item: any) => {
+        if (!isAdmin) return false;
+        if (item.repasse_status && item.repasse_status !== 'Pendente') return false;
+        if (item.payment_status === 'Não realizado' || item.payment_status === 'Nao realizado') return false;
+        return getPeriodValues(item).isSettled;
+    };
+
     const handleConfirmRepasse = (appt: any) => {
-        if (!isAdmin) return;
+        if (!canSettleRepasse(appt)) return;
         setConfirmForm({
             id: appt.id,
             patient_name: appt.patient_name,
@@ -901,6 +950,10 @@ const Financials: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Pagamentos</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Acompanhe registros financeiros e repasses.</p>
+                    <p className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[11px] mt-1.5 font-medium">
+                        <span className="material-symbols-outlined text-[14px]">info</span>
+                        Regime de caixa: o recebido conta pela data do pagamento, mesmo parcial. O saldo em aberto conta pela data do procedimento.
+                    </p>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full xl:w-auto">
                     {isLoading && <LoadingIndicator />}
@@ -944,9 +997,10 @@ const Financials: React.FC = () => {
                             value: filteredTotals.revenue,
                             icon: 'payments',
                             hero: true,
+                            helper: 'Recebido no período + saldo em aberto dos procedimentos do período',
                             breakdown: [
-                                { label: 'Pago', value: filteredTotals.paid, colorClass: 'text-green-300' },
-                                { label: 'Pendente', value: filteredTotals.pending, colorClass: 'text-amber-300' },
+                                { label: 'Recebido', value: filteredTotals.paid, colorClass: 'text-green-300' },
+                                { label: 'Em Aberto', value: filteredTotals.pending, colorClass: 'text-amber-300' },
                                 { label: 'Não Realizado', value: filteredTotals.failed, colorClass: 'text-red-300' }
                             ]
                         },
@@ -954,9 +1008,10 @@ const Financials: React.FC = () => {
                             label: 'Receita Hospital',
                             value: filteredTotals.hospital,
                             icon: 'domain',
+                            helper: 'Em pagamento parcial o hospital retém o valor recebido; a parte do programa só é separada na quitação',
                             breakdown: [
-                                { label: 'Pago', value: filteredTotals.hospitalPaid, colorClass: 'text-green-500' },
-                                { label: 'Pendente', value: filteredTotals.hospitalPending, colorClass: 'text-amber-500' },
+                                { label: 'Recebido', value: filteredTotals.hospitalPaid, colorClass: 'text-green-500' },
+                                { label: 'Em Aberto', value: filteredTotals.hospitalPending, colorClass: 'text-amber-500' },
                                 { label: 'Não Realizado', value: filteredTotals.hospitalFailed, colorClass: 'text-red-500' }
                             ]
                         },
@@ -964,6 +1019,7 @@ const Financials: React.FC = () => {
                             label: 'Receita Programa',
                             value: filteredTotals.repasse,
                             icon: 'attach_money',
+                            helper: 'O repasse ao programa só vence após a quitação total do paciente — em pagamento parcial o valor fica com o hospital até lá',
                             breakdown: [
                                 { label: 'Pago', value: filteredTotals.repassePaid, colorClass: 'text-green-500' },
                                 { label: 'Pendente', value: filteredTotals.repassePending, colorClass: 'text-amber-500' },
@@ -975,14 +1031,14 @@ const Financials: React.FC = () => {
                             value: filteredTotals.pending,
                             icon: 'account_balance_wallet',
                             highlight: true,
-                            helper: 'Total pendente de pagamento pelos pacientes',
+                            helper: 'Saldo em aberto dos procedimentos do período (já descontados os pagamentos parciais recebidos)',
                         },
                         {
                             label: 'Repasse a Realizar',
                             value: filteredTotals.pendingRepasse,
                             icon: 'currency_exchange',
                             highlight: true,
-                            helper: 'Total em aberto para repasse aos prestadores',
+                            helper: 'Repasses já vencidos (paciente quitou) e ainda não transferidos ao programa',
                         },
                         ...(isAdmin ? [{
                             label: 'Distribuição Adicional por Hospital',
@@ -1115,6 +1171,7 @@ const Financials: React.FC = () => {
                     >
                         <option value="Todos Pagamentos">Status Pag.</option>
                         <option value="Pago">Pago</option>
+                        <option value="Parcial">Parcial</option>
                         <option value="Pendente">Pendente</option>
                         <option value="Não realizado">Não realizado</option>
                     </select>
@@ -1240,6 +1297,7 @@ const Financials: React.FC = () => {
                                             <div className="flex flex-col gap-1.5">
                                                 <div className="scale-90 origin-left">{renderPaymentMethod(item)}</div>
                                                 <span className="font-black text-slate-900 dark:text-white text-xs">{formatCurrency(item.total_cost)}</span>
+                                                {renderPeriodValue(item)}
                                             </div>
                                         </td>
 
@@ -1301,7 +1359,7 @@ const Financials: React.FC = () => {
 
                                         <td className="hidden lg:table-cell px-6 py-5 align-top text-right">
                                             <div className="flex items-center justify-end gap-1">
-                                                {isAdmin && (!item.repasse_status || item.repasse_status === 'Pendente') && (
+                                                {canSettleRepasse(item) && (
                                                     <button
                                                         onClick={() => handleConfirmRepasse(item)}
                                                         className="size-9 flex items-center justify-center text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-xl transition-all hover:scale-110 active:scale-95"
@@ -1334,14 +1392,10 @@ const Financials: React.FC = () => {
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{item.procedure}</span>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        {isAdmin && (
-                                                            <>
-                                                                {(!item.repasse_status || item.repasse_status === 'Pendente') && (
-                                                                    <button onClick={() => handleConfirmRepasse(item)} className="size-8 flex items-center justify-center bg-amber-500 text-white rounded-lg shadow-lg shadow-amber-500/20">
-                                                                        <span className="material-symbols-outlined text-[18px]">payments</span>
-                                                                    </button>
-                                                                )}
-                                                            </>
+                                                        {canSettleRepasse(item) && (
+                                                            <button onClick={() => handleConfirmRepasse(item)} className="size-8 flex items-center justify-center bg-amber-500 text-white rounded-lg shadow-lg shadow-amber-500/20">
+                                                                <span className="material-symbols-outlined text-[18px]">payments</span>
+                                                            </button>
                                                         )}
                                                         <button onClick={() => handleEditClick(item)} className="size-8 flex items-center justify-center bg-white dark:bg-slate-700 text-slate-400 rounded-lg border border-slate-200 dark:border-slate-600">
                                                             <span className="material-symbols-outlined text-[18px]">edit</span>
@@ -1359,6 +1413,7 @@ const Financials: React.FC = () => {
                                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Pagamento</p>
                                                         <div className="scale-75 origin-left">{renderPaymentMethod(item)}</div>
                                                         <p className="text-xs font-black text-slate-900 dark:text-white mt-1">{formatCurrency(item.total_cost)}</p>
+                                                        {renderPeriodValue(item)}
                                                     </div>
                                                 </div>
 
@@ -1551,6 +1606,7 @@ const Financials: React.FC = () => {
                                                 className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold"
                                             >
                                                 <option value="Pendente">Pendente</option>
+                                                <option value="Parcial">Parcial</option>
                                                 <option value="Pago">Pago</option>
                                                 <option value="Não realizado">Não realizado</option>
                                             </select>

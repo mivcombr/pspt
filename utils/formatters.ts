@@ -67,6 +67,35 @@ export const isValidPhone = (value: string | null | undefined): boolean => {
     return /^\(\d{2}\) \d{5}-\d{4}$/.test(value);
 };
 
+/**
+ * Data de hoje no fuso do app, no formato 'YYYY-MM-DD' (para inputs date).
+ */
+export const todayDateOnly = (): string => {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: APP_TIME_ZONE }).format(new Date());
+    return parts; // en-CA já devolve YYYY-MM-DD
+};
+
+/**
+ * Converte 'YYYY-MM-DD' em timestamp ISO ao meio-dia UTC.
+ * O meio-dia evita que a conversão de fuso jogue o registro para o dia
+ * anterior/seguinte ao ser exibido.
+ */
+export const dateOnlyToTimestamp = (date: string | null | undefined): string | null => {
+    if (!date) return null;
+    return `${date}T12:00:00.000Z`;
+};
+
+/**
+ * Converte um timestamp (ou 'YYYY-MM-DD') para 'YYYY-MM-DD' no fuso do app.
+ */
+export const toDateOnly = (value: string | Date | null | undefined): string => {
+    if (!value) return '';
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const d = typeof value === 'string' ? new Date(value) : value;
+    if (isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('en-CA', { timeZone: APP_TIME_ZONE }).format(d);
+};
+
 export const formatDate = (date: string | Date | null | undefined) => {
     if (!date) return '-';
 

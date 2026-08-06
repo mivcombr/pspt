@@ -38,6 +38,39 @@ export const appointmentService = {
         return data;
     },
 
+    /**
+     * Atendimentos que compõem o Financeiro de um período em regime de caixa.
+     * Traz quem recebeu qualquer valor no intervalo (mesmo parcial, pela data do
+     * pagamento) e quem ainda tem saldo em aberto na data do procedimento.
+     * O rateio de quanto de cada atendimento pertence ao período é feito na tela.
+     */
+    async getFinancialPeriod(filters: { startDate: string; endDate: string; hospitalId?: string }) {
+        let query = supabase
+            .rpc('appointments_financial_period', {
+                p_start: filters.startDate,
+                p_end: filters.endDate
+            })
+            .select(`
+                *,
+                hospital:hospitals(name),
+                payments:appointment_payments(*)
+            `);
+
+        if (filters.hospitalId) {
+            query = query.eq('hospital_id', filters.hospitalId);
+        }
+
+        const { data, error } = await query
+            .order('date', { ascending: false })
+            .order('time', { ascending: false });
+
+        if (error) {
+            logger.error({ action: 'read', entity: 'appointments_financial_period', error }, 'crud');
+            throw error;
+        }
+        return data || [];
+    },
+
     async create(appointment: any) {
         const { data: { user } } = await supabase.auth.getUser();
 

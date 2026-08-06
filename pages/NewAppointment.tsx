@@ -12,7 +12,7 @@ import { doctorService } from '../services/doctorService';
 import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
 import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
 import { BlockedDatePicker } from '../components/ui/BlockedDatePicker';
-import { formatPhoneMask, isValidPhone } from '../utils/formatters';
+import { formatCurrency, formatPhoneMask, isValidPhone, dateOnlyToTimestamp } from '../utils/formatters';
 
 // Doctors list removed - dynamic fetching implemented
 
@@ -61,6 +61,10 @@ const NewAppointment: React.FC = () => {
     time: '14:30',
     value: '',
     paymentMethod: '',
+    // Pagamento antecipado: quando preenchidos, já nascem como pagamento
+    // registrado com a data em que o dinheiro entrou.
+    paidAt: '',
+    paidValue: '',
     notes: ''
   });
 
@@ -118,7 +122,7 @@ const NewAppointment: React.FC = () => {
           message: 'Existe um rascunho salvo. Deseja restaurá-lo?',
           variant: 'info',
           onConfirm: () => {
-            if (parsed.formData) setFormData(parsed.formData);
+            if (parsed.formData) setFormData(prev => ({ ...prev, ...parsed.formData }));
             if (parsed.selectedPatient) setSelectedPatient(parsed.selectedPatient);
           },
         });
@@ -329,6 +333,25 @@ const NewAppointment: React.FC = () => {
     setFormData(prev => ({ ...prev, value: value }));
   };
 
+  // Valor efetivamente recebido (só usado quando há data de pagamento).
+  const handlePaidValueChange = (e: ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    value = (Number(value) / 100).toFixed(2) + '';
+    value = value.replace('.', ',');
+    value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+    setFormData(prev => ({ ...prev, paidValue: value }));
+  };
+
+  // Ao informar a data, assume por padrão que o valor total foi quitado.
+  const handlePaidAtChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const paidAt = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      paidAt,
+      paidValue: paidAt ? (prev.paidValue || prev.value) : ''
+    }));
+  };
+
 
 
   const formatDateDisplay = (dateString: string) => {
@@ -396,7 +419,31 @@ const NewAppointment: React.FC = () => {
       const repasseVal = selectedProc?.repasse_value ? Number(selectedProc.repasse_value) : 0;
       const hospitalVal = numericValue - repasseVal;
 
-      await appointmentService.create({
+      // Pagamento antecipado: o valor informado já foi recebido na data indicada.
+      const totalCost = isNaN(numericValue) ? 0 : numericValue;
+      const hasPrepayment = !!formData.paidAt;
+      const paidValue = hasPrepayment
+        ? (parseFloat((formData.paidValue || '').replace(/\./g, '').replace(',', '.')) || 0)
+        : 0;
+
+      if (hasPrepayment) {
+        if (paidValue <= 0) {
+          notify.error('Informe o valor pago ou remova a data de pagamento.');
+          return;
+        }
+        if (paidValue > totalCost + 0.01) {
+          notify.error(`O valor pago (${formatCurrency(paidValue)}) não pode exceder o valor total (${formatCurrency(totalCost)}).`);
+          return;
+        }
+        if (!formData.paymentMethod) {
+          notify.error('Selecione a forma de pagamento para registrar o pagamento antecipado.');
+          return;
+        }
+      }
+
+      const isFullyPaid = hasPrepayment && paidValue >= totalCost - 0.01;
+
+      const created = await appointmentService.create({
         hospital_id: formData.hospitalId,
         date: formData.date,
         time: formData.time + ':00',
@@ -406,16 +453,27 @@ const NewAppointment: React.FC = () => {
         type: formData.procedureType.toUpperCase(),
         procedure: formData.procedureName,
         provider: formData.doctor,
-        total_cost: isNaN(numericValue) ? 0 : numericValue,
+        total_cost: totalCost,
         repasse_value: repasseVal,
         hospital_value: hospitalVal,
         notes: formData.notes,
         payment_method: formData.paymentMethod,
         status: 'Agendado',
-        payment_status: 'Pendente',
+        payment_status: isFullyPaid ? 'Pago' : (hasPrepayment ? 'Parcial' : 'Pendente'),
+        payment_paid_at: isFullyPaid ? dateOnlyToTimestamp(formData.paidAt) : null,
         repasse_status: 'Pendente',
         repasse_paid_at: null as any
       });
+
+      if (hasPrepayment && created?.id) {
+        await appointmentService.addPayment({
+          appointment_id: created.id,
+          method: formData.paymentMethod,
+          value: paidValue,
+          installments: 1,
+          paid_at: formData.paidAt
+        });
+      }
 
       notify.success(`Agendamento realizado com sucesso para ${selectedPatient.name}!`);
       localStorage.removeItem('appointment_draft'); // Clear draft on success
@@ -445,6 +503,8 @@ const NewAppointment: React.FC = () => {
       time: '14:30',
       value: '',
       paymentMethod: '',
+      paidAt: '',
+      paidValue: '',
       notes: ''
     });
 
@@ -828,7 +888,52 @@ const NewAppointment: React.FC = () => {
                   </label>
                 </div>
 
-                <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+                {/* Pagamento antecipado — o paciente pode pagar antes do procedimento
+                    (ex.: paga os dois olhos e opera o segundo semanas depois). */}
+                <div className="mt-4 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="material-symbols-outlined text-[16px] text-slate-400">event_available</span>
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      Pagamento já recebido (opcional)
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="flex flex-col">
+                      <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Data do Pagamento</p>
+                      <input
+                        type="date"
+                        name="paidAt"
+                        value={formData.paidAt}
+                        onChange={handlePaidAtChange}
+                        className="form-input w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                      />
+                    </label>
+                    <label className="flex flex-col">
+                      <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Valor Pago (R$)</p>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-slate-500 text-xs font-bold">R$</span>
+                        </div>
+                        <input
+                          type="text"
+                          name="paidValue"
+                          value={formData.paidValue}
+                          onChange={handlePaidValueChange}
+                          disabled={!formData.paidAt}
+                          className="form-input w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 pl-10 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800/50"
+                          placeholder="0,00"
+                        />
+                      </div>
+                    </label>
+                  </div>
+                  <p className="text-[11px] font-medium text-slate-400 mt-3 leading-snug">
+                    {formData.paidAt
+                      ? 'O pagamento será lançado no Financeiro na data informada, não na data do procedimento. Se o valor pago for menor que o total, o atendimento fica como Parcial e o repasse ao programa só vence na quitação.'
+                      : 'Deixe em branco se o pagamento ainda não foi feito — o atendimento fica como Pendente.'}
+                  </p>
+                </div>
+
+                <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-800">
                   <label className="flex flex-col">
                     <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Observações e Anexos</p>
                     <textarea

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Appointment, PaymentPart, UserRole } from '../types';
-import { APP_TIME_ZONE, formatCurrency, formatDate, parseCurrency, formatPhoneMask, formatPhone, isValidPhone } from '../utils/formatters';
+import { APP_TIME_ZONE, formatCurrency, formatDate, parseCurrency, formatPhoneMask, formatPhone, isValidPhone, todayDateOnly, dateOnlyToTimestamp } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -30,40 +30,50 @@ const PaymentSummaryBadge: React.FC<{ apt: Appointment }> = ({ apt }) => {
     const badgeRef = useRef<HTMLDivElement>(null);
     const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
     const isPago = apt.paymentStatus === 'Pago';
+    const isParcial = apt.paymentStatus === 'Parcial';
+    // Parcial também tem detalhes para mostrar (o que já entrou e o que falta).
+    const hasDetails = isPago || isParcial;
 
     return (
         <>
             <div
                 ref={badgeRef}
                 onMouseEnter={() => {
-                    if (!isPago) return;
+                    if (!hasDetails) return;
                     const r = badgeRef.current?.getBoundingClientRect();
                     if (r) setPos({ top: r.top - 8, left: r.right });
                 }}
                 onMouseLeave={() => setPos(null)}
                 className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter mt-1 px-1.5 py-0.5 rounded-md ${isPago
                     ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-help'
-                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                    : isParcial
+                        ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 cursor-help'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                     }`}
             >
-                <span className="material-symbols-outlined text-[10px] leading-none">{isPago ? 'check_circle' : 'pending'}</span>
+                <span className="material-symbols-outlined text-[10px] leading-none">{isPago ? 'check_circle' : isParcial ? 'timelapse' : 'pending'}</span>
                 {apt.paymentStatus}
             </div>
-            {isPago && pos && createPortal(
+            {hasDetails && pos && createPortal(
                 <div
                     style={{ position: 'fixed', top: pos.top, left: pos.left, transform: 'translate(-100%, -100%)' }}
                     className="z-[100] w-60 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl text-left pointer-events-none"
                 >
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Resumo do Pagamento</p>
-                    <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
-                        <span className="text-slate-500 dark:text-slate-400">Data</span>
-                        <span className="font-bold text-slate-900 dark:text-white">{apt.paymentPaidAt ? formatDate(apt.paymentPaidAt) : '—'}</span>
-                    </div>
+                    {isPago && (
+                        <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
+                            <span className="text-slate-500 dark:text-slate-400">Quitado em</span>
+                            <span className="font-bold text-slate-900 dark:text-white">{apt.paymentPaidAt ? formatDate(apt.paymentPaidAt) : '—'}</span>
+                        </div>
+                    )}
                     {apt.payments.length > 0 ? (
                         <>
                             {apt.payments.map((p) => (
                                 <div key={p.id} className="flex items-center justify-between gap-3 text-xs mb-1.5">
-                                    <span className="text-slate-500 dark:text-slate-400 truncate">{p.method}{p.installments && p.installments > 1 ? ` (${p.installments}x)` : ''}</span>
+                                    <span className="text-slate-500 dark:text-slate-400 truncate">
+                                        {p.method}{p.installments && p.installments > 1 ? ` (${p.installments}x)` : ''}
+                                        {p.paidAt && <span className="text-slate-400 dark:text-slate-500"> · {formatDate(p.paidAt)}</span>}
+                                    </span>
                                     <span className="font-bold text-slate-900 dark:text-white shrink-0">{formatCurrency(Number(p.value))}</span>
                                 </div>
                             ))}
@@ -71,6 +81,14 @@ const PaymentSummaryBadge: React.FC<{ apt: Appointment }> = ({ apt }) => {
                                 <span className="font-bold text-slate-500 dark:text-slate-400">Total pago</span>
                                 <span className="font-black text-green-600 dark:text-green-400">{formatCurrency(apt.payments.reduce((sum, p) => sum + Number(p.value), 0))}</span>
                             </div>
+                            {isParcial && (
+                                <div className="flex items-center justify-between gap-3 text-xs mt-1">
+                                    <span className="font-bold text-slate-500 dark:text-slate-400">Saldo em aberto</span>
+                                    <span className="font-black text-amber-600 dark:text-amber-400">
+                                        {formatCurrency(Math.max(0, apt.cost - apt.payments.reduce((sum, p) => sum + Number(p.value), 0)))}
+                                    </span>
+                                </div>
+                            )}
                         </>
                     ) : (
                         <p className="text-xs text-slate-400">Sem detalhes de forma de pagamento.</p>
@@ -195,6 +213,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
     const [currentMethod, setCurrentMethod] = useState('Pix');
     const [currentValue, setCurrentValue] = useState('');
     const [currentInstallments, setCurrentInstallments] = useState(1);
+    // Data em que o pagamento foi recebido (pode ser anterior ao procedimento).
+    const [currentPaidAt, setCurrentPaidAt] = useState(todayDateOnly());
 
     // Confirm Modal State
     const [confirmModal, setConfirmModal] = useState<{
@@ -378,7 +398,14 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 paymentStatus: apt.payment_status,
                 paymentPaidAt: apt.payment_paid_at,
                 cost: Number(apt.total_cost),
-                payments: apt.payments || [],
+                payments: (apt.payments || []).map((p: any) => ({
+                    id: p.id,
+                    method: p.method,
+                    value: Number(p.value),
+                    installments: p.installments ?? undefined,
+                    // Pagamentos antigos sem data caem na data do procedimento.
+                    paidAt: p.paid_at || apt.date
+                })),
                 notes: apt.notes || '',
                 createdById: apt.user_id || undefined
             }));
@@ -644,6 +671,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         }
 
         setCurrentInstallments(1);
+        setCurrentPaidAt(todayDateOnly());
         setStatusInputValue(apt.status);
         setIsModalOpen(true);
     };
@@ -787,7 +815,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             id: Math.random().toString(36).substr(2, 9),
             method: currentMethod,
             value: val,
-            installments: isCreditCard ? currentInstallments : undefined
+            installments: isCreditCard ? currentInstallments : undefined,
+            paidAt: currentPaidAt || todayDateOnly()
         };
 
         const updatedDraft = [...paymentDraft, newPart];
@@ -797,6 +826,11 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         const newRemaining = currentAppointment.cost - newTotal;
         setCurrentValue(newRemaining > 0 ? newRemaining.toFixed(2).replace('.', ',') : '');
         setCurrentInstallments(1);
+    };
+
+    // Altera a data de recebimento de um pagamento já listado no modal.
+    const updatePaymentPartDate = (id: string, paidAt: string) => {
+        setPaymentDraft(prev => prev.map(p => (p.id === id ? { ...p, paidAt } : p)));
     };
 
     const removePaymentPart = (id: string) => {
@@ -823,7 +857,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             setConfirmModal({
                 isOpen: true,
                 title: 'Pagamento Incompleto',
-                message: `O valor total pago (${formatCurrency(totalPaid)}) é menor que o custo (${formatCurrency(currentAppointment.cost)}). Deseja finalizar mesmo assim como "Pendente"?`,
+                message: `O valor total pago (${formatCurrency(totalPaid)}) é menor que o custo (${formatCurrency(currentAppointment.cost)}). Deseja finalizar mesmo assim como "${totalPaid > 0.005 ? 'Parcial' : 'Pendente'}"?`,
                 variant: 'warning',
                 onConfirm: () => proceedWithFinish(totalPaid >= currentAppointment.cost - 0.01, statusToApply),
             });
@@ -838,6 +872,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         if (normalized === 'time') return 'Horário';
         if (normalized === 'status') return 'Status';
         if (normalized === 'payment_status') return 'Status do pagamento';
+        if (normalized === 'payment_paid_at') return 'Data do pagamento';
         if (normalized === 'total_cost') return 'Valor total';
         if (normalized === 'procedure') return 'Procedimento';
         if (normalized === 'provider') return 'Profissional';
@@ -861,10 +896,22 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
 
         const loadingToast = notify.loading('Salvando alterações...');
 
+        // A data de pagamento do atendimento é a do último recebimento — é ela
+        // que o Financeiro usa para posicionar o valor no período (regime de caixa).
+        const paidDates = paymentDraft.map(p => p.paidAt).filter(Boolean) as string[];
+        const lastPaidAt = paidDates.length > 0 ? paidDates.sort().slice(-1)[0] : null;
+        const totalPaidDraft = paymentDraft.reduce((acc, p) => acc + p.value, 0);
+        // 'Parcial': pagou parte e ainda deve o saldo — o repasse ao programa
+        // só vence quando quitar tudo.
+        const newPaymentStatus = targetStatus === 'Falhou'
+            ? 'Não realizado'
+            : (isFullyPaid ? 'Pago' : (totalPaidDraft > 0.005 ? 'Parcial' : 'Pendente'));
+
         try {
             await appointmentService.update(currentAppointment.id as string, {
                 status: targetStatus,
-                payment_status: targetStatus === 'Falhou' ? 'Não realizado' : (isFullyPaid ? 'Pago' : 'Pendente'),
+                payment_status: newPaymentStatus,
+                payment_paid_at: newPaymentStatus === 'Pago' ? dateOnlyToTimestamp(lastPaidAt) : null,
                 total_cost: currentAppointment.cost,
                 type: currentAppointment.type,
                 procedure: currentAppointment.procedure,
@@ -879,7 +926,10 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 await Promise.all(deletedPaymentIds.map(id => appointmentService.deletePayment(id)));
             }
 
-            // Add new payments (those with mock IDs)
+            const originalPaidAtById = new Map(
+                (currentAppointment.payments || []).map(p => [p.id, p.paidAt])
+            );
+
             for (const payment of paymentDraft) {
                 // If ID is not a UUID (contains a dot from Math.random or is shorter), it's new
                 if (payment.id.includes('.') || payment.id.length < 20) {
@@ -887,8 +937,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                         appointment_id: currentAppointment.id,
                         method: payment.method,
                         value: payment.value,
-                        installments: payment.installments
+                        installments: payment.installments,
+                        paid_at: payment.paidAt || null
                     });
+                } else if (payment.paidAt && payment.paidAt !== originalPaidAtById.get(payment.id)) {
+                    // Pagamento já existente que teve a data de recebimento alterada
+                    await appointmentService.updatePayment(payment.id, { paid_at: payment.paidAt });
                 }
             }
 
@@ -1230,7 +1284,9 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                     <span className="font-black text-slate-700 dark:text-slate-200">{formatCurrency(apt.cost)}</span>
                                                     <span className={`font-black uppercase tracking-tighter text-[9px] px-1.5 py-0.5 rounded ${apt.paymentStatus === 'Pago'
                                                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                        : apt.paymentStatus === 'Parcial'
+                                                            ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
+                                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                                                         }`}>{apt.paymentStatus}</span>
                                                 </div>
                                             </div>
@@ -2121,7 +2177,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     </h4>
 
                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                                        <div className="md:col-span-4">
+                                        <div className="md:col-span-3">
                                             <label className="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">Método</label>
                                             <div className="relative">
                                                 <select
@@ -2149,6 +2205,16 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                         </div>
 
                                         <div className="md:col-span-3">
+                                            <label className="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">Data do Pagamento</label>
+                                            <input
+                                                type="date"
+                                                value={currentPaidAt}
+                                                onChange={(e) => setCurrentPaidAt(e.target.value)}
+                                                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-primary/20 shadow-sm"
+                                            />
+                                        </div>
+
+                                        <div className="md:col-span-2">
                                             <label className="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">Parcelas</label>
                                             <input
                                                 type="number"
@@ -2160,7 +2226,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                             />
                                         </div>
 
-                                        <div className="md:col-span-3">
+                                        <div className="md:col-span-2">
                                             <label className="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">Valor (R$)</label>
                                             <input
                                                 type="text"
@@ -2209,9 +2275,16 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-black text-slate-700 dark:text-slate-200">{pay.method}</p>
-                                                            <p className="text-[10px] font-bold text-slate-400">
-                                                                {currentAppointment.date.split('-').reverse().join('/')} às {currentAppointment.time}
-                                                            </p>
+                                                            <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 cursor-pointer group/date">
+                                                                <span className="material-symbols-outlined text-[12px] leading-none group-hover/date:text-primary">event</span>
+                                                                <input
+                                                                    type="date"
+                                                                    value={pay.paidAt || ''}
+                                                                    onChange={(e) => updatePaymentPartDate(pay.id, e.target.value)}
+                                                                    title="Data em que o pagamento foi recebido"
+                                                                    className="bg-transparent border-none p-0 text-[10px] font-bold text-slate-400 focus:ring-0 focus:text-primary hover:text-primary cursor-pointer w-[92px]"
+                                                                />
+                                                            </label>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-5">

@@ -21,6 +21,8 @@ export interface PaymentPart {
   method: string;
   value: number;
   installments?: number;
+  /** Data em que o pagamento foi recebido ('YYYY-MM-DD'). */
+  paidAt?: string;
 }
 
 export interface Appointment {
@@ -37,7 +39,7 @@ export interface Appointment {
   hospital: string;
   hospitalId?: string;
   status: 'Agendado' | 'Atendido' | 'Cancelado' | 'Falhou';
-  paymentStatus: 'Pago' | 'Pendente' | 'Não realizado';
+  paymentStatus: 'Pago' | 'Parcial' | 'Pendente' | 'Não realizado';
   paymentPaidAt?: string | null;
   cost: number;
   payments: PaymentPart[];
