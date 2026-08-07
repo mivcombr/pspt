@@ -45,7 +45,7 @@ const Hospitals: React.FC = () => {
     // Procedure Modal State
     const [isProcedureModalOpen, setIsProcedureModalOpen] = useState(false);
     const [isEditingProcedure, setIsEditingProcedure] = useState(false);
-    const [procedureForm, setProcedureForm] = useState({ id: '', name: '', type: 'Consulta', standard_price: '', cash_price: '', repasse_value: '' });
+    const [procedureForm, setProcedureForm] = useState({ id: '', name: '', type: 'Consulta', standard_price: '', cash_price: '', repasse_value: '', hospital_value: '' });
 
     // Doctor Form State
     const [doctorForm, setDoctorForm] = useState({ name: '', specialty: '', crm: '' });
@@ -98,6 +98,24 @@ const Hospitals: React.FC = () => {
         && parseCurrency(procedureForm.standard_price) === 0
         && parseCurrency(procedureForm.cash_price) === 0
         && parseCurrency(procedureForm.repasse_value) === 0;
+
+    /**
+     * Hospital e programa recebem valores fixos. O que o paciente paga acima da
+     * soma dos dois (típico do cartão) é excedente: cobre a taxa da maquineta e
+     * o restante vira adicional do programa, lançado na conciliação.
+     */
+    const procedureSplit = (() => {
+        const hospital = parseCurrency(procedureForm.hospital_value);
+        const programa = parseCurrency(procedureForm.repasse_value);
+        const aVista = parseCurrency(procedureForm.cash_price);
+        const parcelado = parseCurrency(procedureForm.standard_price);
+        const fixo = hospital + programa;
+        return {
+            fixo,
+            excedenteParcelado: parcelado - fixo,
+            aVistaDivergente: aVista > 0 && Math.abs(aVista - fixo) > 0.005
+        };
+    })();
 
     useEffect(() => {
         if (!selectedHospital?.id) return;
@@ -943,6 +961,14 @@ const Hospitals: React.FC = () => {
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase">Preço à Vista</p>
                                                     <p className="font-black text-primary text-lg">{formatCurrency(p.cash_price)}</p>
                                                 </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Hospital</p>
+                                                    <p className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(p.hospital_value || 0)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Programa</p>
+                                                    <p className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(p.repasse_value || 0)}</p>
+                                                </div>
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={() => {
@@ -952,7 +978,8 @@ const Hospitals: React.FC = () => {
                                                                 type: p.type,
                                                                 standard_price: p.standard_price.toString(),
                                                                 cash_price: p.cash_price.toString(),
-                                                                repasse_value: (p.repasse_value || 0).toString()
+                                                                repasse_value: (p.repasse_value || 0).toString(),
+                                                                hospital_value: (p.hospital_value || 0).toString()
                                                             });
                                                             setIsEditingProcedure(true);
                                                             setIsProcedureModalOpen(true);
@@ -978,7 +1005,7 @@ const Hospitals: React.FC = () => {
 
                             <button
                                 onClick={() => {
-                                    setProcedureForm({ id: '', name: '', type: activeTab, standard_price: '', cash_price: '', repasse_value: '' });
+                                    setProcedureForm({ id: '', name: '', type: activeTab, standard_price: '', cash_price: '', repasse_value: '', hospital_value: '' });
                                     setIsEditingProcedure(false);
                                     setIsProcedureModalOpen(true);
                                 }}
@@ -1158,9 +1185,9 @@ const Hospitals: React.FC = () => {
                                     checked={isProcedureFree}
                                     onChange={(e) => {
                                         if (e.target.checked) {
-                                            setProcedureForm({ ...procedureForm, standard_price: '0,00', cash_price: '0,00', repasse_value: '0,00' });
+                                            setProcedureForm({ ...procedureForm, standard_price: '0,00', cash_price: '0,00', repasse_value: '0,00', hospital_value: '0,00' });
                                         } else {
-                                            setProcedureForm({ ...procedureForm, standard_price: '', cash_price: '', repasse_value: '' });
+                                            setProcedureForm({ ...procedureForm, standard_price: '', cash_price: '', repasse_value: '', hospital_value: '' });
                                         }
                                     }}
                                     className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
@@ -1203,22 +1230,61 @@ const Hospitals: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 mb-1 block">Valor do Programa</label>
-                                <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        placeholder="0,00"
-                                        value={procedureForm.repasse_value}
-                                        onChange={e => setProcedureForm({ ...procedureForm, repasse_value: formatMoneyInput(e.target.value) })}
-                                        className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
-                                        disabled={isProcedureFree}
-                                    />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 mb-1 block">Valor do Hospital</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            placeholder="0,00"
+                                            value={procedureForm.hospital_value}
+                                            onChange={e => setProcedureForm({ ...procedureForm, hospital_value: formatMoneyInput(e.target.value) })}
+                                            className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
+                                            disabled={isProcedureFree}
+                                        />
+                                    </div>
                                 </div>
-
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 mb-1 block">Valor do Programa</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            placeholder="0,00"
+                                            value={procedureForm.repasse_value}
+                                            onChange={e => setProcedureForm({ ...procedureForm, repasse_value: formatMoneyInput(e.target.value) })}
+                                            className="w-full h-12 pl-12 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold disabled:opacity-50"
+                                            disabled={isProcedureFree}
+                                        />
+                                    </div>
+                                </div>
                             </div>
+
+                            {!isProcedureFree && procedureSplit.fixo > 0 && (
+                                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="font-bold text-slate-500">Fixo (hospital + programa)</span>
+                                        <span className="font-black text-slate-700 dark:text-slate-200 tabular-nums">{formatCurrency(procedureSplit.fixo)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="font-bold text-slate-500">Excedente no parcelado</span>
+                                        <span className={`font-black tabular-nums ${procedureSplit.excedenteParcelado < -0.005 ? 'text-red-600' : 'text-slate-700 dark:text-slate-200'}`}>
+                                            {formatCurrency(procedureSplit.excedenteParcelado)}
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 leading-snug">
+                                        O excedente cobre a taxa da maquineta; o que sobra vira adicional do programa, lançado na conciliação.
+                                    </p>
+                                    {procedureSplit.aVistaDivergente && (
+                                        <p className="text-[10px] font-bold text-amber-600 leading-snug">
+                                            Atenção: o preço à vista não bate com hospital + programa.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             <select
                                 value={procedureForm.type}
@@ -1241,6 +1307,7 @@ const Hospitals: React.FC = () => {
                                             standard_price: parseCurrency(procedureForm.standard_price),
                                             cash_price: parseCurrency(procedureForm.cash_price),
                                             repasse_value: parseCurrency(procedureForm.repasse_value),
+                                            hospital_value: parseCurrency(procedureForm.hospital_value),
                                             hospital_id: selectedHospital.id
                                         };
 

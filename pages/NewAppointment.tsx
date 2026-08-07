@@ -413,14 +413,21 @@ const NewAppointment: React.FC = () => {
 
     try {
       const numericValue = parseFloat(formData.value.replace(/\./g, '').replace(',', '.'));
+      const totalCost = isNaN(numericValue) ? 0 : numericValue;
 
-      // Get configured repasse value from selected procedure
+      // Hospital e programa recebem valores fixos da tabela de preços, iguais em
+      // qualquer forma de pagamento. O que o paciente paga acima da soma dos dois
+      // (típico do cartão) é excedente — cobre a taxa da maquineta e o restante
+      // vira adicional do programa, lançado depois na conciliação bancária.
       const selectedProc = procedures.find(p => p.name === formData.procedureName && p.type === formData.procedureType);
       const repasseVal = selectedProc?.repasse_value ? Number(selectedProc.repasse_value) : 0;
-      const hospitalVal = numericValue - repasseVal;
+      // Procedimentos cadastrados antes do valor fixo caem no cálculo antigo.
+      const configuredHospital = Number(selectedProc?.hospital_value);
+      const hospitalVal = Number.isFinite(configuredHospital) && configuredHospital > 0
+        ? Math.min(configuredHospital, Math.max(totalCost - repasseVal, 0))
+        : Math.max(totalCost - repasseVal, 0);
 
       // Pagamento antecipado: o valor informado já foi recebido na data indicada.
-      const totalCost = isNaN(numericValue) ? 0 : numericValue;
       const hasPrepayment = !!formData.paidAt;
       const paidValue = hasPrepayment
         ? (parseFloat((formData.paidValue || '').replace(/\./g, '').replace(',', '.')) || 0)

@@ -6,7 +6,10 @@ export interface Procedure {
     name: string;
     standard_price: number;
     cash_price: number;
+    /** Valor fixo do programa por procedimento. */
     repasse_value: number;
+    /** Valor fixo do hospital, independente da forma de pagamento. */
+    hospital_value: number;
     type: 'Consulta' | 'Exame' | 'Cirurgia';
     hospital_id?: string;
 }

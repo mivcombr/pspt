@@ -92,6 +92,7 @@ const Financials: React.FC = () => {
     const [confirmForm, setConfirmForm] = useState({
         id: '',
         patient_name: '',
+        total_cost: 0,
         hospital_value: '',
         repasse_value: '',
         financial_additional: '',
@@ -389,18 +390,26 @@ const Financials: React.FC = () => {
     /**
      * Quanto de um atendimento pertence ao período selecionado (regime de caixa).
      *
-     * Em pagamento parcial o dinheiro fica com o hospital: o repasse ao programa
-     * só é devido depois da quitação total. Por isso a entrada NÃO é rateada
-     * proporcionalmente — ela é toda do hospital, e o repasse inteiro é
-     * reconhecido de uma vez no período em que o paciente quitou.
+     * Hospital e programa recebem valores FIXOS, iguais em qualquer forma de
+     * pagamento. Nenhum dos dois recebe nada enquanto o paciente não quitar o
+     * valor todo: em pagamento parcial os dois lados ficam pendentes, e a divisão
+     * inteira é reconhecida de uma vez no período da quitação.
      *
-     * Ex.: R$ 1.500 (R$ 500 de repasse). Paga R$ 1.000 em julho e R$ 500 em
-     * 20/08 → julho: hospital 1.000, programa 0. Agosto: recebe 500, quita e o
-     * repasse de 500 vence → programa 500, hospital 0.
+     * O que o paciente paga acima de hospital + programa é excedente (típico do
+     * cartão): cobre a taxa da maquineta e o que sobra vira adicional do
+     * programa, lançado manualmente após a conciliação bancária.
+     *
+     * Ex.: cartão de R$ 3.600 — hospital 2.250, programa 750, excedente 600.
+     * Paga R$ 1.000 em julho e o restante em 20/08 → julho: nada distribuído,
+     * tudo pendente. Agosto: quita → hospital 2.250, programa 750 e 600 a conciliar.
      */
     const getPeriodValues = useCallback((item: any) => {
         const cost = Number(item.total_cost) || 0;
         const repasseValue = Number(item.repasse_value) || 0;
+        const hospitalValue = Number(item.hospital_value) || 0;
+        const additional = Number(item.financial_additional) || 0;
+        // Excedente bruto da venda: o que passou dos dois valores fixos.
+        const surplus = Math.max(cost - hospitalValue - repasseValue, 0);
         const payments = item.payments || [];
 
         const isFailed = item.payment_status === 'Não realizado' || item.payment_status === 'Nao realizado';
@@ -429,10 +438,19 @@ const Financials: React.FC = () => {
         const pendingHere = !isFailed && procedureInPeriod ? outstanding : 0;
         const failedHere = isFailed && procedureInPeriod ? cost : 0;
 
-        // Repasse vence na quitação; antes disso fica como previsto (em aberto).
+        // A divisão só vence na quitação; antes disso os dois lados ficam previstos.
         const repasseDue = !isFailed && settledInPeriod ? repasseValue : 0;
         const repasseFuture = !isFailed && !isSettled && procedureInPeriod ? repasseValue : 0;
         const repasseLost = isFailed && procedureInPeriod ? repasseValue : 0;
+
+        // Hospital segue exatamente a mesma regra, com seu valor fixo.
+        const hospitalDue = !isFailed && settledInPeriod ? hospitalValue : 0;
+        const hospitalFuture = !isFailed && !isSettled && procedureInPeriod ? hospitalValue : 0;
+        const hospitalLost = isFailed && procedureInPeriod ? hospitalValue : 0;
+
+        // Excedente reconhecido na quitação. Sem adicional lançado, continua a conciliar.
+        const surplusDue = !isFailed && settledInPeriod ? surplus : 0;
+        const additionalDue = !isFailed && settledInPeriod ? additional : 0;
 
         return {
             cost,
@@ -447,10 +465,12 @@ const Financials: React.FC = () => {
             repasseDue,
             repasseFuture,
             repasseLost,
-            // O que sobra para o hospital depois de separar a parte do programa.
-            hospitalReceived: received - repasseDue,
-            hospitalPending: pendingHere - repasseFuture,
-            hospitalLost: failedHere - repasseLost
+            hospitalReceived: hospitalDue,
+            hospitalPending: hospitalFuture,
+            hospitalLost,
+            surplusDue,
+            additionalDue,
+            toReconcile: additional > 0.005 ? 0 : surplusDue
         };
     }, [periodStart, periodEnd]);
 
@@ -468,11 +488,16 @@ const Financials: React.FC = () => {
             acc.pending += p.pendingHere;
             acc.failed += p.failedHere;
 
-            // Hospital: fica com todo o dinheiro recebido até a quitação.
+            // Hospital: valor fixo, reconhecido só na quitação do paciente.
             acc.hospital += p.hospitalReceived + p.hospitalPending;
             acc.hospitalPaid += p.hospitalReceived;
             acc.hospitalPending += p.hospitalPending;
             acc.hospitalFailed += p.hospitalLost;
+
+            // Excedente da venda (taxa da maquineta + adicional do programa).
+            acc.surplus += p.surplusDue;
+            acc.toReconcile += p.toReconcile;
+            acc.reconciled += p.additionalDue;
 
             // Programa: o repasse só é devido na quitação total do paciente.
             acc.repasse += p.repasseDue + p.repasseFuture;
@@ -499,6 +524,7 @@ const Financials: React.FC = () => {
             revenue: 0, repasse: 0, hospital: 0, pending: 0, pendingRepasse: 0, paid: 0, failed: 0,
             hospitalPaid: 0, hospitalPending: 0, hospitalFailed: 0,
             repassePaid: 0, repassePending: 0, repasseFailed: 0,
+            surplus: 0, toReconcile: 0, reconciled: 0,
             exames: 0, cirurgias: 0, consultas: 0
         });
     }, [filteredTransactions, getPeriodValues]);
@@ -597,6 +623,17 @@ const Financials: React.FC = () => {
         const periodValue = p.received + p.pendingHere;
         const isSplit = p.cost > 0 && Math.abs(periodValue - p.cost) > 0.005;
         if (!isSplit) return null;
+
+        // 'Não realizado' zera recebido e em aberto de propósito: o valor vira
+        // perda. Sem este caso a linha cairia no rótulo genérico e diria que o
+        // dinheiro entrou em outro período, quando ele nunca entrou.
+        if (p.isFailed) {
+            return (
+                <span className="text-[9px] font-bold text-red-600 dark:text-red-400 mt-0.5 block">
+                    {formatCurrency(p.failedHere || p.cost)} não realizado
+                </span>
+            );
+        }
 
         return (
             <div className="flex flex-col gap-0.5 mt-0.5">
@@ -747,7 +784,7 @@ const Financials: React.FC = () => {
 
     /**
      * O acerto com o programa só pode ser fechado depois que o paciente quitou
-     * o valor todo — até lá o dinheiro parcial fica com o hospital.
+     * o valor todo — até lá nada é distribuído entre hospital e programa.
      */
     const canSettleRepasse = (item: any) => {
         if (!isAdmin) return false;
@@ -761,6 +798,7 @@ const Financials: React.FC = () => {
         setConfirmForm({
             id: appt.id,
             patient_name: appt.patient_name,
+            total_cost: Number(appt.total_cost) || 0,
             hospital_value: formatMoneyValue(appt.hospital_value),
             repasse_value: formatMoneyValue(appt.repasse_value),
             financial_additional: formatMoneyValue(appt.financial_additional || 0),
@@ -1008,7 +1046,7 @@ const Financials: React.FC = () => {
                             label: 'Receita Hospital',
                             value: filteredTotals.hospital,
                             icon: 'domain',
-                            helper: 'Em pagamento parcial o hospital retém o valor recebido; a parte do programa só é separada na quitação',
+                            helper: 'Valor fixo do hospital por procedimento, igual em qualquer forma de pagamento. Só é reconhecido após a quitação total do paciente',
                             breakdown: [
                                 { label: 'Recebido', value: filteredTotals.hospitalPaid, colorClass: 'text-green-500' },
                                 { label: 'Em Aberto', value: filteredTotals.hospitalPending, colorClass: 'text-amber-500' },
@@ -1019,7 +1057,7 @@ const Financials: React.FC = () => {
                             label: 'Receita Programa',
                             value: filteredTotals.repasse,
                             icon: 'attach_money',
-                            helper: 'O repasse ao programa só vence após a quitação total do paciente — em pagamento parcial o valor fica com o hospital até lá',
+                            helper: 'Valor fixo do programa por procedimento. Só vence após a quitação total do paciente — em pagamento parcial nada é distribuído',
                             breakdown: [
                                 { label: 'Pago', value: filteredTotals.repassePaid, colorClass: 'text-green-500' },
                                 { label: 'Pendente', value: filteredTotals.repassePending, colorClass: 'text-amber-500' },
@@ -1041,10 +1079,22 @@ const Financials: React.FC = () => {
                             helper: 'Repasses já vencidos (paciente quitou) e ainda não transferidos ao programa',
                         },
                         ...(isAdmin ? [{
+                            label: 'A Conciliar',
+                            value: filteredTotals.toReconcile,
+                            icon: 'rule_settings',
+                            highlight: true,
+                            helper: 'Excedente de vendas já quitadas (o que passou de hospital + programa) ainda sem adicional lançado. Cobre a taxa da maquineta; o que sobrar é do programa',
+                            breakdown: [
+                                { label: 'Excedente total', value: filteredTotals.surplus, colorClass: 'text-slate-500 dark:text-slate-400' },
+                                { label: 'Já conciliado', value: filteredTotals.reconciled, colorClass: 'text-green-500' },
+                                { label: 'A conciliar', value: filteredTotals.toReconcile, colorClass: 'text-amber-500' }
+                            ]
+                        }] : []),
+                        ...(isAdmin ? [{
                             label: 'Distribuição Adicional por Hospital',
                             value: totalAdditional,
                             icon: 'account_tree',
-                            helper: 'Soma do valor adicional (diferença de parcelamento) agrupado por hospital',
+                            helper: 'Soma do adicional do programa (excedente já conciliado) agrupado por hospital',
                             breakdown: hospitalAdditionalTotals.length > 0
                                 ? hospitalAdditionalTotals.map((h) => ({ label: h.label, value: h.value, colorClass: 'text-slate-500 dark:text-slate-400' }))
                                 : [{ label: 'Sem dados', value: 0, colorClass: 'text-slate-400' }]
@@ -1317,7 +1367,7 @@ const Financials: React.FC = () => {
                                                             <span className="font-bold text-slate-400 uppercase truncate">Adicional:</span>
                                                             <span className="material-symbols-outlined text-[12px] text-slate-300 shrink-0">info</span>
                                                             <div className="tooltip-content shadow-2xl w-48 !whitespace-normal">
-                                                                Diferença de parcelamento
+                                                                Excedente do cartão que ficou com o programa, lançado após a conciliação
                                                             </div>
                                                         </div>
                                                         <span className="font-black text-slate-600 dark:text-slate-400 shrink-0 tabular-nums">{formatCurrency(item.financial_additional || 0)}</span>
@@ -1853,8 +1903,25 @@ const Financials: React.FC = () => {
 
                                     {isAdmin && (
                                         <>
+                                            <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-200 dark:border-amber-900/40">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-widest">Excedente a Conciliar</span>
+                                                    <span className="text-lg font-black text-amber-700 dark:text-amber-500 tracking-tight tabular-nums">
+                                                        {formatCurrency(Math.max(
+                                                            confirmForm.total_cost
+                                                            - parseCurrency(confirmForm.hospital_value)
+                                                            - parseCurrency(confirmForm.repasse_value),
+                                                            0
+                                                        ))}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[10px] text-amber-600/80 dark:text-amber-500/70 font-medium mt-1 leading-snug">
+                                                    Cobrado {formatCurrency(confirmForm.total_cost)} menos os valores fixos. Desconte a taxa da maquineta e lance o restante como adicional do programa.
+                                                </p>
+                                            </div>
+
                                             <div>
-                                                <label className="text-[10px) font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Adicional Financeiro (Taxas)</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Adicional Financeiro (Programa)</label>
                                                 <div className="relative">
                                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs font-mono">R$</span>
                                                     <input
