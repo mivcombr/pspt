@@ -42,6 +42,8 @@ export interface Appointment {
   paymentStatus: 'Pago' | 'Parcial' | 'Pendente' | 'Não realizado';
   paymentPaidAt?: string | null;
   cost: number;
+  /** Adicional do programa lançado na conciliação. Só o Financeiro edita. */
+  financialAdditional?: number;
   payments: PaymentPart[];
   notes?: string;
   createdById?: string;

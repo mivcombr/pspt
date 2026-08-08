@@ -13,10 +13,10 @@ import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
-import { procedureService, Procedure } from '../services/procedureService';
+import { procedureService, Procedure, FREE_PRICE_PROCEDURE, priceForMode, PriceMode, PRICE_MODE_LABEL } from '../services/procedureService';
 import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
 import { doctorService, Doctor } from '../services/doctorService';
-import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
+import { paymentMethodService, HospitalPaymentMethod, isCreditCardMethod } from '../services/paymentMethodService';
 import { profileService } from '../services/profileService';
 
 interface AttendancesProps {
@@ -398,6 +398,7 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 paymentStatus: apt.payment_status,
                 paymentPaidAt: apt.payment_paid_at,
                 cost: Number(apt.total_cost),
+                financialAdditional: Number(apt.financial_additional) || 0,
                 payments: (apt.payments || []).map((p: any) => ({
                     id: p.id,
                     method: p.method,
@@ -745,6 +746,45 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         setCurrentValue(newRemaining > 0 ? newRemaining.toFixed(2).replace('.', ',') : '');
     };
 
+    /**
+     * Preços cadastrados do procedimento que está no atendimento. Quando não há
+     * (nome fora da tabela do parceiro), o valor não pode ser trocado por aqui.
+     */
+    const currentProcedurePrices = useMemo(() => {
+        if (!currentAppointment) return null;
+        return procedures.find((p) =>
+            p.name === currentAppointment.procedure
+            && p.type.toUpperCase() === (currentAppointment.type || '').toUpperCase()
+            && (!currentAppointment.hospitalId || p.hospital_id === currentAppointment.hospitalId)
+        ) || null;
+    }, [currentAppointment, procedures]);
+
+    const isFreePriceAppointment = currentAppointment?.procedure === FREE_PRICE_PROCEDURE;
+
+    /**
+     * A modalidade decorre do que foi lançado: qualquer parcela no crédito já
+     * embute a taxa da maquineta, então o atendimento inteiro vai para o preço
+     * de cartão. Sem pagamento lançado ainda, vale o à vista.
+     */
+    const priceMode: PriceMode = useMemo(
+        () => (paymentDraft.some(p => isCreditCardMethod(p.method)) ? 'cartao' : 'avista'),
+        [paymentDraft]
+    );
+
+    const tablePrice = currentProcedurePrices ? priceForMode(currentProcedurePrices, priceMode) : null;
+
+    // Lançar um pagamento no crédito muda o valor do atendimento para o preço de
+    // cartão — e removê-lo devolve ao à vista.
+    useEffect(() => {
+        if (!currentAppointment || isFreePriceAppointment || tablePrice == null) return;
+        if (Math.abs(currentAppointment.cost - tablePrice) < 0.005) return;
+        setCurrentAppointment(prev => (prev ? { ...prev, cost: tablePrice } : prev));
+        setCostInputValue(tablePrice.toFixed(2).replace('.', ','));
+        const totalPaid = paymentDraft.reduce((acc, p) => acc + p.value, 0);
+        const remaining = tablePrice - totalPaid;
+        setCurrentValue(remaining > 0 ? remaining.toFixed(2).replace('.', ',') : '');
+    }, [tablePrice, isFreePriceAppointment, currentAppointment?.id]);
+
     // Procedure Editing Actions
     const saveNewProcedure = () => {
         if (!currentAppointment) return;
@@ -755,7 +795,12 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         const selectedProc = procedures.find(
             (proc) => proc.name === procedureInputValue && proc.type === procedureTypeInputValue
         );
-        const updatedCost = selectedProc?.cash_price ?? currentAppointment.cost;
+
+        // A modalidade continua vindo do pagamento: o YAG de 1 olho pago no
+        // crédito vira o de 2 olhos no preço de cartão, não no à vista.
+        const updatedCost = selectedProc
+            ? priceForMode(selectedProc, priceMode)
+            : currentAppointment.cost;
 
         setCurrentAppointment({
             ...currentAppointment,
@@ -881,6 +926,48 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
         return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
     };
 
+    /**
+     * Refaz a divisão hospital/programa a partir da tabela de preços.
+     *
+     * Os dois valores são fixos por procedimento e ficam gravados no atendimento.
+     * Trocar o procedimento (YAG de 1 olho para 2 olhos, por exemplo) ou corrigir
+     * o valor cobrado precisa refazer essa divisão — sem isso o Financeiro segue
+     * exibindo a divisão do procedimento antigo, sem relação com o que foi pago.
+     *
+     * A soma nunca passa do valor cobrado. Quando há desconto e o cobrado não
+     * cobre os dois valores fixos, o hospital é preservado primeiro e o programa
+     * fica com o que sobrar — o hospital é prestador e recebe pelo procedimento,
+     * enquanto o desconto é concessão do programa. É a mesma divisão que os
+     * atendimentos com desconto já registrados vinham usando.
+     */
+    const recalculateSplit = (procedureName: string, procedureType: string, totalCost: number) => {
+        const proc = procedures.find((p) =>
+            p.name === procedureName
+            && p.type.toUpperCase() === (procedureType || '').toUpperCase()
+            && (!currentAppointment?.hospitalId || p.hospital_id === currentAppointment.hospitalId)
+        );
+        // Procedimento fora da tabela (nome digitado à mão): mantém o que está
+        // gravado, porque não há de onde tirar os valores fixos.
+        if (!proc) return null;
+
+        const cost = Math.max(Number(totalCost) || 0, 0);
+        const fixoHospital = Number(proc.hospital_value) || 0;
+        const fixoPrograma = Number(proc.repasse_value) || 0;
+
+        // Procedimento cadastrado antes do valor fixo do hospital: cai na regra
+        // antiga, em que o hospital fica com o que sobra do programa.
+        const hospital = fixoHospital > 0
+            ? Math.min(fixoHospital, cost)
+            : Math.max(cost - fixoPrograma, 0);
+        const programa = Math.min(fixoPrograma, Math.max(cost - hospital, 0));
+
+        return {
+            repasse_value: programa,
+            hospital_value: hospital,
+            net_value: hospital + programa + (currentAppointment?.financialAdditional || 0)
+        };
+    };
+
     const proceedWithFinish = async (isFullyPaid: boolean, targetStatus: string) => {
         if (!currentAppointment) return;
         if (isFinishing) return; // guard against concurrent invocations
@@ -907,6 +994,14 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
             ? 'Não realizado'
             : (isFullyPaid ? 'Pago' : (totalPaidDraft > 0.005 ? 'Parcial' : 'Pendente'));
 
+        // O procedimento e o valor podem ter mudado nesta edição — a divisão
+        // hospital/programa acompanha.
+        const split = recalculateSplit(
+            currentAppointment.procedure,
+            currentAppointment.type,
+            currentAppointment.cost
+        );
+
         try {
             await appointmentService.update(currentAppointment.id as string, {
                 status: targetStatus,
@@ -918,7 +1013,8 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                 provider: currentAppointment.provider,
                 notes: notesInputValue,
                 date: currentAppointment.date,
-                time: currentAppointment.time
+                time: currentAppointment.time,
+                ...(split || {})
             });
 
             // Delete payments that were removed in the UI
@@ -2086,27 +2182,53 @@ const Attendances: React.FC<AttendancesProps> = ({ isEmbedded = false, hospitalF
                                     {/* Total Value */}
                                     <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm relative">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor Total</p>
-                                        {isEditingCost ? (
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={costInputValue}
-                                                    onChange={handleCostInputChange}
-                                                    autoFocus
-                                                    className="w-full h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none"
-                                                />
-                                                <button onClick={saveNewCost} className="p-1.5 bg-green-500 text-white rounded-lg"><span className="material-symbols-outlined text-[18px]">check</span></button>
-                                                <button onClick={() => setIsEditingCost(false)} className="p-1.5 bg-red-100 text-red-500 rounded-lg"><span className="material-symbols-outlined text-[18px]">close</span></button>
-                                            </div>
+                                        {isFreePriceAppointment ? (
+                                            isEditingCost ? (
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={costInputValue}
+                                                        onChange={handleCostInputChange}
+                                                        autoFocus
+                                                        className="w-full h-9 px-2 rounded-lg border border-primary text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-900 focus:outline-none"
+                                                    />
+                                                    <button onClick={saveNewCost} className="p-1.5 bg-green-500 text-white rounded-lg"><span className="material-symbols-outlined text-[18px]">check</span></button>
+                                                    <button onClick={() => setIsEditingCost(false)} className="p-1.5 bg-red-100 text-red-500 rounded-lg"><span className="material-symbols-outlined text-[18px]">close</span></button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex justify-between items-center">
+                                                    <p className="text-lg font-black text-slate-800 dark:text-white">
+                                                        {formatCurrency(currentAppointment.cost)}
+                                                    </p>
+                                                    <button onClick={() => setIsEditingCost(true)} className="text-slate-300 hover:text-primary transition-colors">
+                                                        <span className="material-symbols-outlined text-[20px]">edit</span>
+                                                    </button>
+                                                </div>
+                                            )
                                         ) : (
-                                            <div className="flex justify-between items-center">
-                                                <p className="text-lg font-black text-slate-800 dark:text-white">
-                                                    {formatCurrency(currentAppointment.cost)}
+                                            <>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="text-lg font-black text-slate-800 dark:text-white">
+                                                        {formatCurrency(currentAppointment.cost)}
+                                                    </p>
+                                                    {currentProcedurePrices && (
+                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg shrink-0 ${
+                                                            priceMode === 'cartao'
+                                                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                                : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        }`}>
+                                                            {PRICE_MODE_LABEL[priceMode]}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                                                    {!currentProcedurePrices
+                                                        ? 'Procedimento fora da tabela de preços deste parceiro.'
+                                                        : priceMode === 'cartao'
+                                                            ? 'Preço de cartão, porque há pagamento no crédito.'
+                                                            : 'Preço à vista. Lançar pagamento no crédito muda para o preço de cartão.'}
                                                 </p>
-                                                <button onClick={() => setIsEditingCost(true)} className="text-slate-300 hover:text-primary transition-colors">
-                                                    <span className="material-symbols-outlined text-[20px]">edit</span>
-                                                </button>
-                                            </div>
+                                            </>
                                         )}
                                     </div>
 

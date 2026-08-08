@@ -10,6 +10,17 @@ export interface HospitalPaymentMethod {
     updated_at?: string;
 }
 
+/**
+ * Só o crédito puxa o preço de cartão — é ele que embute a taxa da maquineta,
+ * em qualquer número de parcelas, inclusive 1x. Débito entra no à vista, junto
+ * com dinheiro, PIX e transferência.
+ */
+export const isCreditCardMethod = (method?: string | null) => {
+    const normalized = (method || '').toLowerCase();
+    if (!normalized.includes('cart') && !normalized.includes('créd') && !normalized.includes('cred')) return false;
+    return !normalized.includes('déb') && !normalized.includes('deb');
+};
+
 export const paymentMethodService = {
     async getAll(hospitalId: string) {
         const { data, error } = await supabase

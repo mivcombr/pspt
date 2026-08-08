@@ -14,6 +14,30 @@ export interface Procedure {
     hospital_id?: string;
 }
 
+/**
+ * Procedimento coringa: é o único em que o valor é digitado, porque cobre o que
+ * não está na tabela. Todo o resto usa um dos dois preços cadastrados — foi o
+ * campo de valor livre que deixou atendimentos gravados com preço de outro
+ * procedimento, e a divisão hospital/programa sem relação com o que foi pago.
+ */
+export const FREE_PRICE_PROCEDURE = 'Outros';
+
+/**
+ * Modalidade de preço. Não é escolha de quem atende: decorre da forma de
+ * pagamento. Crédito usa o preço de cartão em qualquer número de parcelas,
+ * inclusive 1x; dinheiro, PIX, débito e transferência usam o à vista.
+ */
+export type PriceMode = 'avista' | 'cartao';
+
+/** Preço cadastrado para a modalidade. `standard_price` é o preço de cartão. */
+export const priceForMode = (proc: Pick<Procedure, 'cash_price' | 'standard_price'> | undefined | null, mode: PriceMode) =>
+    Number(mode === 'cartao' ? proc?.standard_price : proc?.cash_price) || 0;
+
+export const PRICE_MODE_LABEL: Record<PriceMode, string> = {
+    avista: 'À vista',
+    cartao: 'Cartão'
+};
+
 export const procedureService = {
     async getAll(hospitalId?: string) {
         let query = supabase

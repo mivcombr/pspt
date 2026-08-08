@@ -7,14 +7,21 @@ import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
-import { procedureService } from '../services/procedureService';
+import { procedureService, FREE_PRICE_PROCEDURE, priceForMode, PriceMode, PRICE_MODE_LABEL } from '../services/procedureService';
 import { doctorService } from '../services/doctorService';
 import { scheduleBlockService, ScheduleBlock } from '../services/scheduleBlockService';
-import { paymentMethodService, HospitalPaymentMethod } from '../services/paymentMethodService';
+import { paymentMethodService, HospitalPaymentMethod, isCreditCardMethod } from '../services/paymentMethodService';
 import { BlockedDatePicker } from '../components/ui/BlockedDatePicker';
 import { formatCurrency, formatPhoneMask, isValidPhone, dateOnlyToTimestamp } from '../utils/formatters';
 
 // Doctors list removed - dynamic fetching implemented
+
+/** Preço da tabela para a modalidade, no formato do campo. */
+const priceFieldValue = (proc: any, mode: PriceMode) =>
+  priceForMode(proc, mode).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const modeForMethod = (method?: string | null): PriceMode =>
+  isCreditCardMethod(method) ? 'cartao' : 'avista';
 
 const NewAppointment: React.FC = () => {
   const { user } = useAuth();
@@ -308,22 +315,39 @@ const NewAppointment: React.FC = () => {
     if (name === 'procedureName') {
       const selectedProc = procedures.find(p => p.name === value && p.type === formData.procedureType);
       if (selectedProc) {
-        const initialValue = selectedProc.cash_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         setFormData(prev => ({
           ...prev,
           [name]: value,
-          value: initialValue
+          value: priceFieldValue(selectedProc, modeForMethod(prev.paymentMethod))
         }));
         return;
       }
+    }
+
+    // O valor não é escolha de quem atende: decorre da forma de pagamento.
+    if (name === 'paymentMethod') {
+      const nextMode = modeForMethod(value);
+      const selectedProc = procedures.find(p => p.name === formData.procedureName && p.type === formData.procedureType);
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        value: selectedProc ? priceFieldValue(selectedProc, nextMode) : prev.value
+      }));
+      return;
     }
 
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const setProcedureType = (type: string) => {
-    setFormData(prev => ({ ...prev, procedureType: type, procedureName: '' }));
+    setFormData(prev => ({ ...prev, procedureType: type, procedureName: '', value: '' }));
   };
+
+  const selectedProcedure = procedures.find(
+    p => p.name === formData.procedureName && p.type === formData.procedureType
+  );
+  const isFreePriceProcedure = formData.procedureName === FREE_PRICE_PROCEDURE;
+  const priceMode = modeForMethod(formData.paymentMethod);
 
   const handleValueChange = (e: ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -420,7 +444,8 @@ const NewAppointment: React.FC = () => {
       // (típico do cartão) é excedente — cobre a taxa da maquineta e o restante
       // vira adicional do programa, lançado depois na conciliação bancária.
       const selectedProc = procedures.find(p => p.name === formData.procedureName && p.type === formData.procedureType);
-      const repasseVal = selectedProc?.repasse_value ? Number(selectedProc.repasse_value) : 0;
+      // A soma nunca passa do cobrado: com desconto, os dois lados são limitados.
+      const repasseVal = Math.min(selectedProc?.repasse_value ? Number(selectedProc.repasse_value) : 0, totalCost);
       // Procedimentos cadastrados antes do valor fixo caem no cálculo antigo.
       const configuredHospital = Number(selectedProc?.hospital_value);
       const hospitalVal = Number.isFinite(configuredHospital) && configuredHospital > 0
@@ -857,22 +882,51 @@ const NewAppointment: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="flex flex-col">
+                  <div className="flex flex-col">
                     <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Valor a ser Pago (R$)</p>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-slate-500 text-xs font-bold">R$</span>
-                      </div>
-                      <input
-                        type="text"
-                        name="value"
-                        value={formData.value}
-                        onChange={handleValueChange}
-                        className="form-input w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 pl-10 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </label>
+                    {isFreePriceProcedure ? (
+                      <>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-slate-500 text-xs font-bold">R$</span>
+                          </div>
+                          <input
+                            type="text"
+                            name="value"
+                            value={formData.value}
+                            onChange={handleValueChange}
+                            className="form-input w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 pl-10 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-900 dark:text-white"
+                            placeholder="0,00"
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1.5 ml-1">Valor livre porque "{FREE_PRICE_PROCEDURE}" não tem preço de tabela.</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 h-12 px-4 flex items-center justify-between">
+                          <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">
+                            {selectedProcedure ? formatCurrency(priceForMode(selectedProcedure, priceMode)) : 'R$ 0,00'}
+                          </span>
+                          {selectedProcedure && (
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
+                              priceMode === 'cartao'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            }`}>
+                              {PRICE_MODE_LABEL[priceMode]}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1.5 ml-1 leading-snug">
+                          {!selectedProcedure
+                            ? 'Selecione o procedimento para ver o valor.'
+                            : priceMode === 'cartao'
+                              ? 'Preço de cartão, definido pela forma de pagamento. No crédito vale em qualquer parcelamento, inclusive 1x.'
+                              : 'Preço à vista, definido pela forma de pagamento. Trocar para crédito muda para o preço de cartão.'}
+                        </p>
+                      </>
+                    )}
+                  </div>
                   <label className="flex flex-col">
                     <p className="text-[10px] font-black leading-normal pb-2 text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Forma de Pagamento</p>
                     <div className="relative">
