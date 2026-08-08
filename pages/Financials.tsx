@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { appointmentService } from '../services/appointmentService';
 import { hospitalService } from '../services/hospitalService';
+import { paymentMethodService } from '../services/paymentMethodService';
 import { APP_TIME_ZONE, formatCurrency, formatDate, parseCurrency } from '../utils/formatters';
 import { Badge } from '../components/ui/Badge';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
@@ -10,6 +11,8 @@ import { useNotification } from '../hooks/useNotification';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 const ITEMS_PER_PAGE = 10;
+
+const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -32,6 +35,10 @@ const Financials: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState('Todos Pagamentos');
     const [repasseStatusFilter, setRepasseStatusFilter] = useState('Todos Acertos');
     const [procedureStatusFilter, setProcedureStatusFilter] = useState('Todos Procedimentos');
+    const [paymentMethodFilter, setPaymentMethodFilter] = useState('Todas as Formas');
+    const [paymentMethodOptions, setPaymentMethodOptions] = useState<string[]>([]);
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+    const filterPanelRef = React.useRef<HTMLDivElement>(null);
 
     // Sort State
     type SortKey = 'patient_name' | 'date' | 'total_cost' | 'net_value' | 'payment_status' | 'repasse_status';
@@ -293,6 +300,57 @@ const Financials: React.FC = () => {
         fetchData();
     }, [selectedHospital, tempStartDate, tempEndDate]);
 
+    // Formas de pagamento cadastradas, para o filtro. Seguem o hospital
+    // selecionado; em "Todos os Hospitais" traz as de todos que a RLS permitir.
+    useEffect(() => {
+        let cancelled = false;
+        const loadMethods = async () => {
+            try {
+                let hospitalId: string | undefined;
+                const fullAccess = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN;
+                if (fullAccess) {
+                    if (selectedHospital !== 'Todos os Hospitais') {
+                        hospitalId = hospitals.find(h => h.name === selectedHospital)?.id;
+                    }
+                } else {
+                    hospitalId = user?.hospitalId;
+                }
+                const names = await paymentMethodService.getNames(hospitalId);
+                if (cancelled) return;
+                setPaymentMethodOptions(names);
+                // Trocar de hospital pode invalidar a forma escolhida: sem isso o
+                // select ficaria vazio filtrando por algo que não está na lista.
+                setPaymentMethodFilter(current =>
+                    current === 'Todas as Formas' || names.includes(current) ? current : 'Todas as Formas'
+                );
+            } catch (err) {
+                console.error('Erro ao carregar formas de pagamento:', err);
+                if (!cancelled) setPaymentMethodOptions([]);
+            }
+        };
+        loadMethods();
+        return () => { cancelled = true; };
+    }, [selectedHospital, hospitals, user?.hospitalId]);
+
+    // Fecha o painel de filtros ao clicar fora ou apertar Esc.
+    useEffect(() => {
+        if (!isFilterPanelOpen) return;
+        const onPointerDown = (e: MouseEvent) => {
+            if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
+                setIsFilterPanelOpen(false);
+            }
+        };
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setIsFilterPanelOpen(false);
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', onPointerDown);
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [isFilterPanelOpen]);
+
     useEffect(() => {
         const now = new Date();
         let start: Date | null = null;
@@ -307,15 +365,12 @@ const Financials: React.FC = () => {
                 start = new Date(now.getFullYear(), now.getMonth(), 1);
                 end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
                 break;
-            case 'Hoje':
-                start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            case 'Mês Passado':
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0);
                 break;
-            case 'Últimos 7 dias':
-                start = new Date(now);
-                start.setDate(now.getDate() - 7);
-                end = new Date(now);
-                break;
+            // 'Mês' vem do stepper mês a mês, que já definiu o intervalo.
+            case 'Mês':
             case 'Personalizado':
                 return;
         }
@@ -339,7 +394,20 @@ const Financials: React.FC = () => {
             const matchesRepasse = repasseStatusFilter === 'Todos Acertos' || normalizedRepasseStatus === repasseStatusFilter;
             const matchesProcedure = procedureStatusFilter === 'Todos Procedimentos' || (a.status || 'Agendado') === procedureStatusFilter;
 
-            return matchesSearch && matchesPayment && matchesRepasse && matchesProcedure;
+            // Basta uma das parcelas usar a forma buscada — em pagamento misto o
+            // atendimento aparece nos dois filtros. A comparação ignora caixa e
+            // espaços porque a base tem "Cartão de crédito" e "Cartão de Crédito".
+            const matchesMethod = paymentMethodFilter === 'Todas as Formas' || (() => {
+                const wanted = paymentMethodFilter.trim().toLowerCase();
+                const parts = a.payments || [];
+                if (parts.length > 0) {
+                    return parts.some((p: any) => (p.method || '').trim().toLowerCase() === wanted);
+                }
+                // Registros antigos, sem parcelas lançadas.
+                return (a.payment_method || '').trim().toLowerCase() === wanted;
+            })();
+
+            return matchesSearch && matchesPayment && matchesRepasse && matchesProcedure && matchesMethod;
         });
 
         const statusOrder: Record<string, number> = { 'Pago': 0, 'Parcial': 1, 'Pendente': 2, 'Não realizado': 3 };
@@ -379,7 +447,7 @@ const Financials: React.FC = () => {
         });
 
         return filtered;
-    }, [appointments, searchTerm, statusFilter, repasseStatusFilter, procedureStatusFilter, sortKey, sortDirection]);
+    }, [appointments, searchTerm, statusFilter, repasseStatusFilter, procedureStatusFilter, paymentMethodFilter, sortKey, sortDirection]);
     const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const currentData = filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -625,15 +693,9 @@ const Financials: React.FC = () => {
         if (!isSplit) return null;
 
         // 'Não realizado' zera recebido e em aberto de propósito: o valor vira
-        // perda. Sem este caso a linha cairia no rótulo genérico e diria que o
-        // dinheiro entrou em outro período, quando ele nunca entrou.
-        if (p.isFailed) {
-            return (
-                <span className="text-[9px] font-bold text-red-600 dark:text-red-400 mt-0.5 block">
-                    {formatCurrency(p.failedHere || p.cost)} não realizado
-                </span>
-            );
-        }
+        // perda. O badge da linha já diz isso — repetir aqui só polui, e o
+        // rótulo genérico afirmaria que o dinheiro entrou em outro período.
+        if (p.isFailed) return null;
 
         return (
             <div className="flex flex-col gap-0.5 mt-0.5">
@@ -982,16 +1044,119 @@ const Financials: React.FC = () => {
         setViewDate(end);
     };
 
+    // Navegação por mês fechado: chega a qualquer mês passado sem depender do
+    // calendário personalizado. Mesmo comportamento da Dashboard.
+    const applyMonth = (year: number, month: number) => {
+        const start = new Date(year, month, 1);
+        const end = new Date(year, month + 1, 0);
+        const today = new Date();
+        const prevRef = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+        setTempStartDate(start);
+        setTempEndDate(end);
+        setViewDate(end);
+        setIsCalendarOpen(false);
+
+        if (start.getFullYear() === today.getFullYear() && start.getMonth() === today.getMonth()) {
+            setActiveDateFilter('Este Mês');
+        } else if (start.getFullYear() === prevRef.getFullYear() && start.getMonth() === prevRef.getMonth()) {
+            setActiveDateFilter('Mês Passado');
+        } else {
+            setActiveDateFilter('Mês');
+        }
+    };
+
+    const shiftMonth = (delta: number) => {
+        const base = tempStartDate || new Date();
+        applyMonth(base.getFullYear(), base.getMonth() + delta);
+    };
+
+    const monthStepperLabel = useMemo(() => {
+        const base = tempStartDate || new Date();
+        return `${MONTH_SHORT[base.getMonth()]} ${base.getFullYear()}`;
+    }, [tempStartDate]);
+
+    /**
+     * Filtros secundários descritos numa lista só — o painel, o contador do
+     * botão e os chips de filtro ativo saem todos daqui, sem repetir a mesma
+     * configuração em três lugares. Filtro novo entra como mais um item.
+     */
+    const panelFilters = [
+        {
+            key: 'method',
+            label: 'Forma de pagamento',
+            chipPrefix: 'Forma',
+            all: 'Todas as Formas',
+            value: paymentMethodFilter,
+            set: setPaymentMethodFilter,
+            options: paymentMethodOptions.map(name => ({ value: name, label: name }))
+        },
+        {
+            key: 'payment',
+            label: 'Status do pagamento',
+            chipPrefix: 'Pagamento',
+            all: 'Todos Pagamentos',
+            value: statusFilter,
+            set: setStatusFilter,
+            options: [
+                { value: 'Pago', label: 'Pago' },
+                { value: 'Parcial', label: 'Parcial' },
+                { value: 'Pendente', label: 'Pendente' },
+                { value: 'Não realizado', label: 'Não realizado' }
+            ]
+        },
+        {
+            key: 'repasse',
+            label: 'Status do acerto',
+            chipPrefix: 'Acerto',
+            all: 'Todos Acertos',
+            value: repasseStatusFilter,
+            set: setRepasseStatusFilter,
+            options: [
+                { value: 'Pago', label: 'Pago' },
+                { value: 'Pendente', label: 'Pendente' },
+                { value: 'Não realizado', label: 'Não realizado' }
+            ]
+        },
+        {
+            key: 'procedure',
+            label: 'Status do procedimento',
+            chipPrefix: 'Procedimento',
+            all: 'Todos Procedimentos',
+            value: procedureStatusFilter,
+            set: setProcedureStatusFilter,
+            options: [
+                { value: 'Atendido', label: 'Realizado' },
+                { value: 'Agendado', label: 'Agendado' },
+                { value: 'Falhou', label: 'Falhou' }
+            ]
+        }
+    ];
+
+    const activeFilters = panelFilters.filter(f => f.value !== f.all);
+    const hasHospitalFilter = isAdmin && selectedHospital !== 'Todos os Hospitais';
+    const hasAnyFilter = activeFilters.length > 0 || !!searchTerm || hasHospitalFilter;
+
+    const clearAllFilters = () => {
+        setSearchTerm('');
+        panelFilters.forEach(f => f.set(f.all));
+        if (isAdmin) setSelectedHospital('Todos os Hospitais');
+    };
+
     return (
         <div className="max-w-screen-xl w-full mx-auto space-y-6 sm:space-y-8 pb-8 relative px-4 sm:px-6">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 sm:gap-5">
-                <div>
+                <div className="flex items-center gap-2">
                     <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-display">Pagamentos</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Acompanhe registros financeiros e repasses.</p>
-                    <p className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[11px] mt-1.5 font-medium">
-                        <span className="material-symbols-outlined text-[14px]">info</span>
-                        Regime de caixa: o recebido conta pela data do pagamento, mesmo parcial. O saldo em aberto conta pela data do procedimento.
-                    </p>
+                    <div className="has-tooltip tooltip-below cursor-help leading-none">
+                        <span className="material-symbols-outlined text-[20px] text-slate-300 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-500 transition-colors">info</span>
+                        <div className="tooltip-content !w-64 !whitespace-normal shadow-2xl">
+                            <p className="font-bold text-white mb-1.5">Acompanhe registros financeiros e repasses.</p>
+                            <p className="text-slate-300 leading-snug">
+                                Regime de caixa: o recebido conta pela data do pagamento, mesmo parcial. O saldo em aberto conta pela data do procedimento.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full xl:w-auto">
                     {isLoading && <LoadingIndicator />}
@@ -1003,21 +1168,49 @@ const Financials: React.FC = () => {
                         <span className="material-symbols-outlined text-[18px]">download</span>
                         {isExporting ? 'Exportando...' : 'Exportar PDF'}
                     </button>
-                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto">
-                        {['Este Ano', 'Este Mês', 'Hoje', 'Últimos 7 dias'].map(filter => (
+                    {/* Navegação mês a mês */}
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 card-shadow w-full sm:w-auto justify-center shrink-0">
+                        <button
+                            onClick={() => shiftMonth(-1)}
+                            aria-label="Mês anterior"
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-primary hover:bg-primary/5 transition-all"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                        </button>
+                        <span className="px-2 text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider whitespace-nowrap min-w-[84px] text-center tabular-nums">
+                            {monthStepperLabel}
+                        </span>
+                        <button
+                            onClick={() => shiftMonth(1)}
+                            aria-label="Próximo mês"
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-primary hover:bg-primary/5 transition-all"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                        </button>
+                    </div>
+
+                    {/* Date Filters (igual à Dashboard) */}
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto sm:overflow-visible">
+                        {['Este Mês', 'Mês Passado', 'Este Ano'].map(preset => (
                             <button
-                                key={filter}
-                                onClick={() => setActiveDateFilter(filter)}
-                                className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${activeDateFilter === filter ? 'bg-white text-primary border border-red-100 dark:bg-primary/20 dark:text-primary-hover dark:border-primary/30' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                                key={preset}
+                                onClick={() => setActiveDateFilter(preset)}
+                                className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === preset ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                             >
-                                {filter}
+                                {preset}
                             </button>
                         ))}
+
+                        <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0"></div>
+
                         <button
                             onClick={() => setIsCalendarOpen(true)}
-                            className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${activeDateFilter === 'Personalizado' ? 'bg-white text-slate-800 dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                            className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap ${activeDateFilter === 'Personalizado' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                         >
-                            Personalizado
+                            <span className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                                {activeDateFilter === 'Personalizado' ? formatRangeLabel() : 'Personalizado'}
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -1123,7 +1316,7 @@ const Financials: React.FC = () => {
                                 {card.helper && (
                                     <div className="has-tooltip cursor-help">
                                         <span className={`material-symbols-outlined text-[18px] ${card.hero ? 'text-white/50 hover:text-white/80' : 'text-slate-300 hover:text-slate-400'}`}>info</span>
-                                        <div className="tooltip-content !text-[10px] !p-2 !w-44">{card.helper}</div>
+                                        <div className="tooltip-content !text-[10px] !p-2 !w-44 !whitespace-normal">{card.helper}</div>
                                     </div>
                                 )}
                             </div>
@@ -1213,66 +1406,78 @@ const Financials: React.FC = () => {
                     </div>
                 )}
 
-                <div className="relative w-full sm:w-40">
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                        <option value="Todos Pagamentos">Status Pag.</option>
-                        <option value="Pago">Pago</option>
-                        <option value="Parcial">Parcial</option>
-                        <option value="Pendente">Pendente</option>
-                        <option value="Não realizado">Não realizado</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">payments</span>
-                </div>
-
-                <div className="relative w-full sm:w-40">
-                    <select
-                        value={repasseStatusFilter}
-                        onChange={(e) => setRepasseStatusFilter(e.target.value)}
-                        className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                        <option value="Todos Acertos">Status Acerto</option>
-                        <option value="Pago">Pago</option>
-                        <option value="Pendente">Pendente</option>
-                        <option value="Não realizado">Não realizado</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">currency_exchange</span>
-                </div>
-
-                <div className="relative w-full sm:w-40">
-                    <select
-                        value={procedureStatusFilter}
-                        onChange={(e) => setProcedureStatusFilter(e.target.value)}
-                        className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                        <option value="Todos Procedimentos">Status Proc.</option>
-                        <option value="Atendido">Realizado</option>
-                        <option value="Agendado">Agendado</option>
-                        <option value="Falhou">Falhou</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">event_available</span>
-                </div>
-
-                {(searchTerm || statusFilter !== 'Todos Pagamentos' || repasseStatusFilter !== 'Todos Acertos' || procedureStatusFilter !== 'Todos Procedimentos' || (isAdmin && selectedHospital !== 'Todos os Hospitais')) && (
+                <div className="relative w-full sm:w-auto" ref={filterPanelRef}>
                     <button
-                        onClick={() => {
-                            setSearchTerm('');
-                            setStatusFilter('Todos Pagamentos');
-                            setRepasseStatusFilter('Todos Acertos');
-                            setProcedureStatusFilter('Todos Procedimentos');
-                            if (isAdmin) setSelectedHospital('Todos os Hospitais');
-                        }}
-                        className="h-12 px-4 rounded-2xl bg-red-50 text-primary hover:bg-red-100 transition-colors flex items-center gap-2 text-xs font-bold w-full sm:w-auto justify-center"
-                        title="Limpar filtros"
+                        onClick={() => setIsFilterPanelOpen(open => !open)}
+                        aria-expanded={isFilterPanelOpen}
+                        className={`h-12 px-4 rounded-2xl flex items-center gap-2 text-xs font-bold w-full sm:w-auto justify-center transition-colors ${
+                            activeFilters.length > 0
+                                ? 'bg-red-50 text-primary hover:bg-red-100 dark:bg-primary/20 dark:text-primary-hover'
+                                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
                     >
-                        <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
-                        Limpar
+                        <span className="material-symbols-outlined text-[18px]">tune</span>
+                        Filtros
+                        {activeFilters.length > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center">
+                                {activeFilters.length}
+                            </span>
+                        )}
                     </button>
-                )}
+
+                    {isFilterPanelOpen && (
+                        <div className="absolute right-0 top-full mt-2 z-40 w-full sm:w-72 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl p-4 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                            {panelFilters.map(filter => (
+                                <div key={filter.key}>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">
+                                        {filter.label}
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={filter.value}
+                                            onChange={(e) => filter.set(e.target.value)}
+                                            disabled={filter.options.length === 0}
+                                            className="w-full h-11 pl-4 pr-10 appearance-none rounded-2xl border-none bg-slate-50 dark:bg-slate-800 text-xs font-bold focus:ring-primary text-slate-700 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <option value={filter.all}>Todos</option>
+                                            {filter.options.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                        <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[20px]">expand_more</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {hasAnyFilter && (
+                <div className="flex flex-wrap items-center gap-2 -mt-3 px-2">
+                    {activeFilters.map(filter => {
+                        const shown = filter.options.find(o => o.value === filter.value)?.label || filter.value;
+                        return (
+                            <button
+                                key={filter.key}
+                                onClick={() => filter.set(filter.all)}
+                                className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:border-primary/40 hover:text-primary transition-colors shadow-sm"
+                                title={`Remover filtro: ${filter.label}`}
+                            >
+                                <span className="text-slate-400 font-black uppercase tracking-wider text-[9px]">{filter.chipPrefix}</span>
+                                {shown}
+                                <span className="material-symbols-outlined text-[14px]">close</span>
+                            </button>
+                        );
+                    })}
+                    <button
+                        onClick={clearAllFilters}
+                        className="text-[11px] font-black text-primary hover:underline px-2"
+                    >
+                        Limpar tudo
+                    </button>
+                </div>
+            )}
 
             <div className="rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm card-shadow flex flex-col">
                 <div className="overflow-x-auto">

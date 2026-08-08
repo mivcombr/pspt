@@ -19,6 +19,23 @@ const roleLabels: Record<string, string> = {
     'FINANCIAL': 'Financeiro',
 };
 
+/**
+ * Formas de pagamento oferecidas na criação. Texto livre fez o mesmo meio de
+ * pagamento ser cadastrado com grafias diferentes em hospitais diferentes, e o
+ * nome é copiado para cada pagamento lançado — a divergência contamina filtros
+ * e relatórios. A lista mantém a grafia canônica; "Outra" cobre o caso raro.
+ */
+const PAYMENT_METHOD_OPTIONS = [
+    'Dinheiro',
+    'PIX',
+    'Cartão de crédito',
+    'Cartão de débito',
+    'Transferência bancária',
+    'Boleto'
+];
+
+const OUTRA_FORMA = 'Outra...';
+
 const Hospitals: React.FC = () => {
     const { user } = useAuth();
     const notify = useNotification();
@@ -68,6 +85,7 @@ const Hospitals: React.FC = () => {
     const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
     const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
     const [paymentMethodForm, setPaymentMethodForm] = useState<Partial<HospitalPaymentMethod>>({ id: '', name: '', is_automatic_repasse: false });
+    const [isCustomPaymentMethod, setIsCustomPaymentMethod] = useState(false);
 
     // Confirm Modal State
     const [confirmModal, setConfirmModal] = useState<{
@@ -330,7 +348,10 @@ const Hospitals: React.FC = () => {
     };
 
     const handleSavePaymentMethod = async () => {
-        if (!selectedHospital || !paymentMethodForm.name) {
+        // Espaços nas pontas viram nome divergente na prática — o índice único do
+        // banco compara o nome já sem eles.
+        const name = (paymentMethodForm.name || '').trim();
+        if (!selectedHospital || !name) {
             notify.warning('Nome é obrigatório');
             return;
         }
@@ -339,14 +360,14 @@ const Hospitals: React.FC = () => {
         try {
             if (isEditingPaymentMethod && paymentMethodForm.id) {
                 await paymentMethodService.update(paymentMethodForm.id, {
-                    name: paymentMethodForm.name,
+                    name,
                     is_automatic_repasse: paymentMethodForm.is_automatic_repasse
                 });
                 notify.success('Forma de pagamento atualizada!');
             } else {
                 await paymentMethodService.create({
                     hospital_id: selectedHospital.id,
-                    name: paymentMethodForm.name!,
+                    name,
                     is_automatic_repasse: paymentMethodForm.is_automatic_repasse || false
                 });
                 notify.success('Forma de pagamento criada!');
@@ -355,7 +376,13 @@ const Hospitals: React.FC = () => {
             fetchHospitalDetails(selectedHospital.id);
         } catch (err: any) {
             console.error('Error saving payment method:', err);
-            notify.error('Erro ao salvar forma de pagamento');
+            // 23505 = índice único: já existe essa forma no hospital, ainda que
+            // escrita com outra caixa.
+            if (err?.code === '23505') {
+                notify.warning(`"${name}" já está cadastrada neste parceiro.`);
+            } else {
+                notify.error('Erro ao salvar forma de pagamento');
+            }
         } finally {
             setIsSaving(false);
         }
@@ -1030,6 +1057,7 @@ const Hospitals: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         setPaymentMethodForm({ name: '' });
+                                        setIsCustomPaymentMethod(false);
                                         setIsEditingPaymentMethod(false);
                                         setIsPaymentMethodModalOpen(true);
                                     }}
@@ -1049,6 +1077,8 @@ const Hospitals: React.FC = () => {
                                             <button
                                                 onClick={() => {
                                                     setPaymentMethodForm(method);
+                                                    // Forma fora da lista canônica abre já no campo livre.
+                                                    setIsCustomPaymentMethod(!PAYMENT_METHOD_OPTIONS.includes(method.name));
                                                     setIsEditingPaymentMethod(true);
                                                     setIsPaymentMethodModalOpen(true);
                                                 }}
@@ -1351,12 +1381,42 @@ const Hospitals: React.FC = () => {
                         <div className="space-y-6">
                             <div>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Nome da Forma de Pagamento</label>
-                                <input
-                                    placeholder="Ex: Pix, Cartão de Crédito..."
-                                    value={paymentMethodForm.name}
-                                    onChange={e => setPaymentMethodForm({ ...paymentMethodForm, name: e.target.value })}
-                                    className="w-full h-12 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold focus:ring-2 focus:ring-blue-500"
-                                />
+                                <div className="relative">
+                                    <select
+                                        value={isCustomPaymentMethod ? OUTRA_FORMA : (paymentMethodForm.name || '')}
+                                        onChange={e => {
+                                            if (e.target.value === OUTRA_FORMA) {
+                                                setIsCustomPaymentMethod(true);
+                                                setPaymentMethodForm({ ...paymentMethodForm, name: '' });
+                                            } else {
+                                                setIsCustomPaymentMethod(false);
+                                                setPaymentMethodForm({ ...paymentMethodForm, name: e.target.value });
+                                            }
+                                        }}
+                                        className="w-full h-12 pl-4 pr-10 appearance-none rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                    >
+                                        <option value="" disabled>Selecione a forma</option>
+                                        {PAYMENT_METHOD_OPTIONS.map(opt => (
+                                            <option key={opt} value={opt}>{opt}</option>
+                                        ))}
+                                        <option value={OUTRA_FORMA}>{OUTRA_FORMA}</option>
+                                    </select>
+                                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[20px]">expand_more</span>
+                                </div>
+
+                                {isCustomPaymentMethod && (
+                                    <input
+                                        autoFocus
+                                        placeholder="Nome da forma de pagamento"
+                                        value={paymentMethodForm.name}
+                                        onChange={e => setPaymentMethodForm({ ...paymentMethodForm, name: e.target.value })}
+                                        className="w-full h-12 px-4 mt-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-sm font-bold focus:ring-2 focus:ring-blue-500"
+                                    />
+                                )}
+
+                                <p className="text-[10px] text-slate-400 mt-2 ml-1 leading-snug">
+                                    Escolher da lista mantém o nome igual em todos os parceiros. Nomes que só diferem por maiúsculas quebram filtros e relatórios.
+                                </p>
                             </div>
 
                             <button

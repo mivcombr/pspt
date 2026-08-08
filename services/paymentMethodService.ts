@@ -25,6 +25,39 @@ export const paymentMethodService = {
         return data as HospitalPaymentMethod[];
     },
 
+    /**
+     * Nomes distintos das formas de pagamento, para alimentar filtros.
+     * Sem hospitalId, traz de todos os hospitais visíveis ao usuário pela RLS.
+     * Deduplica ignorando caixa e espaços — a base tem "Cartão de crédito" e
+     * "Cartão de Crédito" convivendo.
+     */
+    async getNames(hospitalId?: string) {
+        let query = supabase
+            .from('hospital_payment_methods')
+            .select('name');
+
+        if (hospitalId) {
+            query = query.eq('hospital_id', hospitalId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            logger.error({ action: 'read', entity: 'hospital_payment_methods', error }, 'crud');
+            throw error;
+        }
+
+        const unique = new Map<string, string>();
+        (data || []).forEach((row: any) => {
+            const name = (row.name || '').trim();
+            if (!name) return;
+            const key = name.toLowerCase();
+            if (!unique.has(key)) unique.set(key, name);
+        });
+
+        return Array.from(unique.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    },
+
     async create(method: Omit<HospitalPaymentMethod, 'id' | 'created_at' | 'updated_at'>) {
         const { data, error } = await supabase
             .from('hospital_payment_methods')

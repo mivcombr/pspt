@@ -380,6 +380,24 @@ select.appearance-none::-ms-expand {
   transform: translate(-50%, -125%);
 }
 
+/* Abre para baixo — para gatilhos no topo da página, onde o tooltip padrão
+   (que sobe) sairia da área visível. */
+.tooltip-below .tooltip-content {
+  bottom: auto;
+  top: 100%;
+  transform: translate(-50%, 8px);
+}
+
+.tooltip-below.has-tooltip:hover .tooltip-content {
+  transform: translate(-50%, 12px);
+}
+
+.tooltip-below .tooltip-content::after {
+  top: auto;
+  bottom: 100%;
+  border-color: transparent transparent #1e293b transparent;
+}
+
 /* Fix for tooltips in the first rows to avoid clipping by the header */
 table tbody tr:first-child .tooltip-content,
 table tbody tr:nth-child(2) .tooltip-content {
@@ -445,6 +463,11 @@ table tbody tr:nth-child(2) .tooltip-content::after {
 .card-hover:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -6px rgba(0, 0, 0, 0.1);
+  /* O transform (deste hover e da animação de entrada, que usa fill 'both')
+     transforma o card em contexto de empilhamento: o z-index do tooltip passa a
+     valer só dentro dele, e os cards seguintes no DOM o cobrem. Elevar o card
+     inteiro no hover devolve o tooltip para cima dos irmãos. */
+  z-index: 60;
 }
 
 .dark .card-hover:hover {
